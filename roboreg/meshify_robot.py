@@ -54,23 +54,23 @@ class MeshifyRobot:
         return meshes
 
     def plot_meshes(
-        self, meshes, background_color: str = "gray", mesh_color: str = "white"
+        self, meshes, background_color: str = "black", mesh_color: str = "white"
     ) -> None:
         plotter = pyvista.Plotter()
         plotter.background_color = background_color
         for mesh in meshes:
-            plotter.add_mesh(mesh, color=mesh_color)
+            plotter.add_mesh(mesh, color=mesh_color, point_size=2.0)
         plotter.show()
 
     def plot_point_clouds(
-        self, meshes, background_color: str = "gray", point_color: str = "white"
+        self, meshes, background_color: str = "black", point_color: str = "white"
     ) -> None:
         point_clouds = self.meshes_to_point_clouds(meshes)
         point_clouds = [pyvista.PolyData(point_cloud) for point_cloud in point_clouds]
         plotter = pyvista.Plotter()
         plotter.background_color = background_color
         for point_cloud in point_clouds:
-            plotter.add_mesh(point_cloud, point_size=1, color=point_color)
+            plotter.add_mesh(point_cloud, point_size=2.0, color=point_color)
         plotter.show()
 
     def meshes_to_point_clouds(
