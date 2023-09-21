@@ -29,11 +29,12 @@ class O3DRegister:
         self.observed_xyz_pcd = observed_xyz  # calls into setter
         self.mesh_xyz_pcd = mesh_xyz
         self._transformation = None
-        # com self.observed_xyz_pcd.getcenter()
         observed_com = self.observed_xyz_pcd.get_center()
         mesh_com = self.mesh_xyz_pcd.get_center()
         self._trans_init = np.identity(4)
         self._trans_init[:3, 3] = mesh_com - observed_com
+        print("Initial transformation is:")
+        print(self._trans_init)
 
     def draw_registration_result(self):
         observed_xyz_pcd = copy.deepcopy(self.observed_xyz_pcd)
