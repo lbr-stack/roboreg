@@ -21,6 +21,17 @@ def clean_xyz(xyz: np.ndarray, mask: np.ndarray) -> np.ndarray:
     return clean_xyz
 
 
+def sub_sample(data: np.ndarray, N: int) -> np.ndarray:
+    if data.shape[0] < N:
+        print(
+            "N must be smaller than the number of points in data. Using all available."
+        )
+        N = data.shape[0]
+    indices = np.random.choice(data.shape[0], N, replace=False)
+    sampled_points = data[indices]
+    return sampled_points
+
+
 class O3DRegister:
     def __init__(self, observed_xyz: np.ndarray, mesh_xyz) -> None:
         self._observed_xyz_pcd = o3d.geometry.PointCloud()
