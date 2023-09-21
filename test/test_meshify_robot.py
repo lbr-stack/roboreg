@@ -7,7 +7,7 @@ from ament_index_python import get_package_share_directory
 from roboreg.meshify_robot import MeshifyRobot
 
 
-def test_meshify_robot():
+def test_meshify_robot() -> None:
     urdf = xacro.process(
         os.path.join(
             get_package_share_directory("lbr_description"), "urdf/med7/med7.urdf.xacro"
@@ -21,3 +21,7 @@ def test_meshify_robot():
         meshes = meshify_robot.transformed_meshes(q)
         meshify_robot.plot_meshes(meshes)
         meshify_robot.plot_point_clouds(meshes)
+
+
+if __name__ == "__main__":
+    test_meshify_robot()
