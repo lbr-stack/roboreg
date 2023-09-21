@@ -40,10 +40,8 @@ class O3DRegister:
         self.observed_xyz_pcd = observed_xyz  # calls into setter
         self.mesh_xyz_pcd = mesh_xyz
         self._transformation = None
-        observed_com = self.observed_xyz_pcd.get_center()
-        mesh_com = self.mesh_xyz_pcd.get_center()
         self._trans_init = np.identity(4)
-        self._trans_init[:3, 3] = mesh_com - observed_com
+        self.center_initial_transform()
         print("Initial transformation is:")
         print(self._trans_init)
 
@@ -54,6 +52,11 @@ class O3DRegister:
         mesh_xyz_pcd.paint_uniform_color([0, 0.651, 0.929])
         observed_xyz_pcd.transform(self._transformation)
         o3d.visualization.draw_geometries([observed_xyz_pcd, mesh_xyz_pcd])
+
+    def center_initial_transform(self) -> None:
+        observed_com = self.observed_xyz_pcd.get_center()
+        mesh_com = self.mesh_xyz_pcd.get_center()
+        self._trans_init[:3, 3] = mesh_com - observed_com
 
     @property
     def observed_xyz_pcd(self) -> o3d.geometry.PointCloud:
