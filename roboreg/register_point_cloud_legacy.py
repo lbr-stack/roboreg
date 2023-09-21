@@ -3,7 +3,6 @@ import time
 from typing import Tuple
 
 from trimesh import registration
-import trimesh
 import cv2
 import numpy as np
 import pycpd
