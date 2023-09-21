@@ -7,7 +7,7 @@ import xacro
 from ament_index_python import get_package_share_directory
 
 from roboreg.meshify_robot import MeshifyRobot
-from roboreg.register import ICPRegister, clean_xyz, sub_sample
+from roboreg.register import RobustICPRegister, ICPRegister, clean_xyz
 
 
 def test_regsiter() -> None:
@@ -36,14 +36,15 @@ def test_regsiter() -> None:
     robot = MeshifyRobot(urdf=urdf, resolution="collision")
     meshes = robot.transformed_meshes(joint_state)
     mesh_xyz = robot.meshes_to_point_cloud(meshes)
+    mesh_xyz = robot.homogenous_point_cloud_sampling(mesh_xyz, 3000)
 
-    # sub-sample N points from clouds
-    N = 2000
-    mesh_xyz = sub_sample(mesh_xyz, N=N)
-    clean_observed_xyz = sub_sample(clean_observed_xyz, N=N)
-
-    # register
+    # register ICP
     register = ICPRegister(observed_xyz=clean_observed_xyz, mesh_xyz=mesh_xyz)
+    register.register()
+    register.draw_registration_result()
+
+    # register RobustICP
+    register = RobustICPRegister(observed_xyz=clean_observed_xyz, mesh_xyz=mesh_xyz)
     register.register()
     register.draw_registration_result()
 

@@ -88,8 +88,27 @@ class MeshifyRobot:
         point_cloud = mesh.points
         return point_cloud
 
-    def remove_inner_points(self, point_cloud: np.ndarray, alpha: float):
-        raise DeprecationWarning("To be re-added.")
+    def homogenous_point_cloud_sampling(
+        self, point_cloud: np.ndarray, N: int
+    ) -> np.ndarray:
+        # define a bounding box
+        min_x, max_x = point_cloud[:, 0].min(), point_cloud[:, 0].max()
+        min_y, max_y = point_cloud[:, 1].min(), point_cloud[:, 1].max()
+        min_z, max_z = point_cloud[:, 2].min(), point_cloud[:, 2].max()
+
+        # sample points
+        x = np.random.uniform(min_x, max_x, N)
+        y = np.random.uniform(min_y, max_y, N)
+        z = np.random.uniform(min_z, max_z, N)
+
+        # find corresponding points in point cloud
+        sampled_points = []
+        for i in range(N):
+            dist = np.linalg.norm(point_cloud - np.array([x[i], y[i], z[i]]), axis=1)
+            idx = np.argmin(dist)
+            sampled_points.append(point_cloud[idx])
+
+        return np.array(sampled_points)
 
     def _sub_sample(self, data: np.ndarray, N: int):
         indices = np.random.choice(data.shape[0], N, replace=False)
