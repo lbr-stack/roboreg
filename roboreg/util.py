@@ -15,6 +15,7 @@ def clean_xyz(xyz: np.ndarray, mask: np.ndarray) -> np.ndarray:
     clean_xyz = np.where(mask[..., None], xyz, np.nan)
     # remove nan
     clean_xyz = clean_xyz[~np.isnan(clean_xyz).any(axis=2)]
+    clean_xyz = clean_xyz[~np.isinf(clean_xyz).any(axis=1)]
     return clean_xyz
 
 

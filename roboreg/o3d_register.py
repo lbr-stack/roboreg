@@ -122,7 +122,7 @@ class ICPRegister(O3DRegister):
     def __init__(self, observed_xyz: np.ndarray, mesh_xyz: np.ndarray) -> None:
         super().__init__(observed_xyz, mesh_xyz)
 
-    def register(self, threshold: float = 1.0) -> None:
+    def register(self, threshold: float = 1.0, iter: int = 10000) -> None:
         print("Running point-to-point ICP.")
         reg_p2p = o3d.pipelines.registration.registration_icp(
             self.observed_xyz_pcd,
@@ -130,6 +130,7 @@ class ICPRegister(O3DRegister):
             threshold,
             self._trans_init,
             o3d.pipelines.registration.TransformationEstimationPointToPoint(),
+            o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=iter),
         )
         print("Transformation is:")
         print(reg_p2p.transformation)
@@ -141,14 +142,21 @@ class RobustICPRegister(O3DRegister):
     def __init__(self, observed_xyz: np.ndarray, mesh_xyz: np.ndarray) -> None:
         super().__init__(observed_xyz, mesh_xyz)
 
-    def register(self, threshold: float = 1.0, sigma: float = 0.1) -> None:
+    def register(
+        self, threshold: float = 1.0, sigma: float = 0.1, iter: int = 10000
+    ) -> None:
         self.observed_xyz_pcd.estimate_normals()
         self.mesh_xyz_pcd.estimate_normals()
 
         loss = o3d.pipelines.registration.TukeyLoss(k=sigma)
         p2l = o3d.pipelines.registration.TransformationEstimationPointToPlane(loss)
         reg_p2l = o3d.pipelines.registration.registration_icp(
-            self.observed_xyz_pcd, self.mesh_xyz_pcd, threshold, self._trans_init, p2l
+            self.observed_xyz_pcd,
+            self.mesh_xyz_pcd,
+            threshold,
+            self._trans_init,
+            p2l,
+            o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=iter),
         )
         print("Transformation is:")
         print(reg_p2l.transformation)
