@@ -64,7 +64,9 @@ class O3DRegister:
 
     @observed_xyz_pcd.setter
     def observed_xyz_pcd(self, observed_xyz: np.ndarray):
-        self._observed_xyz_pcd.points = o3d.utility.Vector3dVector(observed_xyz)
+        self._observed_xyz_pcd.points = o3d.utility.Vector3dVector(
+            copy.deepcopy(observed_xyz)
+        )
 
     @property
     def mesh_xyz_pcd(self) -> o3d.geometry.PointCloud:
@@ -72,10 +74,75 @@ class O3DRegister:
 
     @mesh_xyz_pcd.setter
     def mesh_xyz_pcd(self, mesh_xyz: np.ndarray):
-        self._mesh_xyz_pcd.points = o3d.utility.Vector3dVector(mesh_xyz)
+        self._mesh_xyz_pcd.points = o3d.utility.Vector3dVector(copy.deepcopy(mesh_xyz))
 
     def register(self) -> None:
         raise NotImplementedError
+
+
+class GlobalRegistration(O3DRegister):
+    # http://www.open3d.org/docs/release/tutorial/pipelines/global_registration.html
+    def __init__(self, observed_xyz: np.ndarray, mesh_xyz: np.ndarray) -> None:
+        super().__init__(observed_xyz, mesh_xyz)
+
+    def register(self, voxel_size: float = 0.01) -> None:
+        (
+            observed_xyz_pcd_down,
+            observed_xyz_pcd_fpfh,
+        ) = self._preprocess_point_cloud(self.observed_xyz_pcd, voxel_size)
+
+        (
+            mesh_xyz_pcd_down,
+            mesh_xyz_pcd_fpfh,
+        ) = self._preprocess_point_cloud(self.mesh_xyz_pcd, voxel_size)
+
+        distance_threshold = voxel_size * 1.5
+        print("RANSAC registration on downsampled point clouds.")
+        print("   Since the downsampling voxel size is %.3f," % voxel_size)
+        print("   we use a liberal distance threshold %.3f." % distance_threshold)
+        result = (
+            o3d.pipelines.registration.registration_ransac_based_on_feature_matching(
+                observed_xyz_pcd_down,
+                mesh_xyz_pcd_down,
+                observed_xyz_pcd_fpfh,
+                mesh_xyz_pcd_fpfh,
+                True,
+                distance_threshold,
+                o3d.pipelines.registration.TransformationEstimationPointToPoint(False),
+                3,
+                [
+                    o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(
+                        0.9
+                    ),
+                    o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(
+                        distance_threshold
+                    ),
+                ],
+                o3d.pipelines.registration.RANSACConvergenceCriteria(100000, 0.999),
+            )
+        )
+
+        self._transformation = result.transformation
+
+    def _preprocess_point_cloud(
+        self, pcd: o3d.geometry.PointCloud, voxel_size: float
+    ) -> o3d.geometry.PointCloud:
+        print("Downsample with a voxel size %.3f." % voxel_size)
+        pcd_down = pcd.voxel_down_sample(voxel_size)
+
+        radius_normal = voxel_size * 2
+        print("Estimate normal with search radius %.3f." % radius_normal)
+        pcd_down.estimate_normals(
+            o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=30)
+        )
+
+        radius_feature = voxel_size * 5
+        print("Compute FPFH feature with search radius %.3f." % radius_feature)
+        pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(
+            pcd_down,
+            o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=100),
+        )
+        return pcd_down, pcd_fpfh
 
 
 class ICPRegister(O3DRegister):
@@ -114,9 +181,3 @@ class RobustICPRegister(O3DRegister):
         print("Transformation is:")
         print(reg_p2l.transformation)
         self._transformation = reg_p2l.transformation
-
-
-class GlobalRegistration(O3DRegister):
-    # http://www.open3d.org/docs/release/tutorial/pipelines/global_registration.html
-    def __init__(self, observed_xyz: np.ndarray, mesh_xyz: np.ndarray) -> None:
-        super().__init__(observed_xyz, mesh_xyz)

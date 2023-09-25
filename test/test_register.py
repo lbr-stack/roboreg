@@ -1,13 +1,18 @@
 import os
+
 import cv2
 import numpy as np
 import pyvista as pv
 import xacro
-
 from ament_index_python import get_package_share_directory
 
 from roboreg.meshify_robot import MeshifyRobot
-from roboreg.register import RobustICPRegister, ICPRegister, clean_xyz
+from roboreg.register import (
+    GlobalRegistration,
+    ICPRegister,
+    RobustICPRegister,
+    clean_xyz,
+)
 
 
 def test_regsiter() -> None:
@@ -36,17 +41,32 @@ def test_regsiter() -> None:
     robot = MeshifyRobot(urdf=urdf, resolution="collision")
     meshes = robot.transformed_meshes(joint_state)
     mesh_xyz = robot.meshes_to_point_cloud(meshes)
-    mesh_xyz = robot.homogenous_point_cloud_sampling(mesh_xyz, 3000)
+    # mesh_xyz = robot.homogenous_point_cloud_sampling(mesh_xyz, 3000)
 
     # register ICP
-    register = ICPRegister(observed_xyz=clean_observed_xyz, mesh_xyz=mesh_xyz)
-    register.register()
-    register.draw_registration_result()
+    icp_register = ICPRegister(observed_xyz=clean_observed_xyz, mesh_xyz=mesh_xyz)
+    icp_register.register()
+    icp_register.draw_registration_result()
 
     # register RobustICP
-    register = RobustICPRegister(observed_xyz=clean_observed_xyz, mesh_xyz=mesh_xyz)
-    register.register()
-    register.draw_registration_result()
+    robust_icp_register = RobustICPRegister(
+        observed_xyz=clean_observed_xyz, mesh_xyz=mesh_xyz
+    )
+    robust_icp_register.register()
+    robust_icp_register.draw_registration_result()
+
+    # register Global
+    global_register = GlobalRegistration(
+        observed_xyz=clean_observed_xyz, mesh_xyz=mesh_xyz
+    )
+    global_register.register(voxel_size=0.02)
+    global_register.draw_registration_result()
+
+    # refine registration using ICP
+    icp_register = ICPRegister(observed_xyz=clean_observed_xyz, mesh_xyz=mesh_xyz)
+    icp_register._trans_init = global_register._transformation
+    icp_register.register()
+    icp_register.draw_registration_result()
 
 
 if __name__ == "__main__":
