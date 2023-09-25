@@ -11,7 +11,7 @@ from roboreg.o3d_register import GlobalRegistration, ICPRegister, RobustICPRegis
 from roboreg.util import clean_xyz
 
 
-def test_regsiter(idx: int = 1) -> None:
+def test_o3d_register(idx: int = 1) -> None:
     # load data
     mask = cv2.imread(f"test/data/mask_{idx}.png", cv2.IMREAD_GRAYSCALE)
     observed_xyz = np.load(f"test/data/xyz_{idx}.npy")
@@ -66,4 +66,4 @@ def test_regsiter(idx: int = 1) -> None:
 
 
 if __name__ == "__main__":
-    test_regsiter(idx=1)
+    test_o3d_register(idx=1)
