@@ -7,12 +7,8 @@ import xacro
 from ament_index_python import get_package_share_directory
 
 from roboreg.meshify_robot import MeshifyRobot
-from roboreg.register import (
-    GlobalRegistration,
-    ICPRegister,
-    RobustICPRegister,
-    clean_xyz,
-)
+from roboreg.o3d_register import GlobalRegistration, ICPRegister, RobustICPRegister
+from roboreg.util import clean_xyz
 
 
 def test_regsiter(idx: int = 1) -> None:
