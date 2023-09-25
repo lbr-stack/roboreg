@@ -15,11 +15,11 @@ from roboreg.register import (
 )
 
 
-def test_regsiter() -> None:
+def test_regsiter(idx: int = 1) -> None:
     # load data
-    mask = cv2.imread("test/data/mask_3.png", cv2.IMREAD_GRAYSCALE)
-    observed_xyz = np.load("test/data/xyz_3.npy")
-    joint_state = np.load("test/data/joint_state_3.npy")
+    mask = cv2.imread(f"test/data/mask_{idx}.png", cv2.IMREAD_GRAYSCALE)
+    observed_xyz = np.load(f"test/data/xyz_{idx}.npy")
+    joint_state = np.load(f"test/data/joint_state_{idx}.npy")
 
     # clean cloud
     clean_observed_xyz = clean_xyz(observed_xyz, mask)
@@ -70,4 +70,4 @@ def test_regsiter() -> None:
 
 
 if __name__ == "__main__":
-    test_regsiter()
+    test_regsiter(idx=1)
