@@ -3,13 +3,11 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import numpy as np
-import torch
 import open3d as o3d
+import torch
 from common import load_data
 
 from roboreg.instance_icp import InstanceICP
-from roboreg.o3d_robot import O3DRobot
 
 
 def test_kabsh_algorithm():
@@ -68,6 +66,7 @@ def test_kabsh_algorithm():
     # visualize
     o3d.visualization.draw_geometries(observed_xyzs_pcds + mesh_xyzs_pcds)
 
+
 def test_instance_icp():
     observed_xyzs, mesh_xyzs = load_data(idcs=[0, 1, 2], scan=False, visualize=False)
 
@@ -86,10 +85,10 @@ def test_instance_icp():
     instance_icp(observed_xyzs, mesh_xyzs)
 
     # visualize initial homogenous transform
-    HT_init = instance_icp.HT_init
+    HT = instance_icp.HT
 
     # to numpy
-    HT_init = HT_init.cpu().numpy()
+    HT = HT.cpu().numpy()
     for i in range(len(observed_xyzs)):
         observed_xyzs[i] = observed_xyzs[i].cpu().numpy()
         mesh_xyzs[i] = mesh_xyzs[i].cpu().numpy()
@@ -119,11 +118,12 @@ def test_instance_icp():
 
     # transform mesh
     for i in range(len(mesh_xyzs_pcds)):
-        mesh_xyzs_pcds[i] = mesh_xyzs_pcds[i].transform(HT_init)
+        mesh_xyzs_pcds[i] = mesh_xyzs_pcds[i].transform(HT)
 
     # visualize
     o3d.visualization.draw_geometries(observed_xyzs_pcds + mesh_xyzs_pcds)
 
 
 if __name__ == "__main__":
-    test_kabsh_algorithm()
+    # test_kabsh_algorithm()
+    test_instance_icp()
