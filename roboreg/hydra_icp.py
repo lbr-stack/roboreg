@@ -2,7 +2,8 @@ from typing import List
 
 import torch
 from pytorch3d.ops import corresponding_points_alignment
-from tqdm import tqdm
+from rich import print
+from rich.progress import track
 
 
 def to_homogeneous(x: torch.Tensor) -> torch.Tensor:
@@ -21,8 +22,8 @@ def kabsh_register(observation: torch.Tensor, mesh: torch.Tensor) -> torch.Tenso
     observation_centroid = torch.mean(observation, dim=-2)
     mesh_centroid = torch.mean(mesh, dim=-2)
 
-    print("observation centroid:\n", observation_centroid)
-    print("mesh centroid:\n", mesh_centroid)
+    print("observation centroid:", observation_centroid)
+    print("mesh centroid:", mesh_centroid)
 
     # compute centered points
     observation_centered = observation - observation_centroid
@@ -60,6 +61,7 @@ class HydraICP(object):
         observations: List[torch.Tensor],
         meshes: List[torch.Tensor],
         max_iter: int = 100,
+        rmse_change: float = 1e-6,
     ) -> torch.Tensor:
         # copy meshes
         meshes_clone = [mesh.clone() for mesh in meshes]
@@ -70,8 +72,8 @@ class HydraICP(object):
         ]
         mesh_centroids = [torch.mean(mesh, dim=-2) for mesh in meshes_clone]
 
-        print("Observation clouds centroids:\n", observation_centroids)
-        print("Mesh clouds centroids:\n", mesh_centroids)
+        print("Observation clouds centroids:", observation_centroids)
+        print("Mesh clouds centroids:", mesh_centroids)
 
         # estimate transform
         R, t, _ = corresponding_points_alignment(
@@ -86,9 +88,11 @@ class HydraICP(object):
         self.HT_init[:3, 3] = t
         self.HT = self.HT_init
 
-        print("HT estimate:\n", self.HT_init)
+        print("HT estimate:", self.HT_init)
 
-        for _ in tqdm(range(max_iter)):
+        prev_rsme = float("inf")
+
+        for _ in track(range(max_iter), description=f"Running Hydra ICP..."):
             for i in range(len(meshes)):
                 meshes_clone[i] = meshes[i].mm(R) + t
 
@@ -105,12 +109,30 @@ class HydraICP(object):
             R = R.squeeze(0)
             t = t.squeeze(0)
 
-            # compute rsme
+            # compute rsme between observation and mesh_correspondences
+            rsme = torch.sqrt(
+                torch.mean(
+                    torch.sum(
+                        torch.pow(
+                            torch.concatenate(mesh_correspondences)
+                            - torch.concatenate(observations),
+                            2,
+                        ),
+                        dim=-1,
+                    )
+                )
+            )
+
+            if abs(prev_rsme - rsme.item()) < rmse_change:
+                print("Converged early. Exiting.")
+                break
+
+            prev_rsme = rsme.item()
 
         self.HT[:3, :3] = R.transpose(-2, -1)
         self.HT[:3, 3] = t
 
-        print("HT final:\n", self.HT)
+        print("HT final:", self.HT)
 
     def _find_correspondence_indices(
         self, observations: List[torch.Tensor], meshes: List[torch.Tensor]
