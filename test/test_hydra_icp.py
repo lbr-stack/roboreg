@@ -69,12 +69,8 @@ def test_kabsh_algorithm():
 
 
 def test_hydra_icp():
-    # fail cases: 
-    # # high res 2,3,4
-    # # high res 0
-    # # high res 0, scan = True
     observed_xyzs, mesh_xyzs = load_data(
-        idcs=[0, 1],
+        idcs=[0, 1, 2, 3, 4],
         scan=False,
         visualize=False,
         prefix="test/data/high_res",
@@ -92,7 +88,7 @@ def test_hydra_icp():
         )
 
     hydra_icp = HydraICP()
-    hydra_icp(observed_xyzs, mesh_xyzs, max_iter=int(1e6))
+    hydra_icp(observed_xyzs, mesh_xyzs, max_distance=1.0, max_iter=int(1e3))
 
     # visualize initial homogenous transform
     HT = hydra_icp.HT
@@ -117,10 +113,10 @@ def test_hydra_icp():
     [
         observed_xyzs_pcd.paint_uniform_color(
             [
+                0.5,
+                0.8,
                 0.5
                 + (len(observed_xyzs_pcds) - idx - 1) / len(observed_xyzs_pcds) / 2.0,
-                0.8,
-                0.0,
             ]
         )
         for idx, observed_xyzs_pcd in enumerate(observed_xyzs_pcds)
@@ -128,9 +124,9 @@ def test_hydra_icp():
     [
         mesh_xyzs_pcd.paint_uniform_color(
             [
-                0.5,
-                0.5,
                 0.5 + (len(mesh_xyzs_pcds) - idx - 1) / len(mesh_xyzs_pcds) / 2.0,
+                0.5,
+                0.8,
             ]
         )
         for idx, mesh_xyzs_pcd in enumerate(mesh_xyzs_pcds)
@@ -139,12 +135,14 @@ def test_hydra_icp():
     # visualize
     visualizer = o3d.visualization.Visualizer()
     visualizer.create_window()
+
     visualizer.get_render_option().background_color = np.asarray([0, 0, 0])
     for observed_xyzs_pcd in observed_xyzs_pcds:
         visualizer.add_geometry(observed_xyzs_pcd)
     for mesh_xyzs_pcd in mesh_xyzs_pcds:
         visualizer.add_geometry(mesh_xyzs_pcd)
     visualizer.run()
+    visualizer.close()
 
     # transform mesh
     for i in range(len(mesh_xyzs_pcds)):
@@ -153,12 +151,14 @@ def test_hydra_icp():
     # visualize
     visualizer = o3d.visualization.Visualizer()
     visualizer.create_window()
+
     visualizer.get_render_option().background_color = np.asarray([0, 0, 0])
     for observed_xyzs_pcd in observed_xyzs_pcds:
         visualizer.add_geometry(observed_xyzs_pcd)
     for mesh_xyzs_pcd in mesh_xyzs_pcds:
         visualizer.add_geometry(mesh_xyzs_pcd)
     visualizer.run()
+    visualizer.close()
 
 
 if __name__ == "__main__":
