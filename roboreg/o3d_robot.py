@@ -9,6 +9,7 @@ import pyvista
 import transformations as tf
 from ament_index_python import get_package_share_directory
 from kinpy.chain import Chain
+from rich import print
 
 
 class O3DRobot:

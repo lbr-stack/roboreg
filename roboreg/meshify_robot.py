@@ -11,6 +11,7 @@ import trimesh
 from ament_index_python import get_package_share_directory
 from kinpy.chain import Chain
 from pyvista import pyvista_ndarray
+from rich import print
 
 
 class MeshifyRobot:

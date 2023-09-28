@@ -25,11 +25,11 @@ def test_kabsh_algorithm():
             dtype=torch.float32, device=device
         )
 
-    instance_icp = HydraICP()
-    instance_icp(observed_xyzs, mesh_xyzs)
+    hydra_icp = HydraICP()
+    hydra_icp(observed_xyzs, mesh_xyzs)
 
     # visualize initial homogenous transform
-    HT_init = instance_icp.HT_init
+    HT_init = hydra_icp.HT_init
 
     # to numpy
     HT_init = HT_init.cpu().numpy()
@@ -68,9 +68,13 @@ def test_kabsh_algorithm():
     o3d.visualization.draw_geometries(observed_xyzs_pcds + mesh_xyzs_pcds)
 
 
-def test_instance_icp():
+def test_hydra_icp():
+    # fail cases: 
+    # # high res 2,3,4
+    # # high res 0
+    # # high res 0, scan = True
     observed_xyzs, mesh_xyzs = load_data(
-        idcs=[0, 1, 2, 3, 4],
+        idcs=[0, 1],
         scan=False,
         visualize=False,
         prefix="test/data/high_res",
@@ -87,11 +91,11 @@ def test_instance_icp():
             dtype=torch.float32, device=device
         )
 
-    instance_icp = HydraICP()
-    instance_icp(observed_xyzs, mesh_xyzs)
+    hydra_icp = HydraICP()
+    hydra_icp(observed_xyzs, mesh_xyzs, max_iter=int(1e6))
 
     # visualize initial homogenous transform
-    HT = instance_icp.HT
+    HT = hydra_icp.HT
 
     # to numpy
     HT = HT.cpu().numpy()
@@ -159,4 +163,4 @@ def test_instance_icp():
 
 if __name__ == "__main__":
     # test_kabsh_algorithm()
-    test_instance_icp()
+    test_hydra_icp()
