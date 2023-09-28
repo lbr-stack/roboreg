@@ -8,7 +8,7 @@ import open3d as o3d
 import torch
 from common import load_data
 
-from roboreg.instance_icp import InstanceICP
+from roboreg.hydra_icp import HydraICP
 
 
 def test_kabsh_algorithm():
@@ -25,7 +25,7 @@ def test_kabsh_algorithm():
             dtype=torch.float32, device=device
         )
 
-    instance_icp = InstanceICP()
+    instance_icp = HydraICP()
     instance_icp(observed_xyzs, mesh_xyzs)
 
     # visualize initial homogenous transform
@@ -87,7 +87,7 @@ def test_instance_icp():
             dtype=torch.float32, device=device
         )
 
-    instance_icp = InstanceICP()
+    instance_icp = HydraICP()
     instance_icp(observed_xyzs, mesh_xyzs)
 
     # visualize initial homogenous transform

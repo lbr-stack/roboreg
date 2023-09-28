@@ -47,7 +47,7 @@ def kabsh_register(observation: torch.Tensor, mesh: torch.Tensor) -> torch.Tenso
     return HT
 
 
-class InstanceICP(object):
+class HydraICP(object):
     HT: torch.Tensor
     HT_init: torch.Tensor
 
