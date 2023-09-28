@@ -3,6 +3,7 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import numpy as np
 import open3d as o3d
 import torch
 from common import load_data
@@ -68,7 +69,12 @@ def test_kabsh_algorithm():
 
 
 def test_instance_icp():
-    observed_xyzs, mesh_xyzs = load_data(idcs=[0, 1, 2], scan=False, visualize=False)
+    observed_xyzs, mesh_xyzs = load_data(
+        idcs=[0, 1, 2, 3, 4],
+        scan=False,
+        visualize=False,
+        prefix="test/data/high_res",
+    )
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -103,25 +109,52 @@ def test_instance_icp():
         for mesh_xyz in mesh_xyzs
     ]
 
-    # color
+    # array of colors
     [
-        observed_xyzs_pcd.paint_uniform_color([1, 0.706, 0])
-        for observed_xyzs_pcd in observed_xyzs_pcds
+        observed_xyzs_pcd.paint_uniform_color(
+            [
+                0.5
+                + (len(observed_xyzs_pcds) - idx - 1) / len(observed_xyzs_pcds) / 2.0,
+                0.8,
+                0.0,
+            ]
+        )
+        for idx, observed_xyzs_pcd in enumerate(observed_xyzs_pcds)
     ]
     [
-        mesh_xyzs_pcd.paint_uniform_color([0, 0.651, 0.929])
-        for mesh_xyzs_pcd in mesh_xyzs_pcds
+        mesh_xyzs_pcd.paint_uniform_color(
+            [
+                0.5,
+                0.5,
+                0.5 + (len(mesh_xyzs_pcds) - idx - 1) / len(mesh_xyzs_pcds) / 2.0,
+            ]
+        )
+        for idx, mesh_xyzs_pcd in enumerate(mesh_xyzs_pcds)
     ]
 
     # visualize
-    o3d.visualization.draw_geometries(observed_xyzs_pcds + mesh_xyzs_pcds)
+    visualizer = o3d.visualization.Visualizer()
+    visualizer.create_window()
+    visualizer.get_render_option().background_color = np.asarray([0, 0, 0])
+    for observed_xyzs_pcd in observed_xyzs_pcds:
+        visualizer.add_geometry(observed_xyzs_pcd)
+    for mesh_xyzs_pcd in mesh_xyzs_pcds:
+        visualizer.add_geometry(mesh_xyzs_pcd)
+    visualizer.run()
 
     # transform mesh
     for i in range(len(mesh_xyzs_pcds)):
         mesh_xyzs_pcds[i] = mesh_xyzs_pcds[i].transform(HT)
 
     # visualize
-    o3d.visualization.draw_geometries(observed_xyzs_pcds + mesh_xyzs_pcds)
+    visualizer = o3d.visualization.Visualizer()
+    visualizer.create_window()
+    visualizer.get_render_option().background_color = np.asarray([0, 0, 0])
+    for observed_xyzs_pcd in observed_xyzs_pcds:
+        visualizer.add_geometry(observed_xyzs_pcd)
+    for mesh_xyzs_pcd in mesh_xyzs_pcds:
+        visualizer.add_geometry(mesh_xyzs_pcd)
+    visualizer.run()
 
 
 if __name__ == "__main__":

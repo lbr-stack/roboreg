@@ -14,15 +14,18 @@ from roboreg.util import clean_xyz
 
 
 def load_data(
-    idcs: List[int], scan: bool = True, visualize: bool = False
+    idcs: List[int],
+    scan: bool = True,
+    visualize: bool = False,
+    prefix: str = "test/data/low_res",
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     clean_observed_xyzs = []
     mesh_xyzs = []
     for idx in idcs:
         # load data
-        mask = cv2.imread(f"test/data/high_res/mask_{idx}.png", cv2.IMREAD_GRAYSCALE)
-        observed_xyz = np.load(f"test/data/high_res/xyz_{idx}.npy")
-        joint_state = np.load(f"test/data/high_res/joint_state_{idx}.npy")
+        mask = cv2.imread(f"{prefix}/mask_{idx}.png", cv2.IMREAD_GRAYSCALE)
+        observed_xyz = np.load(f"{prefix}/xyz_{idx}.npy")
+        joint_state = np.load(f"{prefix}/joint_state_{idx}.npy")
 
         # clean cloud
         clean_observed_xyzs.append(clean_xyz(observed_xyz, mask))
