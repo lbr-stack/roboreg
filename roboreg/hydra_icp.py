@@ -11,6 +11,11 @@ def to_homogeneous(x: torch.Tensor) -> torch.Tensor:
     return torch.nn.functional.pad(x, (0, 1), "constant", 1.0)
 
 
+def from_homogeneous(x: torch.Tensor) -> torch.Tensor:
+    """Converts a tensor of shape (..., N+1) to (..., N)."""
+    return x[..., :-1]
+
+
 def kabsh_register(observation: torch.Tensor, mesh: torch.Tensor) -> torch.Tensor:
     r"""Kabsh algorithm: https://en.wikipedia.org/wiki/Kabsch_algorithm
 
@@ -60,6 +65,7 @@ class HydraICP(object):
         self,
         observations: List[torch.Tensor],
         meshes: List[torch.Tensor],
+        max_distance: float = 0.1,
         max_iter: int = 100,
         rmse_change: float = 1e-6,
     ) -> torch.Tensor:
@@ -96,15 +102,22 @@ class HydraICP(object):
             for i in range(len(meshes)):
                 meshes_clone[i] = meshes[i].mm(R) + t
 
-            argmins = self._find_correspondence_indices(observations, meshes_clone)
+            argmins = self._find_correspondence_indices(
+                observations, meshes_clone, max_distance
+            )
 
             mesh_correspondences = []
             for i in range(len(meshes)):
                 mesh_correspondences.append(meshes[i][argmins[i]])
 
+            mesh_correspondences_concat = torch.concatenate(
+                mesh_correspondences
+            ).unsqueeze(0)
+            observations_concat = torch.concatenate(observations).unsqueeze(0)
+
             R, t, _ = corresponding_points_alignment(
-                torch.concatenate(mesh_correspondences).unsqueeze(0),
-                torch.concatenate(observations).unsqueeze(0),
+                mesh_correspondences_concat,
+                observations_concat,
             )
             R = R.squeeze(0)
             t = t.squeeze(0)
@@ -114,8 +127,7 @@ class HydraICP(object):
                 torch.mean(
                     torch.sum(
                         torch.pow(
-                            torch.concatenate(mesh_correspondences)
-                            - torch.concatenate(observations),
+                            mesh_correspondences_concat - observations_concat,
                             2,
                         ),
                         dim=-1,
@@ -135,7 +147,10 @@ class HydraICP(object):
         print("HT final:", self.HT)
 
     def _find_correspondence_indices(
-        self, observations: List[torch.Tensor], meshes: List[torch.Tensor]
+        self,
+        observations: List[torch.Tensor],
+        meshes: List[torch.Tensor],
+        max_dist: float = 0.1,
     ) -> List[torch.Tensor]:
         r"""For each point in observation, find nearest neighbor index in mesh.
 
@@ -149,6 +164,9 @@ class HydraICP(object):
         argmins = []
         for observation, mesh in zip(observations, meshes):
             distance = torch.cdist(observation, mesh)  # (Mi, Ni)
+            distance = torch.where(
+                distance < max_dist, distance, torch.full_like(distance, float("inf"))
+            )
             _, argmin = torch.min(distance, dim=-1)  # (Mi)
             argmins.append(argmin)
 
