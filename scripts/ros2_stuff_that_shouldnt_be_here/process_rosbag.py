@@ -6,7 +6,7 @@ import cv2
 import cv_bridge
 import numpy as np
 import rosbag2_py
-from roboreg.ros2_stuff_that_shouldnt_be_here.common import get_rosbag_options
+from common import get_rosbag_options
 from rclpy.serialization import deserialize_message
 from rosbag2_py import SequentialReader
 from rosidl_runtime_py.utilities import get_message
@@ -228,5 +228,5 @@ if __name__ == "__main__":
         bag_path,
         topics,
         absolute_output_path="/media/martin/Samsung_T5/23_07_04_faros_integration_week_measurements/self_registration/self_observation_rosbag",
-        visualize=False,
+        visualize=True,
     )
