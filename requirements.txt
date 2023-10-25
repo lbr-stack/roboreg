@@ -1,0 +1,7 @@
+ament_index_python
+kinpy
+numpy
+open3d
+pyvista
+transformations
+trimesh
