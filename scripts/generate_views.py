@@ -23,6 +23,9 @@ for mesh in meshes:
 # open3d: http://www.open3d.org/docs/latest/tutorial/geometry/pointcloud.html#Hidden-point-removal
 # open3d blogpost: https://towardsdatascience.com/3d-data-processing-with-open3d-c3062aadc72e
 
+
+# ray casting: http://www.open3d.org/docs/latest/tutorial/geometry/ray_casting.html
+
 # next supervisor meeting:
 #    # re-write MeshifyRobot to open3d
 #    # generate N random views, given camera position
