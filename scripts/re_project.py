@@ -44,6 +44,15 @@ def main() -> None:
 
     render = rendering.OffscreenRenderer(width, height)
 
+    # pinhole_intrinsic = o3d.camera.PinholeCameraIntrinsic(
+    #     width=width,
+    #     height=height,
+    #     fx=640,
+    #     fy=640,
+    #     cx=320,
+    #     cy=320,
+    # )
+
     mtl = o3d.visualization.rendering.MaterialRecord()
     mtl.base_color = [1.0, 1.0, 1.0, 1.0]  # RGBA
     mtl.shader = "defaultUnlit"
@@ -53,34 +62,55 @@ def main() -> None:
         render.scene.add_geometry(f"link_{idx}", mesh, mtl)
 
     # homogeneous -> optical -> look at
-    HT = np.load(os.path.join(path, ht_file))  # camera -> base frame (reference)
-    # print(HT)
-    # print("norm: ", np.linalg.norm(HT[:3, 3]))
-    HT_inv = np.linalg.inv(HT)  # base frame (reference / world) -> camera
-    # print(HT)
-    # print("norm: ", np.linalg.norm(HT[:3, 3]))
-    HT_optical = tf.quaternion_matrix([0.5, -0.5, 0.5, -0.5])  # camera -> optical
-    HT_opengl = tf.euler_matrix(np.pi, 0.0, 0.0, axes="sxyz")  # optical -> opengl
+    HT_cam_base = np.load(
+        os.path.join(path, ht_file)
+    )  # camera -> base frame (reference)
+    HT_base_cam = np.linalg.inv(HT_cam_base)  # base frame (reference / world) -> camera
+    print("HT_base_cam:\n", HT_base_cam)
+    print("quat HT_base_cam:\n", tf.quaternion_from_matrix(HT_base_cam))
+    print("trans HT_base_cam:\n", HT_base_cam[:3, 3])
 
-    HT_opengl_global = HT_opengl @ HT_optical @ HT_inv  # base frame -> opengl
-    # HT_opengl_global = np.linalg.inv(HT_opengl_global)
-    print(HT_opengl_global)
+    # static transforms
+    HT_cam_optical = tf.quaternion_matrix([0.5, -0.5, 0.5, -0.5])  # camera -> optical
+
+    # base to optical frame
+    HT_base_optical = HT_base_cam @ HT_cam_optical  # base frame -> optical
+
+    print("HT_base_optical:\n", HT_base_optical)
+    print("quat HT_base_optical:\n", tf.quaternion_from_matrix(HT_base_optical))
+    print("trans HT_base_optical:\n", HT_base_optical[:3, 3])
 
     # HT to look at... meshrender https://github.com/BerkeleyAutomation/meshrender
-    up = -HT_opengl_global[1, :3]
-    center = -HT_opengl_global[2, :3]
-    eye = -np.linalg.inv(HT_opengl_global[:3, :3]) @ HT_opengl_global[:3, 3]
+    HT_optical_base = np.linalg.inv(HT_base_optical)
+    up = -HT_optical_base[1, :3]
+    eye = -np.linalg.inv(HT_optical_base[:3, :3]) @ HT_optical_base[:3, 3]
 
-    # ## guessed
-    # center = np.array([0, 1, 0])
-    # eye = np.array([0.4, -1.1, 0.4])
-    # up = np.array([0, 0, 1])
+    center = eye + HT_optical_base[2, :3]
 
     print("center: ", center.transpose())
     print("eye: ", eye.transpose())
     print("up: ", up.transpose())
 
+    scale_height = 640.0 / 448.0
+    scale_width = 360.0 / 256.0
+    intrinsic_matrix = np.array(
+        [
+            [184.9792022705078 * scale_height, 0.0, 222.7788848876953 * scale_height],
+            [0.0, 187.91539001464844 * scale_width, 123.90357971191406 * scale_width],
+            [0.0, 0.0, 1.0],
+        ]
+    )
+
+    render.setup_camera(
+        intrinsic_matrix,
+        HT_base_optical,
+        width,
+        height,
+    )
+
+    # look at
     render.scene.camera.look_at(center, eye, up)
+
     img_o3d = render.render_to_image()
 
     # we can now save the rendered image right at this point
