@@ -1,12 +1,13 @@
 import os
+from typing import Tuple
 
+import cv2
 import numpy as np
 import open3d as o3d
 import open3d.visualization.rendering as rendering
 import transformations as tf
 import xacro
 from ament_index_python import get_package_share_directory
-import cv2
 
 from roboreg.o3d_robot import O3DRobot
 
@@ -15,24 +16,16 @@ from roboreg.o3d_robot import O3DRobot
 # camera matrix
 
 
-def main() -> None:
-    width = 640  # same as mask
-    height = 360
-    path = "/home/martin/Dev/records/23_10_05_base_to_base_reg/left_low_res"
-    ht_file = "ht.npy"
-    joint_state_file = "joint_state_0.npy"
-    mask_file = "mask_0.png"
-    img_file = "img_0.png"
-
-    # load robot
-    urdf = xacro.process(
-        os.path.join(
-            get_package_share_directory("lbr_description"), "urdf/med7/med7.urdf.xacro"
-        )
-    )
-
-    robot = O3DRobot(urdf)
-
+def render(
+    robot: O3DRobot,
+    width: int = 640,
+    height: int = 360,
+    path: str = "/home/martin/Dev/records/23_10_05_base_to_base_reg/left_low_res",
+    ht_file: str = "ht.npy",
+    joint_state_file: str = "joint_state_0.npy",
+    mask_file: str = "mask_0.png",
+    img_file: str = "img_0.png",
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     # re-configure robot
     joint_state = np.load(os.path.join(path, joint_state_file))
     robot.set_joint_positions(joint_state)
@@ -119,20 +112,60 @@ def main() -> None:
     # plot diff
     mask = cv2.imread(os.path.join(path, mask_file), cv2.IMREAD_GRAYSCALE)
     mask_render = cv2.cvtColor(np.asarray(img_o3d), cv2.COLOR_RGB2GRAY)
-    mask_render = np.where(mask_render > 10, 255, 0).astype(np.uint8)
+    mask_render = np.where(mask_render > 128, 255, 0).astype(np.uint8)
 
     img = cv2.imread(os.path.join(path, img_file))
 
     # pad zeros to mask
-    mask_render = np.stack(
+    mask_color_render = np.stack(
         [mask_render, np.zeros_like(mask_render), np.zeros_like(mask_render)], axis=2
     )
 
-    overlay = cv2.addWeighted(img, 1.0, mask_render, 1.0, 0)
+    overlay = cv2.addWeighted(img, 1.0, mask_color_render, 1.0, 0)
 
-    cv2.imshow("overlay", overlay)
-    cv2.waitKey()
+    return img, mask, mask_render, overlay
 
 
 if __name__ == "__main__":
-    main()
+    output_prefix = "/tmp/img"
+
+    # load robot
+    urdf = xacro.process(
+        os.path.join(
+            get_package_share_directory("lbr_description"), "urdf/med7/med7.urdf.xacro"
+        )
+    )
+
+    robot = O3DRobot(urdf)
+
+    for i in range(8):
+        img, mask, mask_render, overlay = render(
+            robot=robot,
+            width=640,
+            height=360,
+            path="/home/martin/Dev/records/23_10_05_base_to_base_reg/left_low_res",
+            ht_file="ht.npy",
+            joint_state_file=f"joint_state_{i}.npy",
+            mask_file=f"mask_{i}.png",
+            img_file=f"img_{i}.png",
+        )
+
+        diff = np.abs(mask - mask_render)
+
+        # resize to double size
+        img = cv2.resize(img, [int(size * 4) for size in img.shape[:2][::-1]])
+        mask = cv2.resize(mask, [int(size * 4) for size in mask.shape[:2][::-1]])
+        mask_render = cv2.resize(
+            mask_render, [int(size * 4) for size in mask_render.shape[:2][::-1]]
+        )
+        diff = cv2.resize(diff, [int(size * 4) for size in diff.shape[:2][::-1]])
+        overlay = cv2.resize(
+            overlay, [int(size * 4) for size in overlay.shape[:2][::-1]]
+        )
+
+        cv2.imwrite(os.path.join(output_prefix, f"img_{i}.jpg"), img)
+        cv2.imwrite(os.path.join(output_prefix, f"mask_{i}.jpg"), mask)
+        cv2.imwrite(os.path.join(output_prefix, f"mask_render_{i}.jpg"), mask_render)
+        cv2.imwrite(os.path.join(output_prefix, f"diff_{i}.jpg"), diff)
+        cv2.imwrite(os.path.join(output_prefix, f"overlay_{i}.jpg"), overlay)
+        cv2.waitKey()
