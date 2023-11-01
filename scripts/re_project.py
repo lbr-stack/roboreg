@@ -11,10 +11,6 @@ from ament_index_python import get_package_share_directory
 
 from roboreg.o3d_robot import O3DRobot
 
-# pose
-# mesh
-# camera matrix
-
 
 def render(
     robot: O3DRobot,
@@ -30,21 +26,10 @@ def render(
     joint_state = np.load(os.path.join(path, joint_state_file))
     robot.set_joint_positions(joint_state)
 
-    # robot.visualize_point_clouds()
-
     # render meshes
     meshes = robot.meshes
 
     render = rendering.OffscreenRenderer(width, height)
-
-    # pinhole_intrinsic = o3d.camera.PinholeCameraIntrinsic(
-    #     width=width,
-    #     height=height,
-    #     fx=640,
-    #     fy=640,
-    #     cx=320,
-    #     cy=320,
-    # )
 
     mtl = o3d.visualization.rendering.MaterialRecord()
     mtl.base_color = [1.0, 1.0, 1.0, 1.0]  # RGBA
