@@ -72,12 +72,16 @@ if __name__ == "__main__":
     robot = O3DRobot(urdf)
 
     # TODO: remove hardcoding and get proper intrinsics
-    scale_height = 640.0 / 448.0
-    scale_width = 360.0 / 256.0
+    width = 640
+    height = 360
+
+    scale_width = width / 448.0
+    scale_height = height / 256.0
+
     intrinsic_matrix = np.array(
         [
-            [184.9792022705078 * scale_height, 0.0, 222.7788848876953 * scale_height],
-            [0.0, 187.91539001464844 * scale_width, 123.90357971191406 * scale_width],
+            [184.9792022705078 * scale_width, 0.0, 222.7788848876953 * scale_width],
+            [0.0, 187.91539001464844 * scale_height, 123.90357971191406 * scale_height],
             [0.0, 0.0, 1.0],
         ]
     )
@@ -122,8 +126,8 @@ if __name__ == "__main__":
             joint_state=joint_state,
             intrinsic_matrix=intrinsic_matrix,
             extrinsic_matrix=HT_optical_base,
-            width=640,
-            height=360,
+            width=width,
+            height=height,
         )
 
         #################
@@ -133,7 +137,11 @@ if __name__ == "__main__":
 
         # pad zeros to mask
         o3d_render_blue = np.stack(
-            [o3d_render_gray, np.zeros_like(o3d_render_gray), np.zeros_like(o3d_render_gray)],
+            [
+                o3d_render_gray,
+                np.zeros_like(o3d_render_gray),
+                np.zeros_like(o3d_render_gray),
+            ],
             axis=2,
         )
 
@@ -157,6 +165,8 @@ if __name__ == "__main__":
         ######
         cv2.imwrite(os.path.join(output_prefix, f"img_{i}.jpg"), img)
         cv2.imwrite(os.path.join(output_prefix, f"mask_{i}.jpg"), mask)
-        cv2.imwrite(os.path.join(output_prefix, f"mask_render_{i}.jpg"), o3d_render_gray)
+        cv2.imwrite(
+            os.path.join(output_prefix, f"mask_render_{i}.jpg"), o3d_render_gray
+        )
         cv2.imwrite(os.path.join(output_prefix, f"diff_{i}.jpg"), diff)
         cv2.imwrite(os.path.join(output_prefix, f"overlay_{i}.jpg"), overlay)
