@@ -58,7 +58,7 @@ def render(
 
 
 if __name__ == "__main__":
-    input_prefix = "/home/martin/Dev/records/23_10_05_base_to_base_reg/left_low_res"
+    input_prefix = "/home/martin/Dev/records/23_10_05_base_to_base_reg/left"
     ht_file = "ht.npy"
     output_prefix = "/tmp/img"
 
@@ -74,14 +74,20 @@ if __name__ == "__main__":
     # TODO: remove hardcoding and get proper intrinsics
     width = 640
     height = 360
+    # intrinsic_matrix = np.array(
+    #     [
+    #         [263.8703308105469, 0.0, 318.25634765625],
+    #         [0.0, 263.8703308105469, 174.2410888671875],
+    #         [0.0, 0.0, 1.0],
+    #     ]
+    # )
 
-    scale_width = width / 448.0
-    scale_height = height / 256.0
-
+    width = 960
+    height = 540
     intrinsic_matrix = np.array(
         [
-            [184.9792022705078 * scale_width, 0.0, 222.7788848876953 * scale_width],
-            [0.0, 187.91539001464844 * scale_height, 123.90357971191406 * scale_height],
+            [533.9981079101562, 0.0, 478.0845642089844],
+            [0.0, 533.9981079101562, 260.9956970214844],
             [0.0, 0.0, 1.0],
         ]
     )
@@ -150,14 +156,16 @@ if __name__ == "__main__":
         diff = np.abs(mask - o3d_render_gray)
 
         # resize to double size
-        img = cv2.resize(img, [int(size * 4) for size in img.shape[:2][::-1]])
-        mask = cv2.resize(mask, [int(size * 4) for size in mask.shape[:2][::-1]])
+        scale = 2.0
+        img = cv2.resize(img, [int(size * scale) for size in img.shape[:2][::-1]])
+        mask = cv2.resize(mask, [int(size * scale) for size in mask.shape[:2][::-1]])
         o3d_render_gray = cv2.resize(
-            o3d_render_gray, [int(size * 4) for size in o3d_render_gray.shape[:2][::-1]]
+            o3d_render_gray,
+            [int(size * scale) for size in o3d_render_gray.shape[:2][::-1]],
         )
-        diff = cv2.resize(diff, [int(size * 4) for size in diff.shape[:2][::-1]])
+        diff = cv2.resize(diff, [int(size * scale) for size in diff.shape[:2][::-1]])
         overlay = cv2.resize(
-            overlay, [int(size * 4) for size in overlay.shape[:2][::-1]]
+            overlay, [int(size * scale) for size in overlay.shape[:2][::-1]]
         )
 
         ######
