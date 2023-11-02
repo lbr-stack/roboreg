@@ -69,11 +69,12 @@ def test_kabsh_algorithm():
 
 
 def test_hydra_icp():
+    prefix = "test/data/high_res"
     observed_xyzs, mesh_xyzs = load_data(
         idcs=[0, 1, 2, 3, 4],
         scan=False,
         visualize=False,
-        prefix="test/data/high_res",
+        prefix=prefix,
     )
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -95,6 +96,7 @@ def test_hydra_icp():
 
     # to numpy
     HT = HT.cpu().numpy()
+    np.save(os.path.join(prefix, "HT.npy"), HT)
     for i in range(len(observed_xyzs)):
         observed_xyzs[i] = observed_xyzs[i].cpu().numpy()
         mesh_xyzs[i] = mesh_xyzs[i].cpu().numpy()
