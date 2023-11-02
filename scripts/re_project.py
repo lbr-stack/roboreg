@@ -72,8 +72,8 @@ if __name__ == "__main__":
     robot = O3DRobot(urdf)
 
     # TODO: remove hardcoding and get proper intrinsics
-    width = 640
-    height = 360
+    # width = 640
+    # height = 360
     # intrinsic_matrix = np.array(
     #     [
     #         [263.8703308105469, 0.0, 318.25634765625],
