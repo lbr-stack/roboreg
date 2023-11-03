@@ -197,8 +197,14 @@ class HydraRobustICP(object):
     HT: torch.Tensor
 
     def __init__(self) -> None:
+        r"""Point-to-plane ICP with robust loss, https://drive.google.com/file/d/1WxBUNWh07QH4ckzaACJJWsRCyJ1iraJ7/view?usp=sharing."""
         self.HT_init = torch.eye(4)
         self.HT = torch.eye(4)
 
-    def __call__(self, observations: List[torch.Tensor], meshes: List[torch.Tensor]):
+    def __call__(
+        self,
+        observations: List[torch.Tensor],
+        meshes: List[torch.Tensor],
+        mesh_normals: List[torch.Tensor],
+    ):
         pass
