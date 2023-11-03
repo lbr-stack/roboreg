@@ -114,12 +114,12 @@ def hydra_centroid_alignment(
 
 
 class HydraICP(object):
-    HT: torch.Tensor
     HT_init: torch.Tensor
+    HT: torch.Tensor
 
     def __init__(self) -> None:
-        self.HT = torch.eye(4)
         self.HT_init = torch.eye(4)
+        self.HT = torch.eye(4)
 
     def __call__(
         self,
@@ -128,18 +128,18 @@ class HydraICP(object):
         max_distance: float = 0.1,
         max_iter: int = 100,
         rmse_change: float = 1e-6,
+        initial_alignment: bool = True,
     ) -> torch.Tensor:
         # copy meshes
         meshes_clone = [mesh.clone() for mesh in meshes]
 
-        # align centroids
-        R, t = hydra_centroid_alignment(observations, meshes_clone)
-
-        self.HT_init[:3, :3] = R.transpose(-2, -1)
-        self.HT_init[:3, 3] = t
-        self.HT = self.HT_init
-
-        print("HT estimate:", self.HT_init)
+        if initial_alignment:
+            # align centroids
+            R, t = hydra_centroid_alignment(observations, meshes_clone)
+            self.HT_init[:3, :3] = R.transpose(-2, -1)
+            self.HT_init[:3, 3] = t
+            self.HT = self.HT_init
+            print("HT estimate:", self.HT_init)
 
         prev_rsme = float("inf")
 
@@ -190,3 +190,15 @@ class HydraICP(object):
         self.HT[:3, 3] = t
 
         print("HT final:", self.HT)
+
+
+class HydraRobustICP(object):
+    HT_init: torch.Tensor
+    HT: torch.Tensor
+
+    def __init__(self) -> None:
+        self.HT_init = torch.eye(4)
+        self.HT = torch.eye(4)
+
+    def __call__(self, observations: List[torch.Tensor], meshes: List[torch.Tensor]):
+        pass
