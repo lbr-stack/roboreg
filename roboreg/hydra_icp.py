@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 import torch
 from pytorch3d.ops import corresponding_points_alignment
@@ -53,6 +53,66 @@ def kabsh_register(observation: torch.Tensor, mesh: torch.Tensor) -> torch.Tenso
     return HT
 
 
+def hydra_correspondence_indices(
+    observations: List[torch.Tensor],
+    meshes: List[torch.Tensor],
+    max_dist: float = 0.1,
+) -> List[torch.Tensor]:
+    r"""For each point in observation, find nearest neighbor index in mesh.
+
+    Args:
+        observations: List of observations of shape (Mi, 3).
+        meshes: List of meshes of shape (Ni, 3).
+
+    Returns:
+        argmins: List of indices of shape (Mi).
+    """
+    argmins = []
+    for observation, mesh in zip(observations, meshes):
+        distance = torch.cdist(observation, mesh)  # (Mi, Ni)
+        distance = torch.where(
+            distance < max_dist, distance, torch.full_like(distance, float("inf"))
+        )
+        _, argmin = torch.min(distance, dim=-1)  # (Mi)
+        argmins.append(argmin)
+
+    return argmins
+
+
+def hydra_centroid_alignment(
+    observations: List[torch.Tensor],
+    meshes: List[torch.Tensor],
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    r"""Aligns centroids of observations and meshes as an initial guess.
+
+    Args:
+        observations: List of observations of shape (Mi, 3).
+        meshes: List of meshes of shape (Ni, 3).
+
+    Returns:
+        R: Rotation matrix of shape (3, 3).
+        t: Translation vector of shape (3).
+    """
+    # for each cloud compute centroid
+    observation_centroids = [
+        torch.mean(observation, dim=-2) for observation in observations
+    ]
+    mesh_centroids = [torch.mean(mesh, dim=-2) for mesh in meshes]
+
+    print("Observation clouds centroids:", observation_centroids)
+    print("Mesh clouds centroids:", mesh_centroids)
+
+    # estimate transform
+    R, t, _ = corresponding_points_alignment(
+        torch.stack(mesh_centroids).unsqueeze(0),
+        torch.stack(observation_centroids).unsqueeze(0),
+    )
+
+    R = R.squeeze(0)
+    t = t.squeeze(0)
+    return R, t
+
+
 class HydraICP(object):
     HT: torch.Tensor
     HT_init: torch.Tensor
@@ -72,23 +132,8 @@ class HydraICP(object):
         # copy meshes
         meshes_clone = [mesh.clone() for mesh in meshes]
 
-        # for each cloud compute centroid
-        observation_centroids = [
-            torch.mean(observation, dim=-2) for observation in observations
-        ]
-        mesh_centroids = [torch.mean(mesh, dim=-2) for mesh in meshes_clone]
-
-        print("Observation clouds centroids:", observation_centroids)
-        print("Mesh clouds centroids:", mesh_centroids)
-
-        # estimate transform
-        R, t, _ = corresponding_points_alignment(
-            torch.stack(mesh_centroids).unsqueeze(0),
-            torch.stack(observation_centroids).unsqueeze(0),
-        )
-
-        R = R.squeeze(0)
-        t = t.squeeze(0)
+        # align centroids
+        R, t = hydra_centroid_alignment(observations, meshes_clone)
 
         self.HT_init[:3, :3] = R.transpose(-2, -1)
         self.HT_init[:3, 3] = t
@@ -102,7 +147,7 @@ class HydraICP(object):
             for i in range(len(meshes)):
                 meshes_clone[i] = meshes[i].mm(R) + t
 
-            argmins = self._find_correspondence_indices(
+            argmins = hydra_correspondence_indices(
                 observations, meshes_clone, max_distance
             )
 
@@ -145,29 +190,3 @@ class HydraICP(object):
         self.HT[:3, 3] = t
 
         print("HT final:", self.HT)
-
-    def _find_correspondence_indices(
-        self,
-        observations: List[torch.Tensor],
-        meshes: List[torch.Tensor],
-        max_dist: float = 0.1,
-    ) -> List[torch.Tensor]:
-        r"""For each point in observation, find nearest neighbor index in mesh.
-
-        Args:
-            observations: List of observations of shape (Mi, 3).
-            meshes: List of meshes of shape (Ni, 3).
-
-        Returns:
-            argmins: List of indices of shape (Mi).
-        """
-        argmins = []
-        for observation, mesh in zip(observations, meshes):
-            distance = torch.cdist(observation, mesh)  # (Mi, Ni)
-            distance = torch.where(
-                distance < max_dist, distance, torch.full_like(distance, float("inf"))
-            )
-            _, argmin = torch.min(distance, dim=-1)  # (Mi)
-            argmins.append(argmin)
-
-        return argmins
