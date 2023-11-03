@@ -118,7 +118,7 @@ if __name__ == "__main__":
     for idx in range(17):
         print(f"Processing {idx}")
         N = 5
-        clean_observed_xyzs, mesh_xyzs = load_data(
+        clean_observed_xyzs, mesh_xyzs, _ = load_data(
             idcs=[idx + i for i in range(N)], visualize=False
         )
         # concatenate

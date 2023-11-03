@@ -1,8 +1,5 @@
-import pathlib
-from typing import List
-
-
 import os
+import pathlib
 from typing import List, Tuple
 
 import cv2
@@ -22,9 +19,20 @@ def load_data(
     scan: bool = True,
     visualize: bool = False,
     prefix: str = "test/data/low_res",
-) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
     clean_observed_xyzs = []
     mesh_xyzs = []
+    mesh_xyzs_normals = []
+
+    # load robot
+    urdf = xacro.process(
+        os.path.join(
+            get_package_share_directory("lbr_description"),
+            "urdf/med7/med7.urdf.xacro",
+        )
+    )
+    robot = O3DRobot(urdf=urdf)
+
     for idx in idcs:
         # load data
         mask = cv2.imread(f"{prefix}/mask_{idx}.png", cv2.IMREAD_GRAYSCALE)
@@ -41,17 +49,9 @@ def load_data(
             plotter.add_mesh(clean_observed_xyzs[-1], point_size=2.0, color="white")
             plotter.show()
 
-        # load mesh
-        urdf = xacro.process(
-            os.path.join(
-                get_package_share_directory("lbr_description"),
-                "urdf/med7/med7.urdf.xacro",
-            )
-        )
-
         # transform mesh
-        robot = O3DRobot(urdf=urdf)
         mesh_xyz = None
+        mesh_xyz_normals = None
 
         if scan:
             # raycast views
@@ -79,17 +79,21 @@ def load_data(
             mesh_xyz = np.concatenate(
                 [mesh_pcd.point.positions.numpy() for mesh_pcd in mesh_pcds], axis=0
             )
+            mesh_xyz_normals = np.concatenate(
+                [mesh_pcd.point.normals.numpy() for mesh_pcd in mesh_pcds], axis=0
+            )
         else:
             robot.set_joint_positions(joint_state)
             mesh_xyz = np.concatenate(
-                [
-                    np.array(pcd.points)
-                    for pcd in robot.sample_point_clouds(number_of_points_per_link=2000)
-                ]
+                [np.array(pcd.points) for pcd in robot.sample_point_clouds()]
+            )
+            mesh_xyz_normals = np.concatenate(
+                [np.array(pcd.normals) for pcd in robot.sample_point_clouds()]
             )
         mesh_xyzs.append(mesh_xyz)
+        mesh_xyzs_normals.append(mesh_xyz_normals)
 
-    return clean_observed_xyzs, mesh_xyzs
+    return clean_observed_xyzs, mesh_xyzs, mesh_xyzs_normals
 
 
 def find_files(path: str, pattern: str = "img_*.png") -> List[str]:

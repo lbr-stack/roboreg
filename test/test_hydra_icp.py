@@ -12,7 +12,7 @@ from roboreg.hydra_icp import HydraICP
 
 
 def test_kabsh_algorithm():
-    observed_xyzs, mesh_xyzs = load_data(idcs=[0, 1, 2], scan=True, visualize=False)
+    observed_xyzs, mesh_xyzs, _ = load_data(idcs=[0, 1, 2], scan=True, visualize=False)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -70,7 +70,7 @@ def test_kabsh_algorithm():
 
 def test_hydra_icp():
     prefix = "test/data/high_res"
-    observed_xyzs, mesh_xyzs = load_data(
+    observed_xyzs, mesh_xyzs, _ = load_data(
         idcs=[0, 1, 2, 3, 4],
         scan=False,
         visualize=False,
