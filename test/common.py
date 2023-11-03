@@ -21,6 +21,16 @@ def load_data(
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     clean_observed_xyzs = []
     mesh_xyzs = []
+
+    # load robot
+    urdf = xacro.process(
+        os.path.join(
+            get_package_share_directory("lbr_description"),
+            "urdf/med7/med7.urdf.xacro",
+        )
+    )
+    robot = O3DRobot(urdf=urdf)
+
     for idx in idcs:
         # load data
         mask = cv2.imread(f"{prefix}/mask_{idx}.png", cv2.IMREAD_GRAYSCALE)
@@ -37,16 +47,7 @@ def load_data(
             plotter.add_mesh(clean_observed_xyzs[-1], point_size=2.0, color="white")
             plotter.show()
 
-        # load mesh
-        urdf = xacro.process(
-            os.path.join(
-                get_package_share_directory("lbr_description"),
-                "urdf/med7/med7.urdf.xacro",
-            )
-        )
-
         # transform mesh
-        robot = O3DRobot(urdf=urdf)
         mesh_xyz = None
 
         if scan:
