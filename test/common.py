@@ -78,6 +78,7 @@ def load_data(
             mesh_xyz = np.concatenate(
                 [mesh_pcd.point.positions.numpy() for mesh_pcd in mesh_pcds], axis=0
             )
+            [mesh_pcd.estimate_normals() for mesh_pcd in mesh_pcds]
             mesh_xyz_normals = np.concatenate(
                 [mesh_pcd.point.normals.numpy() for mesh_pcd in mesh_pcds], axis=0
             )
