@@ -84,12 +84,9 @@ def load_data(
             )
         else:
             robot.set_joint_positions(joint_state)
-            mesh_xyz = np.concatenate(
-                [np.array(pcd.points) for pcd in robot.sample_point_clouds()]
-            )
-            mesh_xyz_normals = np.concatenate(
-                [np.array(pcd.normals) for pcd in robot.sample_point_clouds()]
-            )
+            pcds = robot.sample_point_clouds()
+            mesh_xyz = np.concatenate([np.array(pcd.points) for pcd in pcds])
+            mesh_xyz_normals = np.concatenate([np.array(pcd.normals) for pcd in pcds])
         mesh_xyzs.append(mesh_xyz)
         mesh_xyzs_normals.append(mesh_xyz_normals)
 
