@@ -4,16 +4,15 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
-import open3d as o3d
 import torch
 from common import load_data, visualize_registration
 
-from roboreg.hydra_robust_icp import HydraRobustICP
+from roboreg.hydra_icp import HydraRobustICP
 
 
 def test_hydra_robust_icp():
     prefix = "test/data/low_res"
-    observed_xyzs, mesh_xyzs = load_data(
+    observed_xyzs, mesh_xyzs, mesh_xyzs_normals = load_data(
         idcs=[0, 1, 2, 3, 4],
         scan=False,
         visualize=False,
@@ -22,7 +21,7 @@ def test_hydra_robust_icp():
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    # to numpy
+    # to torch
     for i in range(len(observed_xyzs)):
         observed_xyzs[i] = torch.from_numpy(observed_xyzs[i]).to(
             dtype=torch.float32, device=device
@@ -30,9 +29,12 @@ def test_hydra_robust_icp():
         mesh_xyzs[i] = torch.from_numpy(mesh_xyzs[i]).to(
             dtype=torch.float32, device=device
         )
+        mesh_xyzs_normals[i] = torch.from_numpy(mesh_xyzs_normals[i]).to(
+            dtype=torch.float32, device=device
+        )
 
     hydra_robust_icp = HydraRobustICP()
-    hydra_robust_icp(observed_xyzs, mesh_xyzs, max_distance=1.0, max_iter=int(1e3))
+    hydra_robust_icp(observed_xyzs, mesh_xyzs, mesh_xyzs_normals, max_distance=10.0)
 
     # visualize initial homogenous transform
     HT = hydra_robust_icp.HT
@@ -45,7 +47,7 @@ def test_hydra_robust_icp():
         observed_xyzs[i] = observed_xyzs[i].cpu().numpy()
         mesh_xyzs[i] = mesh_xyzs[i].cpu().numpy()
 
-    visualize_registration(observed_xyzs, mesh_xyzs, HT)
+    visualize_registration(observed_xyzs, mesh_xyzs, np.linalg.inv(HT))
 
 
 if __name__ == "__main__":
