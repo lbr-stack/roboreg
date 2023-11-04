@@ -81,6 +81,9 @@ def hydra_correspondence_indices(
         )
 
         _, argmin = torch.min(distance, dim=-1)  # (Mi)
+
+        # where distance infinite, discard arg
+        argmin = argmin[distance[torch.arange(len(argmin)), argmin] != float("inf")]
         argmins.append(argmin)
 
     return argmins
@@ -305,7 +308,10 @@ class HydraRobustICP(object):
                 dTh[1, 3] = dTh_vec[4]
                 dTh[2, 3] = dTh_vec[5]
 
+                dTh[:3, :3] = dTh[:3, :3].T
+
                 self.HT = self.HT @ torch.linalg.matrix_exp(dTh)
+
                 observations_concat_tf = (
                     observations_concat @ self.HT[:3, :3].T + self.HT[:3, 3]
                 )
