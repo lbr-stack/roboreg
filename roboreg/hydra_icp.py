@@ -81,9 +81,6 @@ def hydra_correspondence_indices(
         )
 
         _, argmin = torch.min(distance, dim=-1)  # (Mi)
-
-        # where distance infinite, discard arg
-        argmin = argmin[distance[torch.arange(len(argmin)), argmin] != float("inf")]
         argmins.append(argmin)
 
     return argmins
