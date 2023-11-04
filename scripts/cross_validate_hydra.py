@@ -28,7 +28,7 @@ def main():
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        # to numpy
+        # to torch
         for i in range(len(observed_xyzs)):
             observed_xyzs[i] = torch.from_numpy(observed_xyzs[i]).to(
                 dtype=torch.float32, device=device
