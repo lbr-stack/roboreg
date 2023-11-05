@@ -235,33 +235,35 @@ class HydraRobustICP(object):
             print("HT estimate:\n", self.HT_init)
             print_line()
 
+        observations_cross_mat = []
+        for i in range(len(observations)):
+            # build observation cross product matrix, refer eq. 4 (gets created once)
+            observations_cross_mat.append(
+                torch.stack(
+                    [
+                        torch.zeros_like(observations_clone[i][:, 0]),
+                        -observations_clone[i][:, 2],
+                        observations_clone[i][:, 1],
+                        observations_clone[i][:, 2],
+                        torch.zeros_like(observations_clone[i][:, 0]),
+                        -observations_clone[i][:, 0],
+                        -observations_clone[i][:, 1],
+                        observations_clone[i][:, 0],
+                        torch.zeros_like(observations_clone[i][:, 0]),
+                    ],
+                    dim=-1,
+                ).reshape(-1, 3, 3)
+            )
+        observations_cross_mat = torch.concatenate(observations_cross_mat)
+
         # implementation of algorithm 1
         dTh = torch.zeros_like(self.HT)
         for _ in track(
             range(outer_max_iter), description=f"Running Hydra robust ICP..."
         ):
-            observations_cross_mat = []
             for i in range(len(observations)):
                 observations_clone[i] = (
                     observations[i] @ self.HT[:3, :3].T + self.HT[:3, 3]
-                )
-
-                # build observation cross product matrix, refer eq. 4
-                observations_cross_mat.append(
-                    torch.stack(
-                        [
-                            torch.zeros_like(observations_clone[i][:, 0]),
-                            -observations_clone[i][:, 2],
-                            observations_clone[i][:, 1],
-                            observations_clone[i][:, 2],
-                            torch.zeros_like(observations_clone[i][:, 0]),
-                            -observations_clone[i][:, 0],
-                            -observations_clone[i][:, 1],
-                            observations_clone[i][:, 0],
-                            torch.zeros_like(observations_clone[i][:, 0]),
-                        ],
-                        dim=-1,
-                    ).reshape(-1, 3, 3)
                 )
 
             # find correspondences per configuration
@@ -280,7 +282,6 @@ class HydraRobustICP(object):
 
             observations_concat = torch.concatenate(observations_clone)
             observations_concat_tf = observations_concat.clone()
-            observations_cross_mat = torch.concatenate(observations_cross_mat)
 
             for _ in range(inner_max_iter):
                 # ||A @ dTh - B||^2, refer eq. 14
@@ -304,8 +305,6 @@ class HydraRobustICP(object):
                 dTh[0, 3] = dTh_vec[3]
                 dTh[1, 3] = dTh_vec[4]
                 dTh[2, 3] = dTh_vec[5]
-
-                dTh[:3, :3] = dTh[:3, :3].T
 
                 self.HT = self.HT @ torch.linalg.matrix_exp(dTh)
 

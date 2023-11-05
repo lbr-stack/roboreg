@@ -34,7 +34,7 @@ def test_hydra_robust_icp():
         )
 
     hydra_robust_icp = HydraRobustICP()
-    hydra_robust_icp(observed_xyzs, mesh_xyzs, mesh_xyzs_normals, max_distance=10.0)
+    hydra_robust_icp(observed_xyzs, mesh_xyzs, mesh_xyzs_normals, max_distance=0.1)
 
     # visualize initial homogenous transform
     HT = hydra_robust_icp.HT
