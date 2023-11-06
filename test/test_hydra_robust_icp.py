@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from common import load_data, visualize_registration
 
-from roboreg.hydra_icp import HydraRobustICP
+from roboreg.hydra_icp import hydra_centroid_alignment, hydra_robust_icp
 
 
 def test_hydra_robust_icp():
@@ -33,11 +33,10 @@ def test_hydra_robust_icp():
             dtype=torch.float32, device=device
         )
 
-    hydra_robust_icp = HydraRobustICP()
-    hydra_robust_icp(observed_xyzs, mesh_xyzs, mesh_xyzs_normals, max_distance=0.1)
-
-    # visualize initial homogenous transform
-    HT = hydra_robust_icp.HT
+    HT_init = hydra_centroid_alignment(observed_xyzs, mesh_xyzs)
+    HT = hydra_robust_icp(
+        HT_init, observed_xyzs, mesh_xyzs, mesh_xyzs_normals, max_distance=0.1
+    )
 
     # to numpy
     HT = HT.cpu().numpy()
