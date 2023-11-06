@@ -4,12 +4,10 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
-import xacro
-from ament_index_python import get_package_share_directory
+from common import load_data
 
 from roboreg.o3d_register import GlobalRegistration, ICPRegister, RobustICPRegister
-
-from common import load_data
+from roboreg.util import generate_o3d_robot
 
 
 def test_o3d_icp_register(
@@ -44,15 +42,8 @@ def test_o3d_icp_raycast_register(
 
     joint_state = np.load(f"test/data/high_res/joint_state_{idx}.npy")
 
-    # load mesh
-    urdf = xacro.process(
-        os.path.join(
-            get_package_share_directory("lbr_description"), "urdf/med7/med7.urdf.xacro"
-        )
-    )
-
-    # transform mesh
-    robot = O3DRobot(urdf=urdf)
+    # load robot
+    robot = generate_o3d_robot()
 
     raycast = RayCastRobot(robot)
     raycast.robot.set_joint_positions(joint_state)

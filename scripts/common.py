@@ -1,4 +1,3 @@
-import os
 import pathlib
 from typing import List, Tuple
 
@@ -6,12 +5,9 @@ import cv2
 import numpy as np
 import open3d as o3d
 import pyvista as pv
-import xacro
-from ament_index_python import get_package_share_directory
 
-from roboreg.o3d_robot import O3DRobot
 from roboreg.ray_cast import RayCastRobot
-from roboreg.util import clean_xyz
+from roboreg.util import clean_xyz, generate_o3d_robot
 
 
 def load_data(
@@ -25,13 +21,7 @@ def load_data(
     mesh_xyzs_normals = []
 
     # load robot
-    urdf = xacro.process(
-        os.path.join(
-            get_package_share_directory("lbr_description"),
-            "urdf/med7/med7.urdf.xacro",
-        )
-    )
-    robot = O3DRobot(urdf=urdf)
+    robot = generate_o3d_robot()
 
     for idx in idcs:
         # load data

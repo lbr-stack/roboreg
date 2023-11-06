@@ -1,5 +1,11 @@
+import os
+
 import numpy as np
+import xacro
+from ament_index_python import get_package_share_directory
 from scipy.signal import convolve2d
+
+from roboreg.o3d_robot import O3DRobot
 
 
 def clean_xyz(xyz: np.ndarray, mask: np.ndarray = None) -> np.ndarray:
@@ -38,3 +44,18 @@ def extend_mask(mask: np.ndarray, kernel: np.ndarray = np.ones([10, 10])) -> np.
     extended_mask = convolve2d(mask, kernel, mode="same")
     extended_mask = np.where(extended_mask > 0.0, 255.0, 0.0).astype(np.uint8)
     return extended_mask
+
+
+def generate_o3d_robot(
+    package_name: str = "lbr_description",
+    relative_xacro_path: str = "urdf/med7/med7.urdf.xacro",
+) -> O3DRobot:
+    # load robot
+    urdf = xacro.process(
+        os.path.join(
+            get_package_share_directory(package_name),
+            relative_xacro_path,
+        )
+    )
+    robot = O3DRobot(urdf=urdf)
+    return robot
