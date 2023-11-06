@@ -266,6 +266,8 @@ def hydra_robust_icp(
         meshes_normals_corr = []
 
         for i in range(len(observations)):
+            if len(observations) != len(meshes):
+                raise ValueError("Length of observations and meshes must be the same.")
             # search correspondences
             observation_tf = observations[i] @ HT[:3, :3].T + HT[:3, 3]
             distances, matchindices = indices[i].search(observation_tf, 1)
