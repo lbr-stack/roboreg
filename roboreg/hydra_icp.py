@@ -89,10 +89,10 @@ def hydra_closest_correspondence_indices(
 
 def hydra_gpu_index_flat_l2(meshes: List[torch.Tensor]) -> List[faiss.GpuIndexFlatL2]:
     indices = []
+    flat_config = faiss.GpuIndexFlatConfig()
+    flat_config.device = 0
+    res = faiss.StandardGpuResources()
     for mesh in meshes:
-        res = faiss.StandardGpuResources()
-        flat_config = faiss.GpuIndexFlatConfig()
-        flat_config.device = 0
         index = faiss.GpuIndexFlatL2(res, 3, flat_config)
         index.add(mesh)
         indices.append(index)
