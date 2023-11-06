@@ -1,6 +1,10 @@
-import open3d as o3d
-import numpy as np
 import copy
+
+import faiss
+import faiss.contrib.torch_utils
+import numpy as np
+import open3d as o3d
+import torch
 
 
 def draw_registration_result(source, target, transformation):
@@ -62,7 +66,6 @@ evaluation = o3d.pipelines.registration.evaluate_registration(
 )
 print(evaluation, "\n")
 
-import torch
 
 print(f"Running PyTorch version: {torch.__version__}")
 
@@ -116,8 +119,6 @@ max_iterations = 100
 max_inner_iterations = 3
 threshold_sq = threshold**2
 
-import faiss
-import faiss.contrib.torch_utils
 
 # index = torchpq.index.IVFPQIndex(
 #  d_vector=3,
