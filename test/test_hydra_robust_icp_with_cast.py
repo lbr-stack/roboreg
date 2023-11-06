@@ -54,54 +54,57 @@ def test_hydra_robust_icp():
     cast = RayCastRobot(robot)
 
     # to optical frame
-    import transformations as tf
+    max_distance = 0.1
+    for iter in range(3):
+        import transformations as tf
 
-    HT = HT.cpu().numpy()
-    HT_cast = HT @ tf.quaternion_matrix([0.5, -0.5, 0.5, -0.5])  # to optical frame
-    HT_cast = np.linalg.inv(HT_cast)
+        HT = HT.cpu().numpy()
+        HT_cast = HT @ tf.quaternion_matrix([0.5, -0.5, 0.5, -0.5])  # to optical frame
+        HT_cast = np.linalg.inv(HT_cast)
 
-    up = -HT_cast[1, :3]
-    eye = -np.linalg.inv(HT_cast[:3, :3]) @ HT_cast[:3, 3]
-    center = eye + HT_cast[2, :3]
+        up = -HT_cast[1, :3]
+        eye = -np.linalg.inv(HT_cast[:3, :3]) @ HT_cast[:3, 3]
+        center = eye + HT_cast[2, :3]
 
-    mesh_xyzs = []
-    mesh_xyzs_normals = []
+        mesh_xyzs = []
+        mesh_xyzs_normals = []
 
-    for idx, joint_state in enumerate(joint_states):
-        cast.robot.set_joint_positions(joint_state)
-        pcd = cast.cast(
-            fov_deg=120,
-            center=center,
-            eye=eye,
-            up=up,
-            width_px=640,
-            height_px=480,
+        for idx, joint_state in enumerate(joint_states):
+            cast.robot.set_joint_positions(joint_state)
+            pcd = cast.cast(
+                fov_deg=120,
+                center=center,
+                eye=eye,
+                up=up,
+                width_px=640,
+                height_px=480,
+            )
+            try:
+                mesh_xyzs.append(
+                    torch.from_numpy(pcd.point.positions.numpy()).to(device).float()
+                )
+                print(mesh_xyzs[-1].shape)
+                pcd.estimate_normals()
+                mesh_xyzs_normals.append(
+                    torch.from_numpy(pcd.point.normals.numpy()).to(device).float()
+                )
+            except:
+                print("Failed to cast.")
+                mesh_xyzs.pop(idx)
+                observed_xyzs.pop(idx)
+                continue
+
+        # re-run hydra robust icp
+        HT = torch.from_numpy(HT).to(device).float()
+        HT = hydra_robust_icp(
+            HT,
+            observed_xyzs,
+            mesh_xyzs,
+            mesh_xyzs_normals,
+            max_distance=max_distance / 10.0**iter,
+            outer_max_iter=int(30),
+            inner_max_iter=10,
         )
-        try:
-            mesh_xyzs.append(
-                torch.from_numpy(pcd.point.positions.numpy()).to(device).float()
-            )
-            print(mesh_xyzs[-1].shape)
-            pcd.estimate_normals()
-            mesh_xyzs_normals.append(
-                torch.from_numpy(pcd.point.normals.numpy()).to(device).float()
-            )
-        except:
-            mesh_xyzs.pop(idx)
-            observed_xyzs.pop(idx)
-            continue
-
-    # re-run hydra robust icp
-    HT = torch.from_numpy(HT).to(device).float()
-    HT = hydra_robust_icp(
-        HT,
-        observed_xyzs,
-        mesh_xyzs,
-        mesh_xyzs_normals,
-        max_distance=0.01,
-        outer_max_iter=int(30),
-        inner_max_iter=10,
-    )
 
     # to numpy
     HT = HT.cpu().numpy()
