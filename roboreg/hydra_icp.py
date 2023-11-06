@@ -217,7 +217,7 @@ def hydra_robust_icp(
     meshes: List[torch.Tensor],
     mesh_normals: List[torch.Tensor],
     max_distance: float = 0.1,
-    outer_max_iter: int = 30,
+    outer_max_iter: int = 100,
     inner_max_iter: int = 3,
 ) -> torch.Tensor:
     r"""Lie-algebra point-to-plane ICP with robust loss, refer to https://drive.google.com/file/d/1WxBUNWh07QH4ckzaACJJWsRCyJ1iraJ7/view?usp=sharing.
