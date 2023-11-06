@@ -78,7 +78,7 @@ def test_ray_cast_homogeneous() -> None:
     )
 
 
-def test_ray_cast_with_centroid_align() -> None:
+def test_ray_cast_with_centroid_align(cast_ht: bool = True) -> None:
     prefix = "test/data/low_res"
     observed_xyzs = []
     mesh_xyzs = []
@@ -122,22 +122,37 @@ def test_ray_cast_with_centroid_align() -> None:
     # given HT, render
     cast = RayCastRobot(robot)
 
-    width = 640
-    height = 360
-    intrinsic_matrix = np.array(
-        [
-            [263.8703308105469, 0.0, 318.25634765625],
-            [0.0, 263.8703308105469, 174.2410888671875],
-            [0.0, 0.0, 1.0],
-        ]
-    )
+    if cast_ht:
+        width = 640
+        height = 360
+        intrinsic_matrix = np.array(
+            [
+                [263.8703308105469, 0.0, 318.25634765625],
+                [0.0, 263.8703308105469, 174.2410888671875],
+                [0.0, 0.0, 1.0],
+            ]
+        )
 
-    pcd = cast.cast_ht(
-        intrinsic_matrix=intrinsic_matrix,
-        extrinsic_matrix=HT,
-        width_px=width,
-        height_px=height,
-    )
+        pcd = cast.cast_ht(
+            intrinsic_matrix=intrinsic_matrix,
+            extrinsic_matrix=HT,
+            width_px=width,
+            height_px=height,
+        )
+    else:
+        # compute up eye center from extrinsic matrix
+        up = -HT[1, :3]
+        eye = -np.linalg.inv(HT[:3, :3]) @ HT[:3, 3]
+        center = eye + HT[2, :3]
+
+        pcd = cast.cast(
+            fov_deg=120,
+            center=center,
+            eye=eye,
+            up=up,
+            width_px=640,
+            height_px=360,
+        )
 
     o3d.visualization.draw_geometries(
         [pcd.to_legacy()],
