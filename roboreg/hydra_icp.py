@@ -1,9 +1,10 @@
-from typing import List, Tuple
+from typing import List
 
+import faiss
+import faiss.contrib.torch_utils
 import torch
-from pytorch3d.ops import (
-    corresponding_points_alignment,
-)  # TODO: remove this dependency and use kabsh_register instead
+from pytorch3d.ops import \
+    corresponding_points_alignment  # TODO: remove this dependency and use kabsh_register instead
 from rich import print
 from rich.progress import track
 
@@ -59,7 +60,7 @@ def print_line():
     print("--------------------------------------------------")
 
 
-def hydra_correspondence_indices(
+def hydra_closest_correspondence_indices(
     observations: List[torch.Tensor],
     meshes: List[torch.Tensor],
     max_distance: float = 0.1,
@@ -86,10 +87,22 @@ def hydra_correspondence_indices(
     return argmins
 
 
+def hydra_gpu_index_flat_l2(meshes: List[torch.Tensor]) -> List[faiss.GpuIndexFlatL2]:
+    indices = []
+    for mesh in meshes:
+        res = faiss.StandardGpuResources()
+        flat_config = faiss.GpuIndexFlatConfig()
+        flat_config.device = 0
+        index = faiss.GpuIndexFlatL2(res, 3, flat_config)
+        index.add(mesh)
+        indices.append(index)
+    return indices
+
+
 def hydra_centroid_alignment(
     observations: List[torch.Tensor],
     meshes: List[torch.Tensor],
-) -> Tuple[torch.Tensor, torch.Tensor]:
+) -> torch.Tensor:
     r"""Aligns centroids of observations and meshes as an initial guess.
 
     Args:
@@ -97,8 +110,7 @@ def hydra_centroid_alignment(
         meshes: List of meshes of shape (Ni, 3).
 
     Returns:
-        R: Rotation matrix of shape (3, 3).
-        t: Translation vector of shape (3).
+        HT: Homogeneous transformation of shape (4, 4).
     """
     # for each cloud compute centroid
     observation_centroids = [
@@ -117,84 +129,81 @@ def hydra_centroid_alignment(
         torch.stack(observation_centroids).unsqueeze(0),
     )
 
-    R = R.squeeze(0)
-    t = t.squeeze(0)
-    return R, t
+    HT = torch.eye(4, dtype=torch.float32, device=observations[0].device)
+    R = R.to(HT.device).squeeze(0)
+    t = t.to(HT.device).squeeze(0)
+    HT[:3, :3] = R.T
+    HT[:3, 3] = t
+    return HT
 
 
-class HydraICP(object):
-    HT: torch.Tensor
+def hydra_icp(
+    HT_init: torch.Tensor,
+    observations: List[torch.Tensor],
+    meshes: List[torch.Tensor],
+    max_distance: float = 0.1,
+    max_iter: int = 100,
+    rmse_change: float = 1e-6,
+) -> torch.Tensor:
+    HT = HT_init
 
-    def __init__(self, device: str = "cuda") -> None:
-        self.HT = torch.eye(4, device=device, dtype=torch.float32)
+    # copy meshes
+    indices = hydra_gpu_index_flat_l2(meshes)
 
-    def __call__(
-        self,
-        observations: List[torch.Tensor],
-        meshes: List[torch.Tensor],
-        max_distance: float = 0.1,
-        max_iter: int = 100,
-        rmse_change: float = 1e-6,
-        initial_alignment: bool = True,
-    ) -> torch.Tensor:
-        # copy meshes
-        meshes_clone = [mesh.clone() for mesh in meshes]
+    # registration
+    prev_rsme = float("inf")
+    for _ in track(range(max_iter), description=f"Running Hydra ICP..."):
+        observation_corr = []
+        mesh_corr = []
+        n_matches = []
+        for i in range(len(observations)):
+            # search correspondences
+            observation_tf = observations[i] @ HT[:3, :3].T + HT[:3, 3]
+            distances, matchindices = indices[i].search(observation_tf, 1)
 
-        if initial_alignment:
-            # align centroids
-            R, t = hydra_centroid_alignment(observations, meshes_clone)
-            self.HT[:3, :3] = R.T
-            self.HT[:3, 3] = t
-            print_line()
-            print("HT estimate:\n", self.HT)
-            print_line()
+            # only keep matches within max_distance
+            mask = distances.squeeze() < max_distance
+            n_matches.append(mask.sum().item())
 
-        prev_rsme = float("inf")
-        observations_concat = torch.concatenate(observations).unsqueeze(0)
-        for _ in track(range(max_iter), description=f"Running Hydra ICP..."):
-            for i in range(len(meshes)):
-                meshes_clone[i] = meshes[i] @ self.HT[:3, :3].T + self.HT[:3, 3]
+            observation_corr.append(observations[i][mask])
+            mesh_corr.append(meshes[i][matchindices[mask].squeeze()])
 
-            # find correspondences per configuration
-            argmins = hydra_correspondence_indices(
-                observations, meshes_clone, max_distance
-            )
+        observation_corr = torch.concatenate(observation_corr).unsqueeze(0)
+        mesh_corr = torch.concatenate(mesh_corr).unsqueeze(0)
 
-            # obtain correspondences given indices
-            mesh_corr = []
-            for i in range(len(meshes)):
-                mesh_corr.append(meshes[i][argmins[i]])
-            mesh_corr = torch.concatenate(mesh_corr).unsqueeze(0)
+        R, t, _ = corresponding_points_alignment(
+            observation_corr,
+            mesh_corr,
+        )
+        R = R.to(HT.device).squeeze(0)
+        t = t.to(HT.device).squeeze(0)
+        HT[:3, :3] = R.T
+        HT[:3, 3] = t
 
-            R, t, _ = corresponding_points_alignment(
-                mesh_corr,
-                observations_concat,
-            )
-            self.HT[:3, :3] = R.squeeze(0).T
-            self.HT[:3, 3] = t.squeeze(0)
-
-            # compute rsme between observation and mesh_corr
-            rsme = torch.sqrt(
-                torch.mean(
-                    torch.sum(
-                        torch.pow(
-                            mesh_corr - observations_concat,
-                            2,
-                        ),
-                        dim=-1,
-                    )
+        # compute rsme between observation and mesh_corr
+        rsme = torch.sqrt(
+            torch.mean(
+                torch.sum(
+                    torch.pow(
+                        mesh_corr - observation_corr,
+                        2,
+                    ),
+                    dim=-1,
                 )
             )
+        )
 
-            if abs(prev_rsme - rsme.item()) < rmse_change:
-                print("Converged early. Exiting.")
-                break
+        if abs(prev_rsme - rsme.item()) < rmse_change:
+            print("Converged early. Exiting.")
+            break
 
-            prev_rsme = rsme.item()
+        prev_rsme = rsme.item()
 
-        print_line()
-        print("HT final:\n", self.HT)
-        print_line()
+    print_line()
+    print("HT final:\n", HT)
+    print_line()
+
+    return HT
 
 
 class HydraRobustICP(object):
@@ -261,7 +270,7 @@ class HydraRobustICP(object):
                 )
 
             # find correspondences per configuration
-            argmins = hydra_correspondence_indices(
+            argmins = hydra_closest_correspondence_indices(
                 observations_clone, meshes, max_distance=max_distance
             )
 

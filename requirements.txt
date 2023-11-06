@@ -5,3 +5,4 @@ open3d
 pyvista
 transformations
 trimesh
+faiss
