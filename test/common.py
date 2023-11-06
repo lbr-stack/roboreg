@@ -18,9 +18,20 @@ def load_data(
     scan: bool = True,
     visualize: bool = False,
     prefix: str = "test/data/low_res",
-) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
     clean_observed_xyzs = []
     mesh_xyzs = []
+    mesh_xyzs_normals = []
+
+    # load robot
+    urdf = xacro.process(
+        os.path.join(
+            get_package_share_directory("lbr_description"),
+            "urdf/med7/med7.urdf.xacro",
+        )
+    )
+    robot = O3DRobot(urdf=urdf)
+
     for idx in idcs:
         # load data
         mask = cv2.imread(f"{prefix}/mask_{idx}.png", cv2.IMREAD_GRAYSCALE)
@@ -37,17 +48,9 @@ def load_data(
             plotter.add_mesh(clean_observed_xyzs[-1], point_size=2.0, color="white")
             plotter.show()
 
-        # load mesh
-        urdf = xacro.process(
-            os.path.join(
-                get_package_share_directory("lbr_description"),
-                "urdf/med7/med7.urdf.xacro",
-            )
-        )
-
         # transform mesh
-        robot = O3DRobot(urdf=urdf)
         mesh_xyz = None
+        mesh_xyz_normals = None
 
         if scan:
             # raycast views
@@ -75,11 +78,81 @@ def load_data(
             mesh_xyz = np.concatenate(
                 [mesh_pcd.point.positions.numpy() for mesh_pcd in mesh_pcds], axis=0
             )
+            [mesh_pcd.estimate_normals() for mesh_pcd in mesh_pcds]
+            mesh_xyz_normals = np.concatenate(
+                [mesh_pcd.point.normals.numpy() for mesh_pcd in mesh_pcds], axis=0
+            )
         else:
             robot.set_joint_positions(joint_state)
-            mesh_xyz = np.concatenate(
-                [np.array(pcd.points) for pcd in robot.sample_point_clouds()]
-            )
+            pcds = robot.sample_point_clouds()
+            mesh_xyz = np.concatenate([np.array(pcd.points) for pcd in pcds])
+            mesh_xyz_normals = np.concatenate([np.array(pcd.normals) for pcd in pcds])
         mesh_xyzs.append(mesh_xyz)
+        mesh_xyzs_normals.append(mesh_xyz_normals)
 
-    return clean_observed_xyzs, mesh_xyzs
+    return clean_observed_xyzs, mesh_xyzs, mesh_xyzs_normals
+
+
+def visualize_registration(
+    observed_xyzs: List[np.ndarray], mesh_xyzs: List[np.ndarray], HT: np.ndarray
+) -> None:
+    # visualize
+    observed_xyzs_pcds = [
+        o3d.geometry.PointCloud(o3d.utility.Vector3dVector(observed_xyz))
+        for observed_xyz in observed_xyzs
+    ]
+    mesh_xyzs_pcds = [
+        o3d.geometry.PointCloud(o3d.utility.Vector3dVector(mesh_xyz))
+        for mesh_xyz in mesh_xyzs
+    ]
+
+    # array of colors
+    [
+        observed_xyzs_pcd.paint_uniform_color(
+            [
+                0.5,
+                0.8,
+                0.5
+                + (len(observed_xyzs_pcds) - idx - 1) / len(observed_xyzs_pcds) / 2.0,
+            ]
+        )
+        for idx, observed_xyzs_pcd in enumerate(observed_xyzs_pcds)
+    ]
+    [
+        mesh_xyzs_pcd.paint_uniform_color(
+            [
+                0.5 + (len(mesh_xyzs_pcds) - idx - 1) / len(mesh_xyzs_pcds) / 2.0,
+                0.5,
+                0.8,
+            ]
+        )
+        for idx, mesh_xyzs_pcd in enumerate(mesh_xyzs_pcds)
+    ]
+
+    # visualize
+    visualizer = o3d.visualization.Visualizer()
+    visualizer.create_window()
+
+    visualizer.get_render_option().background_color = np.asarray([0, 0, 0])
+    for observed_xyzs_pcd in observed_xyzs_pcds:
+        visualizer.add_geometry(observed_xyzs_pcd)
+    for mesh_xyzs_pcd in mesh_xyzs_pcds:
+        visualizer.add_geometry(mesh_xyzs_pcd)
+    visualizer.run()
+    visualizer.close()
+
+    # transform mesh
+    for i in range(len(mesh_xyzs_pcds)):
+        mesh_xyzs_pcds[i] = mesh_xyzs_pcds[i].transform(HT)
+
+    # visualize
+    visualizer = o3d.visualization.Visualizer()
+    visualizer.create_window()
+
+    visualizer.get_render_option().background_color = np.asarray([0, 0, 0])
+    for observed_xyzs_pcd in observed_xyzs_pcds:
+        visualizer.add_geometry(observed_xyzs_pcd)
+    for mesh_xyzs_pcd in mesh_xyzs_pcds:
+        visualizer.add_geometry(mesh_xyzs_pcd)
+    visualizer.run()
+    visualizer.close()

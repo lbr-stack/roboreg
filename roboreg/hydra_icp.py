@@ -1,7 +1,11 @@
 from typing import List
 
+import faiss
+import faiss.contrib.torch_utils
 import torch
-from pytorch3d.ops import corresponding_points_alignment
+from pytorch3d.ops import (
+    corresponding_points_alignment,
+)  # TODO: remove this dependency and use kabsh_register instead
 from rich import print
 from rich.progress import track
 
@@ -27,21 +31,21 @@ def kabsh_register(observation: torch.Tensor, mesh: torch.Tensor) -> torch.Tenso
     observation_centroid = torch.mean(observation, dim=-2)
     mesh_centroid = torch.mean(mesh, dim=-2)
 
-    print("observation centroid:", observation_centroid)
-    print("mesh centroid:", mesh_centroid)
+    print("Observation centroid:", observation_centroid)
+    print("Mesh centroid:", mesh_centroid)
 
     # compute centered points
     observation_centered = observation - observation_centroid
     mesh_centered = mesh - mesh_centroid
 
     # compute covariance matrix
-    H = mesh_centered.transpose(-2, -1).mm(observation_centered)
+    H = mesh_centered.T.mm(observation_centered)
 
     # compute SVD
     U, _, V = torch.svd(H)
 
     # compute rotation
-    R = V.mm(U.transpose(-2, -1))
+    R = V.mm(U.T)
 
     # compute translation
     t = observation_centroid - R.mm(mesh_centroid.unsqueeze(-1)).squeeze(-1)
@@ -53,121 +57,252 @@ def kabsh_register(observation: torch.Tensor, mesh: torch.Tensor) -> torch.Tenso
     return HT
 
 
-class HydraICP(object):
-    HT: torch.Tensor
-    HT_init: torch.Tensor
+def print_line():
+    print("--------------------------------------------------")
 
-    def __init__(self) -> None:
-        self.HT = torch.eye(4)
-        self.HT_init = torch.eye(4)
 
-    def __call__(
-        self,
-        observations: List[torch.Tensor],
-        meshes: List[torch.Tensor],
-        max_distance: float = 0.1,
-        max_iter: int = 100,
-        rmse_change: float = 1e-6,
-    ) -> torch.Tensor:
-        # copy meshes
-        meshes_clone = [mesh.clone() for mesh in meshes]
+def hydra_closest_correspondence_indices(
+    observations: List[torch.Tensor],
+    meshes: List[torch.Tensor],
+    max_distance: float = 0.1,
+) -> List[torch.Tensor]:
+    r"""For each point in observation, find nearest neighbor index in mesh.
 
-        # for each cloud compute centroid
-        observation_centroids = [
-            torch.mean(observation, dim=-2) for observation in observations
-        ]
-        mesh_centroids = [torch.mean(mesh, dim=-2) for mesh in meshes_clone]
+    Args:
+        observations: List of observations of shape (Mi, 3).
+        meshes: List of meshes of shape (Ni, 3).
 
-        print("Observation clouds centroids:", observation_centroids)
-        print("Mesh clouds centroids:", mesh_centroids)
-
-        # estimate transform
-        R, t, _ = corresponding_points_alignment(
-            torch.stack(mesh_centroids).unsqueeze(0),
-            torch.stack(observation_centroids).unsqueeze(0),
+    Returns:
+        argmins: List of indices of shape (Mi).
+    """
+    argmins = []
+    for observation, mesh in zip(observations, meshes):
+        distance = torch.cdist(observation, mesh)  # (Mi, Ni)
+        distance = torch.where(
+            distance < max_distance, distance, torch.full_like(distance, float("inf"))
         )
 
-        R = R.squeeze(0)
-        t = t.squeeze(0)
+        _, argmin = torch.min(distance, dim=-1)  # (Mi)
+        argmins.append(argmin)
 
-        self.HT_init[:3, :3] = R.transpose(-2, -1)
-        self.HT_init[:3, 3] = t
-        self.HT = self.HT_init
+    return argmins
 
-        print("HT estimate:", self.HT_init)
 
-        prev_rsme = float("inf")
+def hydra_gpu_index_flat_l2(meshes: List[torch.Tensor]) -> List[faiss.GpuIndexFlatL2]:
+    indices = []
+    flat_config = faiss.GpuIndexFlatConfig()
+    flat_config.device = 0
+    res = faiss.StandardGpuResources()
+    for mesh in meshes:
+        index = faiss.GpuIndexFlatL2(res, 3, flat_config)
+        index.add(mesh)
+        indices.append(index)
+    return indices
 
-        for _ in track(range(max_iter), description=f"Running Hydra ICP..."):
-            for i in range(len(meshes)):
-                meshes_clone[i] = meshes[i].mm(R) + t
 
-            argmins = self._find_correspondence_indices(
-                observations, meshes_clone, max_distance
-            )
+def hydra_centroid_alignment(
+    Xs: List[torch.Tensor],
+    Ys: List[torch.Tensor],
+) -> torch.Tensor:
+    r"""Aligns centroids of Xs and Ys as an initial guess.
 
-            mesh_correspondences = []
-            for i in range(len(meshes)):
-                mesh_correspondences.append(meshes[i][argmins[i]])
+    Args:
+        Xs: List of poinclouds of shape (Mi, 3).
+        Ys: List of pointclouds of shape (Ni, 3).
 
-            mesh_correspondences_concat = torch.concatenate(
-                mesh_correspondences
-            ).unsqueeze(0)
-            observations_concat = torch.concatenate(observations).unsqueeze(0)
+    Returns:
+        HT: Homogeneous transformation of shape (4, 4). HT @ Xs = Ys.
+    """
+    # for each cloud compute centroid
+    Xs_centroids = [torch.mean(observation, dim=-2) for observation in Xs]
+    Ys_centroids = [torch.mean(mesh, dim=-2) for mesh in Ys]
 
-            R, t, _ = corresponding_points_alignment(
-                mesh_correspondences_concat,
-                observations_concat,
-            )
-            R = R.squeeze(0)
-            t = t.squeeze(0)
+    # estimate transform
+    R, t, _ = corresponding_points_alignment(
+        torch.stack(Xs_centroids).unsqueeze(0),
+        torch.stack(Ys_centroids).unsqueeze(0),
+    )
 
-            # compute rsme between observation and mesh_correspondences
-            rsme = torch.sqrt(
-                torch.mean(
-                    torch.sum(
-                        torch.pow(
-                            mesh_correspondences_concat - observations_concat,
-                            2,
-                        ),
-                        dim=-1,
-                    )
+    HT = torch.eye(4, dtype=R.dtype, device=R.device)
+    R = R.to(HT.device).squeeze(0)
+    t = t.to(HT.device).squeeze(0)
+    HT[:3, :3] = R.T
+    HT[:3, 3] = t
+    return HT
+
+
+def hydra_icp(
+    HT_init: torch.Tensor,
+    observations: List[torch.Tensor],
+    meshes: List[torch.Tensor],
+    max_distance: float = 0.1,
+    max_iter: int = 100,
+    rmse_change: float = 1e-6,
+) -> torch.Tensor:
+    r"""Hydra iterative closest point algorithm.
+
+    Args:
+        HT_init: Initial guess. HT_init @ observations = meshes.
+        observations: List of observations of shape (Mi, 3).
+        meshes: List of meshes of shape (Ni, 3).
+        max_distance: Maximum distance between point correspondences.
+        max_iter: Maximum number of iterations.
+        rmse_change: Minimum change in rmse to continue iterating.
+
+    Returns:
+        HT: Homogeneous transformation of shape (4, 4). HT @ observations = meshes.
+    """
+    HT = HT_init
+
+    # build index
+    indices = hydra_gpu_index_flat_l2(meshes)
+
+    # registration
+    prev_rsme = float("inf")
+    for _ in track(range(max_iter), description=f"Running Hydra ICP..."):
+        observation_corr = []
+        mesh_corr = []
+        for i in range(len(meshes)):
+            # search correspondences
+            observations_tf = observations[i] @ HT[:3, :3].T + HT[:3, 3]
+            distances, matchindices = indices[i].search(observations_tf, 1)
+
+            # only keep matches within max_distance
+            mask = distances.squeeze() < max_distance
+
+            observation_corr.append(observations[i][mask])
+            mesh_corr.append(meshes[i][matchindices[mask].squeeze()])
+
+        observation_corr = torch.concatenate(observation_corr).unsqueeze(0)
+        mesh_corr = torch.concatenate(mesh_corr).unsqueeze(0)
+
+        R, t, _ = corresponding_points_alignment(
+            observation_corr,
+            mesh_corr,
+        )
+        R = R.to(HT.device).squeeze(0)
+        t = t.to(HT.device).squeeze(0)
+        HT[:3, :3] = R.T
+        HT[:3, 3] = t
+
+        # compute rsme between observation and mesh_corr
+        rsme = torch.sqrt(
+            torch.mean(
+                torch.sum(
+                    torch.pow(
+                        mesh_corr - observation_corr,
+                        2,
+                    ),
+                    dim=-1,
                 )
             )
+        )
 
-            if abs(prev_rsme - rsme.item()) < rmse_change:
-                print("Converged early. Exiting.")
-                break
+        if abs(prev_rsme - rsme.item()) < rmse_change:
+            print("Converged early. Exiting.")
+            break
 
-            prev_rsme = rsme.item()
+        prev_rsme = rsme.item()
 
-        self.HT[:3, :3] = R.transpose(-2, -1)
-        self.HT[:3, 3] = t
+    print_line()
+    print("HT final:\n", HT)
+    print_line()
 
-        print("HT final:", self.HT)
+    return HT
 
-    def _find_correspondence_indices(
-        self,
-        observations: List[torch.Tensor],
-        meshes: List[torch.Tensor],
-        max_dist: float = 0.1,
-    ) -> List[torch.Tensor]:
-        r"""For each point in observation, find nearest neighbor index in mesh.
 
-        Args:
-            observations: List of observations of shape (Mi, 3).
-            meshes: List of meshes of shape (Ni, 3).
+def hydra_robust_icp(
+    HT_init: torch.Tensor,
+    observations: List[torch.Tensor],
+    meshes: List[torch.Tensor],
+    mesh_normals: List[torch.Tensor],
+    max_distance: float = 0.1,
+    outer_max_iter: int = 100,
+    inner_max_iter: int = 3,
+) -> torch.Tensor:
+    r"""Lie-algebra point-to-plane ICP with robust loss, refer to https://drive.google.com/file/d/1WxBUNWh07QH4ckzaACJJWsRCyJ1iraJ7/view?usp=sharing.
 
-        Returns:
-            argmins: List of indices of shape (Mi).
-        """
-        argmins = []
-        for observation, mesh in zip(observations, meshes):
-            distance = torch.cdist(observation, mesh)  # (Mi, Ni)
-            distance = torch.where(
-                distance < max_dist, distance, torch.full_like(distance, float("inf"))
+    Args:
+        HT_init: Initial guess. HT_init @ observations = meshes.
+        observations: List of observations of shape (Mi, 3).
+        meshes: List of meshes of shape (Ni, 3).
+        mesh_normals: List of mesh normals of shape (Ni, 3).
+        max_distance: Maximum distance between point correspondences.
+        outer_max_iter: Maximum number of outer iterations.
+        inner_max_iter: Maximum number of inner iterations.
+    """
+    HT = HT_init  # HT @ observation = mesh
+
+    # build indices
+    indices = hydra_gpu_index_flat_l2(meshes)
+
+    observations_cross_mat = []
+    for i in range(len(observations)):
+        # build observation cross product matrix, refer eq. 4 (gets created once)
+        observations_cross_mat.append(
+            torch.stack(
+                [
+                    torch.zeros_like(observations[i][:, 0]),
+                    -observations[i][:, 2],
+                    observations[i][:, 1],
+                    observations[i][:, 2],
+                    torch.zeros_like(observations[i][:, 0]),
+                    -observations[i][:, 0],
+                    -observations[i][:, 1],
+                    observations[i][:, 0],
+                    torch.zeros_like(observations[i][:, 0]),
+                ],
+                dim=-1,
+            ).reshape(-1, 3, 3)
+        )
+
+    # implementation of algorithm 1
+    dTh = torch.zeros_like(HT)
+    for _ in track(range(outer_max_iter), description=f"Running Hydra robust ICP..."):
+        observations_corr = []
+        observations_cross_mat_corr = []
+        meshes_corr = []
+        meshes_normals_corr = []
+
+        for i in range(len(observations)):
+            # search correspondences
+            observation_tf = observations[i] @ HT[:3, :3].T + HT[:3, 3]
+            distances, matchindices = indices[i].search(observation_tf, 1)
+
+            # only keep matches within max_distance
+            mask = distances.squeeze() < max_distance
+
+            observations_corr.append(observations[i][mask])
+            observations_cross_mat_corr.append(observations_cross_mat[i][mask])
+            meshes_corr.append(meshes[i][matchindices[mask].squeeze()])
+            meshes_normals_corr.append(mesh_normals[i][matchindices[mask].squeeze()])
+
+        observations_corr = torch.cat(observations_corr)
+        observations_cross_mat_corr = torch.cat(observations_cross_mat_corr)
+        meshes_corr = torch.cat(meshes_corr)
+        meshes_normals_corr = torch.cat(meshes_normals_corr)
+
+        for _ in range(inner_max_iter):
+            # ||A @ dTh - B||^2, refer eq. 14
+            Al = meshes_normals_corr @ HT[:3, :3]  # eq. 18
+            Au = -Al.unsqueeze(1) @ observations_cross_mat_corr  # eq. 19
+            A = torch.cat((Au.squeeze(), Al.squeeze()), dim=-1)
+            B = torch.linalg.vecdot(
+                meshes_normals_corr,
+                meshes_corr - (observations_corr @ HT[:3, :3].T + HT[:3, 3]),
             )
-            _, argmin = torch.min(distance, dim=-1)  # (Mi)
-            argmins.append(argmin)
 
-        return argmins
+            dTh_vec, resid, rank, singvals = torch.linalg.lstsq(A, B)
+            dTh[0, 1] = -dTh_vec[2]
+            dTh[0, 2] = dTh_vec[1]
+            dTh[1, 0] = dTh_vec[2]
+            dTh[1, 2] = -dTh_vec[0]
+            dTh[2, 0] = -dTh_vec[1]
+            dTh[2, 1] = dTh_vec[0]
+
+            dTh[0, 3] = dTh_vec[3]
+            dTh[1, 3] = dTh_vec[4]
+            dTh[2, 3] = dTh_vec[5]
+
+            HT = HT @ torch.linalg.matrix_exp(dTh)
+    return HT
