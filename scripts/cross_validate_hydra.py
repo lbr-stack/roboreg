@@ -19,7 +19,7 @@ def main():
     sample_idcs = [i for i in range(N)]
 
     for comb in itertools.combinations(sample_idcs, k):
-        observed_xyzs, mesh_xyzs = load_data(
+        observed_xyzs, mesh_xyzs, _ = load_data(
             idcs=comb,
             scan=False,
             visualize=False,
@@ -28,7 +28,7 @@ def main():
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        # to numpy
+        # to torch
         for i in range(len(observed_xyzs)):
             observed_xyzs[i] = torch.from_numpy(observed_xyzs[i]).to(
                 dtype=torch.float32, device=device
@@ -94,7 +94,7 @@ def main():
                 continue
 
             # load i
-            observed_xyz, mesh_xyz = load_data(
+            observed_xyz, mesh_xyz, _ = load_data(
                 idcs=[i],
                 scan=False,
                 visualize=False,
