@@ -315,4 +315,9 @@ def hydra_robust_icp(
             dTh[2, 3] = dTh_vec[5]
 
             HT = HT @ torch.linalg.matrix_exp(dTh)
+
+    print_line()
+    print("HT final:\n", HT)
+    print_line()
+
     return HT
