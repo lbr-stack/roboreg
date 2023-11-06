@@ -8,10 +8,10 @@ import open3d as o3d
 import torch
 from common import load_data, visualize_registration
 
-from roboreg.hydra_icp import HydraICP
+from roboreg.hydra_icp import hydra_centroid_alignment, hydra_icp
 
 
-def test_kabsh_algorithm():
+def test_hydra_centroid_alignment():
     observed_xyzs, mesh_xyzs, _ = load_data(idcs=[0, 1, 2], scan=True, visualize=False)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -25,11 +25,10 @@ def test_kabsh_algorithm():
             dtype=torch.float32, device=device
         )
 
-    hydra_icp = HydraICP()
-    hydra_icp(observed_xyzs, mesh_xyzs)
-
-    # visualize initial homogenous transform
-    HT_init = hydra_icp.HT_init
+    R, t = hydra_centroid_alignment(observed_xyzs, mesh_xyzs)
+    HT_init = torch.eye(4, device=device)
+    HT_init[:3, :3] = R.T
+    HT_init[:3, 3] = t
 
     # to numpy
     HT_init = HT_init.cpu().numpy()
@@ -88,11 +87,15 @@ def test_hydra_icp():
             dtype=torch.float32, device=device
         )
 
-    hydra_icp = HydraICP()
-    hydra_icp(observed_xyzs, mesh_xyzs, max_distance=1.0, max_iter=int(1e3))
-
-    # visualize initial homogenous transform
-    HT = hydra_icp.HT
+    HT_init = hydra_centroid_alignment(mesh_xyzs, observed_xyzs)
+    HT = hydra_icp(
+        HT_init,
+        observed_xyzs,
+        mesh_xyzs,
+        max_distance=0.1,
+        max_iter=int(1e3),
+        rmse_change=1e-8,
+    )
 
     # to numpy
     HT = HT.cpu().numpy()
@@ -102,9 +105,9 @@ def test_hydra_icp():
         observed_xyzs[i] = observed_xyzs[i].cpu().numpy()
         mesh_xyzs[i] = mesh_xyzs[i].cpu().numpy()
 
-    visualize_registration(observed_xyzs, mesh_xyzs, HT)
+    visualize_registration(mesh_xyzs, observed_xyzs, HT)
 
 
 if __name__ == "__main__":
-    # test_kabsh_algorithm()
+    # test_hydra_centroid_alignment()
     test_hydra_icp()
