@@ -123,12 +123,10 @@ def hydra_centroid_alignment(
 
 
 class HydraICP(object):
-    HT_init: torch.Tensor
     HT: torch.Tensor
 
-    def __init__(self) -> None:
-        self.HT_init = torch.eye(4)
-        self.HT = torch.eye(4)
+    def __init__(self, device: str = "cuda") -> None:
+        self.HT = torch.eye(4, device=device, dtype=torch.float32)
 
     def __call__(
         self,
@@ -145,18 +143,17 @@ class HydraICP(object):
         if initial_alignment:
             # align centroids
             R, t = hydra_centroid_alignment(observations, meshes_clone)
-            self.HT_init[:3, :3] = R.T
-            self.HT_init[:3, 3] = t
-            self.HT = self.HT_init
+            self.HT[:3, :3] = R.T
+            self.HT[:3, 3] = t
             print_line()
-            print("HT estimate:\n", self.HT_init)
+            print("HT estimate:\n", self.HT)
             print_line()
 
         prev_rsme = float("inf")
         observations_concat = torch.concatenate(observations).unsqueeze(0)
         for _ in track(range(max_iter), description=f"Running Hydra ICP..."):
             for i in range(len(meshes)):
-                meshes_clone[i] = meshes[i] @ R + t
+                meshes_clone[i] = meshes[i] @ self.HT[:3, :3].T + self.HT[:3, 3]
 
             # find correspondences per configuration
             argmins = hydra_correspondence_indices(
@@ -173,8 +170,8 @@ class HydraICP(object):
                 mesh_corr,
                 observations_concat,
             )
-            R = R.squeeze(0)
-            t = t.squeeze(0)
+            self.HT[:3, :3] = R.squeeze(0).T
+            self.HT[:3, 3] = t.squeeze(0)
 
             # compute rsme between observation and mesh_corr
             rsme = torch.sqrt(
@@ -194,9 +191,6 @@ class HydraICP(object):
                 break
 
             prev_rsme = rsme.item()
-
-        self.HT[:3, :3] = R.T
-        self.HT[:3, 3] = t
 
         print_line()
         print("HT final:\n", self.HT)
@@ -218,8 +212,8 @@ class HydraRobustICP(object):
         meshes: List[torch.Tensor],
         mesh_normals: List[torch.Tensor],
         max_distance: float = 0.1,
-        outer_max_iter: int = 100,
-        inner_max_iter: int = 3,
+        outer_max_iter: int = 30,
+        inner_max_iter: int = 1,
         initial_alignment: bool = True,
     ):
         # copy meshes
@@ -285,9 +279,9 @@ class HydraRobustICP(object):
 
             for _ in range(inner_max_iter):
                 # ||A @ dTh - B||^2, refer eq. 14
-                Ar = mesh_normals_corr @ self.HT[:3, :3]  # eq. 18
-                Al = -Ar.unsqueeze(1) @ observations_cross_mat  # eq. 19
-                A = torch.cat((Al.squeeze(), Ar.squeeze()), dim=-1)
+                Au = mesh_normals_corr @ self.HT[:3, :3]  # eq. 18
+                Al = -Au.unsqueeze(1) @ observations_cross_mat  # eq. 19
+                A = torch.cat((Au.squeeze(), Al.squeeze()), dim=-1)
                 B = torch.linalg.vecdot(
                     mesh_normals_corr,
                     mesh_corr - observations_concat_tf,
@@ -295,7 +289,7 @@ class HydraRobustICP(object):
 
                 dTh_vec, resid, rank, singvals = torch.linalg.lstsq(A, B)
                 print(f"residuals={resid.cpu().numpy()}")
-                dTh[0, 1] = -dTh_vec[2]
+                dTh[0, 1] = dTh_vec[2]
                 dTh[0, 2] = dTh_vec[1]
                 dTh[1, 0] = dTh_vec[2]
                 dTh[1, 2] = -dTh_vec[0]
