@@ -76,8 +76,8 @@ def test_hydra_robust_icp():
                 center=center,
                 eye=eye,
                 up=up,
-                width_px=640,
-                height_px=480,
+                width_px=1280,
+                height_px=960,
             )
             try:
                 mesh_xyzs.append(
