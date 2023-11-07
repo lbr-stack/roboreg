@@ -55,7 +55,7 @@ def shrink_mask(mask: np.ndarray, kernel: np.ndarray = np.ones([4, 4])) -> np.nd
 def mask_boundary(
     mask: np.ndarray,
     dilation_kernel: np.ndarray = np.ones([1, 1]),
-    erosion_kernel: np.ndarray = np.ones([20, 20]),
+    erosion_kernel: np.ndarray = np.ones([10, 10]),
 ) -> np.ndarray:
     boundary_mask = cv2.dilate(mask, dilation_kernel) - cv2.erode(mask, erosion_kernel)
     return boundary_mask
