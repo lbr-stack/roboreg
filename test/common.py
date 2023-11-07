@@ -15,7 +15,7 @@ def load_data(
     visualize: bool = False,
     prefix: str = "test/data/low_res",
     number_of_points_per_link: int = 1000,
-    mask_boundary: bool = True,
+    masked_boundary: bool = True,
 ) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
     clean_observed_xyzs = []
     mesh_xyzs = []
@@ -27,7 +27,7 @@ def load_data(
     for idx in idcs:
         # load data
         mask = cv2.imread(f"{prefix}/mask_{idx}.png", cv2.IMREAD_GRAYSCALE)
-        if mask_boundary:
+        if masked_boundary:
             mask = mask_boundary(mask)
         observed_xyz = np.load(f"{prefix}/xyz_{idx}.npy")
         joint_state = np.load(f"{prefix}/joint_state_{idx}.npy")
