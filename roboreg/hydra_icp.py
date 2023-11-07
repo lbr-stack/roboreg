@@ -3,9 +3,8 @@ from typing import List
 import faiss
 import faiss.contrib.torch_utils
 import torch
-from pytorch3d.ops import (
-    corresponding_points_alignment,
-)  # TODO: remove this dependency and use kabsh_register instead
+from pytorch3d.ops import \
+    corresponding_points_alignment  # TODO: remove this dependency and use kabsh_register instead
 from rich import print
 from rich.progress import track
 
@@ -231,6 +230,9 @@ def hydra_robust_icp(
         max_distance: Maximum distance between point correspondences.
         outer_max_iter: Maximum number of outer iterations.
         inner_max_iter: Maximum number of inner iterations.
+
+    Returns:
+        HT: Homogeneous transformation of shape (4, 4). HT @ observations = meshes.
     """
     HT = HT_init  # HT @ observation = mesh
 
