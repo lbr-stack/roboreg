@@ -21,9 +21,9 @@ class RayCastRobot:
 
         refer doc: http://www.open3d.org/docs/latest/python_api/open3d.t.geometry.RaycastingScene.html#open3d.t.geometry.RaycastingScene.create_rays_pinhole
         """
-        self.scene = o3d.t.geometry.RaycastingScene()
+        scene = o3d.t.geometry.RaycastingScene()
         for mesh in self.robot.meshes:
-            self.scene.add_triangles(mesh)
+            scene.add_triangles(mesh)
         rays = o3d.t.geometry.RaycastingScene.create_rays_pinhole(
             fov_deg=fov_deg,
             center=center,
@@ -32,7 +32,7 @@ class RayCastRobot:
             width_px=width_px,
             height_px=height_px,
         )
-        ans = self.scene.cast_rays(rays)
+        ans = scene.cast_rays(rays)
 
         # cloud
         hit = ans["t_hit"].isfinite()
@@ -54,16 +54,16 @@ class RayCastRobot:
 
         refer doc: http://www.open3d.org/docs/latest/python_api/open3d.t.geometry.RaycastingScene.html#open3d.t.geometry.RaycastingScene.create_rays_pinhole
         """
-        self.scene = o3d.t.geometry.RaycastingScene()
+        scene = o3d.t.geometry.RaycastingScene()
         for mesh in self.robot.meshes:
-            self.scene.add_triangles(mesh)
+            scene.add_triangles(mesh)
         rays = o3d.t.geometry.RaycastingScene.create_rays_pinhole(
             intrinsic_matrix=intrinsic_matrix,
             extrinsic_matrix=extrinsic_matrix,
             width_px=width_px,
             height_px=height_px,
         )
-        ans = self.scene.cast_rays(rays)
+        ans = scene.cast_rays(rays)
 
         # cloud
         hit = ans["t_hit"].isfinite()

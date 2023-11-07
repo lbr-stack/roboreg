@@ -17,6 +17,7 @@ def test_hydra_robust_icp():
         scan=False,
         visualize=False,
         prefix=prefix,
+        number_of_points_per_link=1000,
     )
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -35,7 +36,13 @@ def test_hydra_robust_icp():
 
     HT_init = hydra_centroid_alignment(observed_xyzs, mesh_xyzs)
     HT = hydra_robust_icp(
-        HT_init, observed_xyzs, mesh_xyzs, mesh_xyzs_normals, max_distance=0.1
+        HT_init,
+        observed_xyzs,
+        mesh_xyzs,
+        mesh_xyzs_normals,
+        max_distance=0.1,
+        outer_max_iter=int(30),
+        inner_max_iter=10,
     )
 
     # to numpy

@@ -3,9 +3,8 @@ from typing import List
 import faiss
 import faiss.contrib.torch_utils
 import torch
-from pytorch3d.ops import (
-    corresponding_points_alignment,
-)  # TODO: remove this dependency and use kabsh_register instead
+from pytorch3d.ops import \
+    corresponding_points_alignment  # TODO: remove this dependency and use kabsh_register instead
 from rich import print
 from rich.progress import track
 
@@ -138,6 +137,7 @@ def hydra_icp(
     max_distance: float = 0.1,
     max_iter: int = 100,
     rmse_change: float = 1e-6,
+    exit_early: bool = True,
 ) -> torch.Tensor:
     r"""Hydra iterative closest point algorithm.
 
@@ -198,7 +198,7 @@ def hydra_icp(
             )
         )
 
-        if abs(prev_rsme - rsme.item()) < rmse_change:
+        if abs(prev_rsme - rsme.item()) < rmse_change and exit_early:
             print("Converged early. Exiting.")
             break
 
@@ -230,6 +230,9 @@ def hydra_robust_icp(
         max_distance: Maximum distance between point correspondences.
         outer_max_iter: Maximum number of outer iterations.
         inner_max_iter: Maximum number of inner iterations.
+
+    Returns:
+        HT: Homogeneous transformation of shape (4, 4). HT @ observations = meshes.
     """
     HT = HT_init  # HT @ observation = mesh
 
@@ -265,6 +268,8 @@ def hydra_robust_icp(
         meshes_normals_corr = []
 
         for i in range(len(observations)):
+            if len(observations) != len(meshes):
+                raise ValueError("Length of observations and meshes must be the same.")
             # search correspondences
             observation_tf = observations[i] @ HT[:3, :3].T + HT[:3, 3]
             distances, matchindices = indices[i].search(observation_tf, 1)
@@ -291,8 +296,17 @@ def hydra_robust_icp(
                 meshes_normals_corr,
                 meshes_corr - (observations_corr @ HT[:3, :3].T + HT[:3, 3]),
             )
+            # weight associated with Huber loss
+            kappa = (
+                1.345 * torch.median(torch.abs(B - torch.median(B))) / 0.6745
+            )  # eq. 26
+            W = torch.where(
+                torch.abs(B) < kappa,
+                torch.ones_like(B),
+                torch.full_like(B, kappa) / torch.abs(B),
+            )
 
-            dTh_vec, resid, rank, singvals = torch.linalg.lstsq(A, B)
+            dTh_vec, resid, rank, singvals = torch.linalg.lstsq(W[:, None] * A, W * B)
             dTh[0, 1] = -dTh_vec[2]
             dTh[0, 2] = dTh_vec[1]
             dTh[1, 0] = dTh_vec[2]
@@ -305,4 +319,9 @@ def hydra_robust_icp(
             dTh[2, 3] = dTh_vec[5]
 
             HT = HT @ torch.linalg.matrix_exp(dTh)
+
+    print_line()
+    print("HT final:\n", HT)
+    print_line()
+
     return HT
