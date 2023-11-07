@@ -13,8 +13,8 @@ from roboreg.util import generate_o3d_robot
 
 
 def test_hydra_robust_icp():
-    prefix = "test/data/low_res"
-    idcs = [i for i in range(8)]
+    prefix = "test/data/high_res"
+    idcs = [i for i in range(7)]
     observed_xyzs, mesh_xyzs, mesh_xyzs_normals = load_data(
         idcs=idcs,
         scan=False,
