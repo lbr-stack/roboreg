@@ -55,6 +55,7 @@ def test_hydra_robust_icp():
 
     # to optical frame
     max_distance = 0.1
+    distance_decrease_factor = 0.5
     for iter in range(3):
         import transformations as tf
 
@@ -101,7 +102,7 @@ def test_hydra_robust_icp():
             observed_xyzs,
             mesh_xyzs,
             mesh_xyzs_normals,
-            max_distance=max_distance / 10.0**iter,
+            max_distance=max_distance * distance_decrease_factor**iter,
             outer_max_iter=int(30),
             inner_max_iter=10,
         )
