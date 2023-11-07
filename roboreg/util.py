@@ -52,6 +52,15 @@ def shrink_mask(mask: np.ndarray, kernel: np.ndarray = np.ones([4, 4])) -> np.nd
     return shrinked_mask
 
 
+def mask_boundary(
+    mask: np.ndarray,
+    dilation_kernel: np.ndarray = np.ones([1, 1]),
+    erosion_kernel: np.ndarray = np.ones([20, 20]),
+) -> np.ndarray:
+    boundary_mask = cv2.dilate(mask, dilation_kernel) - cv2.erode(mask, erosion_kernel)
+    return boundary_mask
+
+
 def generate_o3d_robot(
     package_name: str = "lbr_description",
     relative_xacro_path: str = "urdf/med7/med7.urdf.xacro",

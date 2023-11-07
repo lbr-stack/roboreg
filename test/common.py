@@ -6,7 +6,7 @@ import open3d as o3d
 import pyvista as pv
 
 from roboreg.ray_cast import RayCastRobot
-from roboreg.util import clean_xyz, generate_o3d_robot
+from roboreg.util import clean_xyz, generate_o3d_robot, mask_boundary
 
 
 def load_data(
@@ -15,6 +15,7 @@ def load_data(
     visualize: bool = False,
     prefix: str = "test/data/low_res",
     number_of_points_per_link: int = 1000,
+    mask_boundary: bool = True,
 ) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
     clean_observed_xyzs = []
     mesh_xyzs = []
@@ -26,6 +27,8 @@ def load_data(
     for idx in idcs:
         # load data
         mask = cv2.imread(f"{prefix}/mask_{idx}.png", cv2.IMREAD_GRAYSCALE)
+        if mask_boundary:
+            mask = mask_boundary(mask)
         observed_xyz = np.load(f"{prefix}/xyz_{idx}.npy")
         joint_state = np.load(f"{prefix}/joint_state_{idx}.npy")
 
@@ -75,7 +78,9 @@ def load_data(
             )
         else:
             robot.set_joint_positions(joint_state)
-            pcds = robot.sample_point_clouds(number_of_points_per_link=number_of_points_per_link)
+            pcds = robot.sample_point_clouds(
+                number_of_points_per_link=number_of_points_per_link
+            )
             mesh_xyz = np.concatenate([np.array(pcd.points) for pcd in pcds])
             mesh_xyz_normals = np.concatenate([np.array(pcd.normals) for pcd in pcds])
         mesh_xyzs.append(mesh_xyz)
