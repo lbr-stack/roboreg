@@ -220,7 +220,7 @@ def hydra_robust_icp(
     outer_max_iter: int = 100,
     inner_max_iter: int = 3,
 ) -> torch.Tensor:
-    r"""Lie-algebra point-to-plane ICP with robust loss, refer to https://drive.google.com/file/d/1WxBUNWh07QH4ckzaACJJWsRCyJ1iraJ7/view?usp=sharing.
+    r"""Lie-algebra point-to-plane ICP with robust loss, refer to https://drive.google.com/file/d/1iIUqKchAbcYzwyS2D6jNI1J6KotReD1h/view?usp=sharing.
 
     Args:
         HT_init: Initial guess. HT_init @ observations = meshes.
