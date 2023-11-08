@@ -74,3 +74,17 @@ def generate_o3d_robot(
     )
     robot = O3DRobot(urdf=urdf)
     return robot
+
+
+def normalized_distance_transform(mask: np.ndarray) -> np.ndarray:
+    r"""Compute the normalized distance transform.
+
+    Args:
+        mask: Binary mask.
+
+    Returns:
+        The normalized distance transform.
+    """
+    dist = cv2.distanceTransform(mask.max() - mask, cv2.DIST_L2, 3)
+    dist_normalized = cv2.normalize(dist, None, 0, 1.0, cv2.NORM_MINMAX)
+    return dist_normalized
