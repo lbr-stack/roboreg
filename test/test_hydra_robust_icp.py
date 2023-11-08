@@ -17,7 +17,7 @@ def test_hydra_robust_icp():
         scan=False,
         visualize=False,
         prefix=prefix,
-        number_of_points_per_link=1000,
+        number_of_points_per_link=8000,
     )
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -40,8 +40,8 @@ def test_hydra_robust_icp():
         observed_xyzs,
         mesh_xyzs,
         mesh_xyzs_normals,
-        max_distance=0.1,
-        outer_max_iter=int(30),
+        max_distance=0.01,
+        outer_max_iter=int(50),
         inner_max_iter=10,
     )
 
