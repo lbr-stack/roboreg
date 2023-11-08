@@ -3,8 +3,9 @@ from typing import List
 import faiss
 import faiss.contrib.torch_utils
 import torch
-from pytorch3d.ops import \
-    corresponding_points_alignment  # TODO: remove this dependency and use kabsh_register instead
+from pytorch3d.ops import (
+    corresponding_points_alignment,
+)  # TODO: remove this dependency and use kabsh_register instead
 from rich import print
 from rich.progress import track
 
@@ -158,7 +159,7 @@ def hydra_icp(
     indices = hydra_gpu_index_flat_l2(meshes)
 
     # registration
-    prev_rsme = float("inf")
+    prev_rmse = float("inf")
     for _ in track(range(max_iter), description=f"Running Hydra ICP..."):
         observation_corr = []
         mesh_corr = []
@@ -185,8 +186,8 @@ def hydra_icp(
         HT[:3, :3] = R.T
         HT[:3, 3] = t
 
-        # compute rsme between observation and mesh_corr
-        rsme = torch.sqrt(
+        # compute rmse between observation and mesh_corr
+        rmse = torch.sqrt(
             torch.mean(
                 torch.sum(
                     torch.pow(
@@ -198,11 +199,11 @@ def hydra_icp(
             )
         )
 
-        if abs(prev_rsme - rsme.item()) < rmse_change and exit_early:
+        if abs(prev_rmse - rmse.item()) < rmse_change and exit_early:
             print("Converged early. Exiting.")
             break
 
-        prev_rsme = rsme.item()
+        prev_rmse = rmse.item()
 
     print_line()
     print("HT final:\n", HT)
@@ -219,6 +220,7 @@ def hydra_robust_icp(
     max_distance: float = 0.1,
     outer_max_iter: int = 100,
     inner_max_iter: int = 3,
+    rmse_change: float = 1e-6,
 ) -> torch.Tensor:
     r"""Lie-algebra point-to-plane ICP with robust loss, refer to https://drive.google.com/file/d/1iIUqKchAbcYzwyS2D6jNI1J6KotReD1h/view?usp=sharing.
 
@@ -230,6 +232,7 @@ def hydra_robust_icp(
         max_distance: Maximum distance between point correspondences.
         outer_max_iter: Maximum number of outer iterations.
         inner_max_iter: Maximum number of inner iterations.
+        rmse_change: Minimum change in rmse to continue iterating.
 
     Returns:
         HT: Homogeneous transformation of shape (4, 4). HT @ observations = meshes.
@@ -260,6 +263,7 @@ def hydra_robust_icp(
         )
 
     # implementation of algorithm 1
+    prev_rmse = float("inf")
     dTh = torch.zeros_like(HT)
     for _ in track(range(outer_max_iter), description=f"Running Hydra robust ICP..."):
         observations_corr = []
@@ -319,6 +323,25 @@ def hydra_robust_icp(
             dTh[2, 3] = dTh_vec[5]
 
             HT = HT @ torch.linalg.matrix_exp(dTh)
+
+        # compute rmse between observation and mesh_corr
+        rmse = torch.sqrt(
+            torch.mean(
+                torch.sum(
+                    torch.pow(
+                        meshes_corr - observations_corr,
+                        2,
+                    ),
+                    dim=-1,
+                )
+            )
+        )
+
+        if abs(prev_rmse - rmse.item()) < rmse_change:
+            print("Converged early. Exiting.")
+            break
+
+        prev_rmse = rmse.item()
 
     print_line()
     print("HT final:\n", HT)
