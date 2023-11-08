@@ -32,9 +32,9 @@ def test_hydra_centroid_alignment():
 
 
 def test_hydra_icp():
-    prefix = "test/data/low_res"
+    prefix = "test/data/high_res"
     observed_xyzs, mesh_xyzs, _ = load_data(
-        idcs=[0, 1, 2, 3, 4],
+        idcs=[i for i in range(7)],
         scan=False,
         visualize=False,
         prefix=prefix,

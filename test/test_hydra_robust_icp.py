@@ -11,9 +11,9 @@ from roboreg.hydra_icp import hydra_centroid_alignment, hydra_robust_icp
 
 
 def test_hydra_robust_icp():
-    prefix = "test/data/low_res"
+    prefix = "test/data/high_res"
     observed_xyzs, mesh_xyzs, mesh_xyzs_normals = load_data(
-        idcs=[0, 1, 2, 3, 4],
+        idcs=[i for i in range(7)],
         scan=False,
         visualize=False,
         prefix=prefix,
