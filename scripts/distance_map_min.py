@@ -14,7 +14,8 @@ from roboreg.util import generate_o3d_robot, normalized_distance_transform
 # https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html
 
 if __name__ == "__main__":
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    # device = "cpu"
     prefix = "test/data/high_res"
 
     # camera intrinsics
@@ -81,8 +82,8 @@ if __name__ == "__main__":
     joint_state = np.load(os.path.join(prefix, f"joint_state_{idx}.npy"))
     robot.set_joint_positions(joint_state)
     pcds = robot.sample_point_clouds(number_of_points_per_link=1000)
-    print("Visualizeing sampled points...")
-    plot_render(idx)
+    # print("Visualizeing sampled points...")
+    # plot_render(idx)
 
     # point clouds to torch
     print("Converting point clouds to torch...")
@@ -113,11 +114,13 @@ if __name__ == "__main__":
     print("Projecting points onto image plane...")
     print("HT_base_cam:\n", HT_base_cam)
     print("HT_base_optical:\n", HT_base_optical)
-    projected_pcd = torch.matmul(
-        intrinsic_matrix,
-        HT_optical_base[:3, :3] @ pcd.T + HT_optical_base[:3, 3].unsqueeze(1),
-    )
-    projected_pcd = projected_pcd / projected_pcd[2, :]
+    print("HT_optical_base:\n", HT_optical_base)
+    # HT_optical_base[0, 3] += 0.1
+    HT_optical_base_lie = lie.SE3(HT_optical_base[:3, :])
+    HT_optical_base_lie_vec = HT_optical_base_lie.log()
+    HT_optical_base_lie = lie.SE3.exp(HT_optical_base_lie_vec)
+    projected_pcd = torch.matmul(HT_optical_base_lie @ pcd, intrinsic_matrix.T)
+    projected_pcd = projected_pcd / projected_pcd[:, 2].unsqueeze(-1)
 
     plot_scatter = False
     if plot_scatter:
@@ -134,7 +137,7 @@ if __name__ == "__main__":
         plt.show()
 
     # sample distance map @ projected_pcd
-    uv_pcd = projected_pcd[:2, :].T
+    uv_pcd = projected_pcd[:, :2]
 
     # these need to be normalized [-1 , 1]
     uv_pcd[:, 0] = (uv_pcd[:, 0] / width) * 2 - 1
@@ -150,12 +153,13 @@ if __name__ == "__main__":
         norm_dist.unsqueeze(0).unsqueeze(0), uv_pcd.unsqueeze(0).unsqueeze(0)
     )
 
-    print(values.shape)
-    print(values.min())
-    print(values.max())
+    print("values shape: ", values.shape)
+    print("values min:   ", values.min())
+    print("values max:   ", values.max())
+    print("values mean:  ", values.mean())
 
     # plot values via scatter of uv_pcd and values at location
-    plot_distance_scatter = True
+    plot_distance_scatter = False
     if plot_distance_scatter:
         print("Visualizing distance map sampling...")
         plt.scatter(
@@ -166,3 +170,74 @@ if __name__ == "__main__":
         plt.xlim([-1, 1])
         plt.ylim([-1, 1])
         plt.show()
+
+    ## optim vars are rotation R in R^3 and translation t in R^3
+    ## auxiliary vars are distance map d_map, intrinsic matrix K, and point cloud pcd
+
+    ### exp(Th)p where Th in se(3) and p in R^3
+    ### optimization yields Th vector in R^6 -> exp(Th) in SE(3)
+    def error_fn(optim_vars, aux_vars):
+        # project onto image plane
+        pcd_proj = torch.matmul(
+            lie.SE3.exp(optim_vars[0].tensor) @ aux_vars[2].tensor,
+            aux_vars[0].tensor.transpose(-2, -1),
+        )
+
+        # normalize
+        pcd_proj = pcd_proj / pcd_proj[..., 2].unsqueeze(-1)
+
+        # sample distance map @ projected_pcd
+        pcd_proj_norm = pcd_proj[..., :2]
+
+        # these need to be normalized [-1 , 1]
+        pcd_proj_norm[..., 0] = (pcd_proj_norm[..., 0] / width) * 2 - 1
+        pcd_proj_norm[..., 1] = (pcd_proj_norm[..., 1] / height) * 2 - 1
+
+        # sample from distance map at projections
+        d = torch.nn.functional.grid_sample(
+            aux_vars[1].tensor.unsqueeze(0),
+            pcd_proj_norm.unsqueeze(0),
+        )
+
+        # return error
+        return d.view(1, -1)
+
+    K_var = th.Variable(intrinsic_matrix.unsqueeze(0), name="K")
+    d_map_var = th.Variable(norm_dist.unsqueeze(0), name="d_map")
+    pcd_var = th.Variable(pcd.unsqueeze(0), name="pcd")
+    Th_vec = th.Vector(dof=6, name="Th_vec")
+
+    objective = th.Objective()
+    cost_fn = th.AutoDiffCostFunction(
+        optim_vars=[Th_vec],
+        err_fn=error_fn,
+        dim=pcd.shape[0],
+        cost_weight=th.ScaleCostWeight(1.0),
+        aux_vars=[K_var, d_map_var, pcd_var],
+    )
+    objective.add(cost_fn)
+    optimizer = th.LevenbergMarquardt(objective, max_iteration=15, step_size=0.1)
+
+    layer = th.TheseusLayer(optimizer=optimizer)
+    layer.to(device=device)
+
+    HT_optical_base[
+        0, 3
+    ] += 0.1  # shift a little along x-axis to increase error on initial guess
+
+    print("-----------------------------------------------")
+
+    Th = lie.SE3(HT_optical_base[:3, :])
+    input = {
+        "Th_vec": Th.log().unsqueeze(0),
+    }
+    print("input: ", input)
+
+    with torch.no_grad():
+        output, info = layer.forward(
+            input, {"verbose": True}
+        )  # runs entire optimization
+
+    print("best solution: ", info.best_solution)
+    print(output)
+    print(info)
