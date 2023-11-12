@@ -1,6 +1,8 @@
 import theseus as th
 import torch
 import torchlie as lie
+import transformations as tf
+from rich import print
 
 
 def test_lie_group():
@@ -18,9 +20,28 @@ def test_lie_group():
     print(lie.SE3.exp(v))
 
 
+def test_rotation_translation():
+    # start with random homogeneous matrix
+    HT = torch.from_numpy(tf.random_rotation_matrix())
+    HT[:3, 3] = torch.rand(3)
+    print("HT:\n", HT)
+    print("HT[:3, :] shape: ", HT[:3, :].shape)
+
+    # convert to lie group
+    HT_lie = th.SE3(tensor=HT[:3, :].unsqueeze(0))
+
+    # turn into tangent space
+    HT_lie_vec = th.SE3.log_map(HT_lie)
+
+    # recover
+    HT_lie_recovered = th.SE3.exp_map(HT_lie_vec)
+
+    print("HT_lie_recovered:\n", HT_lie_recovered)
+
+
 def test_optimizer_on_lie_group():
     # a translation target transform
-    Th_target = lie.SE3.exp(torch.tensor([1.0, 0.0, 0.0, 1.0, 0.0, 0.0]))
+    Th_target = lie.SE3.exp(torch.tensor([1.0, 0.0, 0.0, torch.pi / 2.0, 0.0, 0.0]))
 
     # some point in R^3
     p = torch.tensor(
@@ -34,7 +55,6 @@ def test_optimizer_on_lie_group():
         ]
     ).unsqueeze(0)
     p_prime = Th_target @ p
-    # p_prime = Th_target + p
 
     print("p prime: ", p_prime)
 
@@ -51,12 +71,11 @@ def test_optimizer_on_lie_group():
         Th_vec = optim_vars[0]
         p, p_prime = aux_vars
 
-        # rotation and translation
-        r = th.SO3.exp_map(Th_vec.tensor[0, 3:].unsqueeze(0))
-        t = Th_vec.tensor[0, :3].unsqueeze(0).unsqueeze(-1)
-        Th = th.SE3(tensor=torch.cat([r.tensor, t], dim=2))
+        Th = th.SE3.exp_map(Th_vec.tensor)
 
-        p_prime_hat = p.tensor @ Th.tensor[:, :3, :3] + Th.tensor[:, :3, 3]
+        p_prime_hat = (
+            p.tensor @ Th.tensor[:, :3, :3].transpose(-1, -2) + Th.tensor[:, :3, 3]
+        )
 
         err = torch.norm(torch.sub(p_prime_hat, p_prime.tensor), dim=-1)
         return err
@@ -84,10 +103,11 @@ def test_optimizer_on_lie_group():
             optimizer_kwargs={"track_best_solution": True, "verbose": True},
         )
 
-    print("best solution: ", info.best_solution)
-    print(output)
+    print("best solution:\n", info.best_solution["Th_vec"])
+    print("target solution:\n", Th_target.log())
 
 
 if __name__ == "__main__":
     # test_lie_group()
+    # test_rotation_translation()
     test_optimizer_on_lie_group()
