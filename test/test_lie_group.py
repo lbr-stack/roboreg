@@ -20,11 +20,26 @@ def test_lie_group():
 
 def test_optimizer_on_lie_group():
     # a translation target transform
-    Th_target = lie.SE3.exp(torch.tensor([0.4, 0.5, 0.6, 0.0, 0.0, 0.0]))
+    Th_target = lie.SE3.exp(torch.tensor([1.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
 
     # some point in R^3
-    p = torch.tensor([1.0, 0.0, 0.0]).unsqueeze(0)
+    p = torch.tensor(
+        [
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [3.0, 0.0, 0.0],
+            [0.0, 2.0, 0.0],
+            [0.0, 3.0, 0.0],
+        ]
+    ).unsqueeze(0)
     p_prime = Th_target @ p
+    # p_prime = Th_target + p
+
+    print("p prime: ", p_prime)
+
+    print("p shape: ", p.shape)
+    print("p_prime shape: ", p_prime.shape)
 
     # setup optimization variables
     p_var = th.Variable(p, name="p")
@@ -35,10 +50,14 @@ def test_optimizer_on_lie_group():
     def cost_fn(optim_vars, aux_vars):
         Th_vec = optim_vars[0]
         p, p_prime = aux_vars
-        Th = lie.SE3.exp(Th_vec.tensor)
 
-        p_prime_hat = Th @ p.tensor
-        err = p_prime_hat - p_prime.tensor
+        r = th.SO3.exp_map(Th_vec.tensor[0, 3:].unsqueeze(0))
+        t = Th_vec.tensor[0, :3].unsqueeze(0).unsqueeze(-1)
+        Th = th.SE3(tensor=torch.cat([r.tensor, t], dim=2))
+
+        p_prime_hat = p.tensor @ Th.tensor[:, :3, :3] + Th.tensor[:, :3, 3]
+
+        err = torch.norm(torch.sub(p_prime_hat, p_prime.tensor), dim=-1)
         return err
 
     # setup objective
@@ -46,7 +65,7 @@ def test_optimizer_on_lie_group():
     cost_fn = th.AutoDiffCostFunction(
         optim_vars=[Th_vec_var],
         err_fn=cost_fn,
-        dim=3,
+        dim=6,
         aux_vars=[p_var, p_prime_var],
         cost_weight=th.ScaleCostWeight(1.0),
         name="cost_fn",
