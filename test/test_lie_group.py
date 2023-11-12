@@ -20,7 +20,7 @@ def test_lie_group():
 
 def test_optimizer_on_lie_group():
     # a translation target transform
-    Th_target = lie.SE3.exp(torch.tensor([1.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
+    Th_target = lie.SE3.exp(torch.tensor([1.0, 0.0, 0.0, 1.0, 0.0, 0.0]))
 
     # some point in R^3
     p = torch.tensor(
@@ -51,6 +51,7 @@ def test_optimizer_on_lie_group():
         Th_vec = optim_vars[0]
         p, p_prime = aux_vars
 
+        # rotation and translation
         r = th.SO3.exp_map(Th_vec.tensor[0, 3:].unsqueeze(0))
         t = Th_vec.tensor[0, :3].unsqueeze(0).unsqueeze(-1)
         Th = th.SE3(tensor=torch.cat([r.tensor, t], dim=2))
@@ -71,7 +72,7 @@ def test_optimizer_on_lie_group():
         name="cost_fn",
     )
     objective.add(cost_fn)
-    optimizer = th.LevenbergMarquardt(objective, max_iteration=15, step_size=1.0)
+    optimizer = th.LevenbergMarquardt(objective, max_iteration=50, step_size=1.0)
 
     layer = th.TheseusLayer(optimizer=optimizer)
 
