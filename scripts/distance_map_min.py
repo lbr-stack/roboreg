@@ -8,6 +8,7 @@ import torch
 import torchlie as lie
 import transformations as tf
 from rich import print
+from theseus.third_party.utils import grid_sample
 
 from roboreg.util import generate_o3d_robot, normalized_distance_transform
 
@@ -167,7 +168,7 @@ if __name__ == "__main__":
 
     norm_dist = torch.from_numpy(norm_dist).to(device=device, dtype=torch.float32)
 
-    values = torch.nn.functional.grid_sample(
+    values = grid_sample(
         norm_dist.unsqueeze(0).unsqueeze(0), uv_pcd.unsqueeze(0).unsqueeze(0)
     )
 
@@ -219,7 +220,7 @@ if __name__ == "__main__":
         pcd_proj_norm[..., 1] = (pcd_proj_norm[..., 1] / height) * 2 - 1
 
         # sample from distance map at projections
-        d = torch.nn.functional.grid_sample(
+        d = grid_sample(
             d_map.tensor.unsqueeze(0),
             pcd_proj_norm.unsqueeze(0),
         ).squeeze(0, 1)
@@ -267,19 +268,19 @@ if __name__ == "__main__":
 
     print("input: ", input)
 
-    optimizer.objective.update(input)
-    jacobians, error = cost_fn.jacobians()
-    print(jacobians)
-    # non-zeros
-    print("non-zeros: ", jacobians[0].nonzero().sum())
+    # optimizer.objective.update(input)
+    # jacobians, error = cost_fn.jacobians()
+    # print(jacobians)
+    # # non-zeros
+    # print("non-zeros: ", jacobians[0].nonzero().sum())
 
-    print("test")
+    # print("test")
 
-    # with torch.no_grad():
-    #     output, info = layer.forward(
-    #         input, optimizer_kwargs={"track_best_solution": True, "verbose": True}
-    #     )  # runs entire optimization
+    with torch.no_grad():
+        output, info = layer.forward(
+            input, optimizer_kwargs={"track_best_solution": True, "verbose": True}
+        )  # runs entire optimization
 
-    # print("best solution: ", info.best_solution)
-    # print(output)
-    # print(info)
+    print("best solution: ", info.best_solution)
+    print(output)
+    print(info)
