@@ -10,7 +10,11 @@ import transformations as tf
 from rich import print
 from theseus.third_party.utils import grid_sample
 
-from roboreg.util import generate_o3d_robot, normalized_distance_transform
+from roboreg.util import (
+    generate_o3d_robot,
+    normalized_distance_transform,
+    mask_boundary,
+)
 
 # https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html
 
@@ -47,8 +51,9 @@ if __name__ == "__main__":
     # load data
     visualize = False
 
-    def plot_render(idx: int):
+    def plot_render(idx: int, HT: np.ndarray = HT_optical_base):
         mask = cv2.imread(os.path.join(prefix, f"mask_{idx}.png"), cv2.IMREAD_GRAYSCALE)
+        mask = mask_boundary(mask)
         norm_dist = normalized_distance_transform(mask)
         joint_state = np.load(os.path.join(prefix, f"joint_state_{idx}.npy"))
 
@@ -56,7 +61,7 @@ if __name__ == "__main__":
         robot.set_joint_positions(joint_state)
         render = robot.render(
             intrinsic_matrix=intrinsic_matrix,
-            extrinsic_matrix=HT_optical_base,
+            extrinsic_matrix=HT,
             width=width,
             height=height,
         )
@@ -82,7 +87,7 @@ if __name__ == "__main__":
     idx = 2
     joint_state = np.load(os.path.join(prefix, f"joint_state_{idx}.npy"))
     robot.set_joint_positions(joint_state)
-    pcds = robot.sample_point_clouds(number_of_points_per_link=1000)
+    pcds = robot.sample_point_clouds(number_of_points_per_link=100)
     # print("Visualizeing sampled points...")
     # plot_render(idx)
 
@@ -117,7 +122,7 @@ if __name__ == "__main__":
     print("HT_base_optical:\n", HT_base_optical)
     print("HT_optical_base:\n", HT_optical_base)
 
-    HT_optical_base[0, 3] += 0.3  # shift a little along x-axis to increase error
+    # HT_optical_base[0, 3] += 0.3  # shift a little along x-axis to increase error
     # HT_optical_base[1, 3] += 0.3  # shift a little along x-axis to increase error
     HT_optical_base_lie = th.SE3(tensor=HT_optical_base[:3, :].unsqueeze(0))
     HT_optical_base_lie_vec = th.SE3.log_map(HT_optical_base_lie)
@@ -164,6 +169,11 @@ if __name__ == "__main__":
 
     # nor
     mask = cv2.imread(os.path.join(prefix, f"mask_{idx}.png"), cv2.IMREAD_GRAYSCALE)
+
+    mask = mask_boundary(mask)
+    # remove uv points outside of mask
+    # uv_pcd =
+
     norm_dist = normalized_distance_transform(mask)
 
     norm_dist = torch.from_numpy(norm_dist).to(device=device, dtype=torch.float32)
@@ -178,8 +188,7 @@ if __name__ == "__main__":
     print("values mean:  ", values.mean())
 
     # plot values via scatter of uv_pcd and values at location
-    plot_distance_scatter = True
-    if plot_distance_scatter:
+    def plot_distance_map():
         print("Visualizing distance map sampling...")
         plt.scatter(
             uv_pcd[:, 0].cpu().numpy(),
@@ -191,6 +200,10 @@ if __name__ == "__main__":
         plt.legend()
         plt.show()
 
+    plot_distance_scatter = True
+    if plot_distance_scatter:
+        plot_distance_map()
+
     ## optim vars are rotation R in R^3 and translation t in R^3
     ## auxiliary vars are distance map d_map, intrinsic matrix K, and point cloud pcd
 
@@ -201,6 +214,8 @@ if __name__ == "__main__":
     def error_fn(optim_vars, aux_vars):
         Th_vec = optim_vars[0]
         K, d_map, pcd = aux_vars
+
+        # re-sample pcd??
 
         # project pcd
         Th = th.SE3.exp_map(Th_vec.tensor)
@@ -243,7 +258,7 @@ if __name__ == "__main__":
         name="cost_fn",
     )
     objective.add(cost_fn)
-    optimizer = th.LevenbergMarquardt(objective, max_iteration=15, step_size=1.0)
+    optimizer = th.LevenbergMarquardt(objective, max_iteration=100, step_size=0.1)
 
     layer = th.TheseusLayer(optimizer=optimizer)
     layer.to(device=device)
@@ -281,6 +296,21 @@ if __name__ == "__main__":
             input, optimizer_kwargs={"track_best_solution": True, "verbose": True}
         )  # runs entire optimization
 
-    print("best solution: ", info.best_solution)
+    HT_optical_base_optimal = (
+        th.SE3.exp_map(info.best_solution["Th_vec"]).tensor.cpu().numpy().squeeze()
+    )
+
+    print("best solution:\n", info.best_solution)
+    print("best solution as HT:\n", HT_optical_base_optimal)
     print(output)
     print(info)
+
+    HT_optical_base_optimal = np.concatenate(
+        [HT_optical_base_optimal, np.array([[0.0, 0.0, 0.0, 1.0]])], axis=0
+    )
+    HT_cam_base_optimal = HT_cam_optical @ HT_optical_base_optimal
+    HT_base_cam_optimal = np.linalg.inv(HT_cam_base_optimal)
+
+    np.save(os.path.join(prefix, "HT_base_cam_optimal.npy"), HT_base_cam_optimal)
+
+    # retrieve base -> camera
