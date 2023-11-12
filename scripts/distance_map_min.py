@@ -115,11 +115,29 @@ if __name__ == "__main__":
     print("HT_base_cam:\n", HT_base_cam)
     print("HT_base_optical:\n", HT_base_optical)
     print("HT_optical_base:\n", HT_optical_base)
-    # HT_optical_base[0, 3] += 0.1
-    HT_optical_base_lie = lie.SE3(HT_optical_base[:3, :])
-    HT_optical_base_lie_vec = HT_optical_base_lie.log()
-    HT_optical_base_lie = lie.SE3.exp(HT_optical_base_lie_vec)
-    projected_pcd = torch.matmul(HT_optical_base_lie @ pcd, intrinsic_matrix.T)
+
+    HT_optical_base[0, 3] += 0.3  # shift a little along x-axis to increase error
+    # HT_optical_base[1, 3] += 0.3  # shift a little along x-axis to increase error
+    HT_optical_base_lie = th.SE3(tensor=HT_optical_base[:3, :].unsqueeze(0))
+    HT_optical_base_lie_vec = th.SE3.log_map(HT_optical_base_lie)
+
+    HT_optical_base_lie_recovered = th.SE3.exp_map(HT_optical_base_lie_vec)
+
+    print("HT_optical_base_lie:\n", HT_optical_base_lie)
+    print("HT_optical_base_lie_recovered:\n", HT_optical_base_lie_recovered)
+
+    print("pcd shape: ", pcd.shape)
+    print("HT_optical_base_lie_recovered shape: ", HT_optical_base_lie_recovered.shape)
+
+    # p_prime_hat = (
+    #     p.tensor @ Th.tensor[:, :3, :3].transpose(-1, -2) + Th.tensor[:, :3, 3]
+    # )
+
+    projected_pcd = torch.matmul(
+        pcd @ HT_optical_base_lie_recovered[0, :3, :3].transpose(-2, -1)
+        + HT_optical_base_lie_recovered[0, :3, 3],
+        intrinsic_matrix.T,
+    )
     projected_pcd = projected_pcd / projected_pcd[:, 2].unsqueeze(-1)
 
     plot_scatter = False
@@ -159,7 +177,7 @@ if __name__ == "__main__":
     print("values mean:  ", values.mean())
 
     # plot values via scatter of uv_pcd and values at location
-    plot_distance_scatter = False
+    plot_distance_scatter = True
     if plot_distance_scatter:
         print("Visualizing distance map sampling...")
         plt.scatter(
@@ -169,6 +187,7 @@ if __name__ == "__main__":
         )
         plt.xlim([-1, 1])
         plt.ylim([-1, 1])
+        plt.legend()
         plt.show()
 
     ## optim vars are rotation R in R^3 and translation t in R^3
@@ -176,11 +195,17 @@ if __name__ == "__main__":
 
     ### exp(Th)p where Th in se(3) and p in R^3
     ### optimization yields Th vector in R^6 -> exp(Th) in SE(3)
+
+    ## not differentiable?????
     def error_fn(optim_vars, aux_vars):
-        # project onto image plane
+        Th_vec = optim_vars[0]
+        K, d_map, pcd = aux_vars
+
+        # project pcd
+        Th = th.SE3.exp_map(Th_vec.tensor)
         pcd_proj = torch.matmul(
-            lie.SE3.exp(optim_vars[0].tensor) @ aux_vars[2].tensor,
-            aux_vars[0].tensor.transpose(-2, -1),
+            pcd.tensor @ Th.tensor[:, :3, :3].transpose(-2, -1) + Th.tensor[:, :3, 3],
+            K.tensor.transpose(-1, -2),
         )
 
         # normalize
@@ -195,12 +220,12 @@ if __name__ == "__main__":
 
         # sample from distance map at projections
         d = torch.nn.functional.grid_sample(
-            aux_vars[1].tensor.unsqueeze(0),
+            d_map.tensor.unsqueeze(0),
             pcd_proj_norm.unsqueeze(0),
-        )
+        ).squeeze(0, 1)
 
         # return error
-        return d.view(1, -1)
+        return d
 
     K_var = th.Variable(intrinsic_matrix.unsqueeze(0), name="K")
     d_map_var = th.Variable(norm_dist.unsqueeze(0), name="d_map")
@@ -214,30 +239,47 @@ if __name__ == "__main__":
         dim=pcd.shape[0],
         cost_weight=th.ScaleCostWeight(1.0),
         aux_vars=[K_var, d_map_var, pcd_var],
+        name="cost_fn",
     )
     objective.add(cost_fn)
-    optimizer = th.LevenbergMarquardt(objective, max_iteration=15, step_size=0.1)
+    optimizer = th.LevenbergMarquardt(objective, max_iteration=15, step_size=1.0)
 
     layer = th.TheseusLayer(optimizer=optimizer)
     layer.to(device=device)
 
-    HT_optical_base[
-        0, 3
-    ] += 0.1  # shift a little along x-axis to increase error on initial guess
+    # HT_optical_base[
+    #     0, 3
+    # ] += 0.1  # shift a little along x-axis to increase error on initial guess
+
+    # HT_optical_base[
+    #     1, 3
+    # ] += 0.1  # shift a little along y-axis to increase error on initial guess
 
     print("-----------------------------------------------")
 
     Th = lie.SE3(HT_optical_base[:3, :])
     input = {
+        "K": K_var.tensor,
+        "d_map": d_map_var.tensor,
+        "pcd": pcd_var.tensor,
         "Th_vec": Th.log().unsqueeze(0),
     }
+
     print("input: ", input)
 
-    with torch.no_grad():
-        output, info = layer.forward(
-            input, {"verbose": True}
-        )  # runs entire optimization
+    optimizer.objective.update(input)
+    jacobians, error = cost_fn.jacobians()
+    print(jacobians)
+    # non-zeros
+    print("non-zeros: ", jacobians[0].nonzero().sum())
 
-    print("best solution: ", info.best_solution)
-    print(output)
-    print(info)
+    print("test")
+
+    # with torch.no_grad():
+    #     output, info = layer.forward(
+    #         input, optimizer_kwargs={"track_best_solution": True, "verbose": True}
+    #     )  # runs entire optimization
+
+    # print("best solution: ", info.best_solution)
+    # print(output)
+    # print(info)
