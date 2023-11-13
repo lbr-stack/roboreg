@@ -88,3 +88,16 @@ def normalized_distance_transform(mask: np.ndarray) -> np.ndarray:
     dist = cv2.distanceTransform(mask.max() - mask, cv2.DIST_L2, 3)
     dist_normalized = cv2.normalize(dist, None, 0, 1.0, cv2.NORM_MINMAX)
     return dist_normalized
+
+
+def normalized_symmetric_distance_function(mask: np.ndarray) -> np.ndarray:
+    inverse_mask = (mask.max() - mask).astype(np.uint8)
+
+    dist = cv2.distanceTransform(mask, cv2.DIST_L2, 3)
+    dist_inverse = cv2.distanceTransform(inverse_mask, cv2.DIST_L2, 3)
+
+    dist_symmetric = dist + dist_inverse
+    dist_symmetric_normalized = cv2.normalize(
+        dist_symmetric, None, 0, 1.0, cv2.NORM_MINMAX
+    )
+    return dist_symmetric_normalized
