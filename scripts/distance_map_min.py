@@ -259,6 +259,8 @@ if __name__ == "__main__":
             pcd_proj_norm.unsqueeze(0),
         ).squeeze(0, 1)
 
+        # or Huber loss?
+
         # sample from distance map at projections
         d = grid_sample(
             d_map.tensor.unsqueeze(0),
