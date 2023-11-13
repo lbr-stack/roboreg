@@ -91,6 +91,16 @@ def normalized_distance_transform(mask: np.ndarray) -> np.ndarray:
 
 
 def normalized_symmetric_distance_function(mask: np.ndarray) -> np.ndarray:
+    r"""Commpute the normalized symmetric distance function.
+    The function puts zeros at the boundary of the mask.
+    The values increase by distance from the boundary.
+
+    Args:
+        mask: Binary mask.
+
+    Returns:
+        The normalized symmetric distance function.
+    """
     inverse_mask = (mask.max() - mask).astype(np.uint8)
 
     dist = cv2.distanceTransform(mask, cv2.DIST_L2, 3)
