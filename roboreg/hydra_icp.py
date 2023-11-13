@@ -2,12 +2,14 @@ from typing import List
 
 import faiss
 import faiss.contrib.torch_utils
+import numpy as np
 import torch
-from pytorch3d.ops import (
-    corresponding_points_alignment,
-)  # TODO: remove this dependency and use kabsh_register instead
+from pytorch3d.ops import \
+    corresponding_points_alignment  # TODO: remove this dependency and use kabsh_register instead
 from rich import print
 from rich.progress import track
+
+from roboreg.util import normalized_symmetric_distance_function
 
 
 def to_homogeneous(x: torch.Tensor) -> torch.Tensor:
@@ -348,3 +350,31 @@ def hydra_robust_icp(
     print_line()
 
     return HT
+
+
+class HydraProjection:
+    def __init__(
+        self,
+        height: int,
+        width: int,
+        intrinsic_matrices: List[str, np.ndarray],
+        extrinsic_matrices: List[str, np.ndarray],
+        image_masks: List[np.ndarray],
+        mesh_point_clouds: List[np.ndarray],
+        device: str = "cuda",
+    ) -> None:
+        self._height = height
+        self._width = width
+
+        self._intrinsic_matrices = torch.from_numpy(intrinsic_matrices).to(device)
+        self._extrinsic_matrices = torch.from_numpy(extrinsic_matrices).to(device)
+
+        self._image_masks = torch.from_numpy(image_masks).to(device)
+
+        # build distance maps
+        self._distance_maps = [
+            torch.from_nump(normalized_symmetric_distance_function(image_mask))
+            for image_mask in image_masks
+        ]
+
+        raise NotImplementedError
