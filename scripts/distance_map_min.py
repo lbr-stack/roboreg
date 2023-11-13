@@ -12,8 +12,9 @@ from theseus.third_party.utils import grid_sample
 
 from roboreg.util import (
     generate_o3d_robot,
-    normalized_distance_transform,
     mask_boundary,
+    normalized_distance_transform,
+    normalized_symmetric_distance_function,
 )
 
 # https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html
@@ -54,7 +55,8 @@ if __name__ == "__main__":
     def plot_render(idx: int, HT: np.ndarray = HT_optical_base):
         mask = cv2.imread(os.path.join(prefix, f"mask_{idx}.png"), cv2.IMREAD_GRAYSCALE)
         mask = mask_boundary(mask)
-        norm_dist = normalized_distance_transform(mask)
+        # norm_dist = normalized_distance_transform(mask)
+        norm_dist = normalized_symmetric_distance_function(mask)
         joint_state = np.load(os.path.join(prefix, f"joint_state_{idx}.npy"))
 
         # render
@@ -87,7 +89,7 @@ if __name__ == "__main__":
     idx = 2
     joint_state = np.load(os.path.join(prefix, f"joint_state_{idx}.npy"))
     robot.set_joint_positions(joint_state)
-    pcds = robot.sample_point_clouds(number_of_points_per_link=100)
+    pcds = robot.sample_point_clouds(number_of_points_per_link=1000)
     # print("Visualizeing sampled points...")
     # plot_render(idx)
 
@@ -170,11 +172,29 @@ if __name__ == "__main__":
     # nor
     mask = cv2.imread(os.path.join(prefix, f"mask_{idx}.png"), cv2.IMREAD_GRAYSCALE)
 
+    #
+
     mask = mask_boundary(mask)
+
+    # show mask
+    cv2.imshow("mask", mask)
+    cv2.waitKey(0)
+
+    # only keep uv_pcd where mask is 1
+    mask_torch = torch.from_numpy(mask).to(device=device, dtype=torch.float32)
+    samples = torch.nn.functional.grid_sample(
+        mask_torch.unsqueeze(0).unsqueeze(0), uv_pcd.unsqueeze(0).unsqueeze(0)
+    )
+    uv_pcd = uv_pcd[samples.squeeze() > 0.0]
+    print(mask_torch.max())
+
+    # discard uv points outside of mask
+
     # remove uv points outside of mask
     # uv_pcd =
 
-    norm_dist = normalized_distance_transform(mask)
+    # norm_dist = normalized_distance_transform(mask)
+    norm_dist = normalized_symmetric_distance_function(mask)
 
     norm_dist = torch.from_numpy(norm_dist).to(device=device, dtype=torch.float32)
 
@@ -234,11 +254,19 @@ if __name__ == "__main__":
         pcd_proj_norm[..., 0] = (pcd_proj_norm[..., 0] / width) * 2 - 1
         pcd_proj_norm[..., 1] = (pcd_proj_norm[..., 1] / height) * 2 - 1
 
+        mask_samples = grid_sample(
+            mask_torch.unsqueeze(0).unsqueeze(0),
+            pcd_proj_norm.unsqueeze(0),
+        ).squeeze(0, 1)
+
         # sample from distance map at projections
         d = grid_sample(
             d_map.tensor.unsqueeze(0),
             pcd_proj_norm.unsqueeze(0),
         ).squeeze(0, 1)
+
+        # compute huber loss on d
+        d = mask_samples * d
 
         # return error
         return d
@@ -258,7 +286,7 @@ if __name__ == "__main__":
         name="cost_fn",
     )
     objective.add(cost_fn)
-    optimizer = th.LevenbergMarquardt(objective, max_iteration=100, step_size=0.1)
+    optimizer = th.GaussNewton(objective, max_iteration=100, step_size=0.1)
 
     layer = th.TheseusLayer(optimizer=optimizer)
     layer.to(device=device)
