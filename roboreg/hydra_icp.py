@@ -1,11 +1,12 @@
-from typing import List
+from typing import List, Dict
 
 import faiss
 import faiss.contrib.torch_utils
 import numpy as np
 import torch
-from pytorch3d.ops import \
-    corresponding_points_alignment  # TODO: remove this dependency and use kabsh_register instead
+from pytorch3d.ops import (
+    corresponding_points_alignment,
+)  # TODO: remove this dependency and use kabsh_register instead
 from rich import print
 from rich.progress import track
 
@@ -357,24 +358,34 @@ class HydraProjection:
         self,
         height: int,
         width: int,
-        intrinsic_matrices: List[str, np.ndarray],
-        extrinsic_matrices: List[str, np.ndarray],
-        image_masks: List[np.ndarray],
-        mesh_point_clouds: List[np.ndarray],
+        intrinsic_matrices: Dict[str, np.ndarray],
+        extrinsic_matrices: Dict[str, np.ndarray],
+        masks: Dict[str, List[np.ndarray]],
+        # mesh_point_clouds: List[np.ndarray],
         device: str = "cuda",
     ) -> None:
         self._height = height
         self._width = width
 
-        self._intrinsic_matrices = torch.from_numpy(intrinsic_matrices).to(device)
-        self._extrinsic_matrices = torch.from_numpy(extrinsic_matrices).to(device)
+        self._intrinsic_matrices = {
+            key: torch.from_numpy(intrinsic_matrices[key]).to(device)
+            for key in intrinsic_matrices
+        }
+        self._extrinsic_matrices = {
+            key: torch.from_numpy(extrinsic_matrices[key]).to(device)
+            for key in extrinsic_matrices
+        }
 
-        self._image_masks = torch.from_numpy(image_masks).to(device)
+        self._masks = {
+            key: [torch.from_numpy(image_mask).to(device) for image_mask in masks[key]]
+            for key in masks
+        }
 
         # build distance maps
-        self._distance_maps = [
-            torch.from_nump(normalized_symmetric_distance_function(image_mask))
-            for image_mask in image_masks
-        ]
-
-        raise NotImplementedError
+        self._distance_maps = {
+            key: [
+                torch.from_numpy(normalized_symmetric_distance_function(image_mask))
+                for image_mask in masks[key]
+            ]
+            for key in masks
+        }

@@ -1,3 +1,4 @@
+import pathlib
 from typing import List, Tuple
 
 import cv2
@@ -152,3 +153,9 @@ def visualize_registration(
         visualizer.add_geometry(mesh_xyzs_pcd)
     visualizer.run()
     visualizer.close()
+
+
+def find_files(path: str, pattern: str = "img_*.png") -> List[str]:
+    path = pathlib.Path(path)
+    image_paths = list(path.glob(pattern))
+    return [image_path.name for image_path in image_paths]
