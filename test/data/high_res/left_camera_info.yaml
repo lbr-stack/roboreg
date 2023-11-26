@@ -1,0 +1,58 @@
+camera_matrix:
+  cols: 3
+  data:
+  - 534.6265258789062
+  - 0.0
+  - 478.0846252441406
+  - 0.0
+  - 534.6265258789062
+  - 260.9943542480469
+  - 0.0
+  - 0.0
+  - 1.0
+  rows: 3
+distortion_coefficients:
+  cols: 5
+  data:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  rows: 1
+distortion_model: rational_polynomial
+frame_id: zed2_left_camera_optical_frame
+height: 540
+projection_matrix:
+  cols: 4
+  data:
+  - 534.6265258789062
+  - 0.0
+  - 478.0846252441406
+  - 0.0
+  - 0.0
+  - 534.6265258789062
+  - 260.9943542480469
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  - 0.0
+  rows: 3
+rectification_matrix:
+  cols: 3
+  data:
+  - 1.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+  rows: 3
+width: 960
