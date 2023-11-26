@@ -361,12 +361,11 @@ class HydraProjection:
         intrinsic_matrices: Dict[str, np.ndarray],
         extrinsic_matrices: Dict[str, np.ndarray],
         masks: Dict[str, List[np.ndarray]],
-        # mesh_point_clouds: List[np.ndarray],
+        mesh_point_clouds: List[np.ndarray],
         device: str = "cuda",
     ) -> None:
         self._height = height
         self._width = width
-
         self._intrinsic_matrices = {
             key: torch.from_numpy(intrinsic_matrices[key]).to(device)
             for key in intrinsic_matrices
@@ -375,12 +374,10 @@ class HydraProjection:
             key: torch.from_numpy(extrinsic_matrices[key]).to(device)
             for key in extrinsic_matrices
         }
-
         self._masks = {
             key: [torch.from_numpy(image_mask).to(device) for image_mask in masks[key]]
             for key in masks
         }
-
         # build distance maps
         self._distance_maps = {
             key: [
@@ -389,3 +386,11 @@ class HydraProjection:
             ]
             for key in masks
         }
+        self._mesh_point_clouds = [
+            torch.from_numpy(mesh_point_cloud).to(device)
+            for mesh_point_cloud in mesh_point_clouds
+        ]
+        self._device = device
+
+    def register():
+        pass
