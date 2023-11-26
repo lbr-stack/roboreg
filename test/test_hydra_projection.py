@@ -112,6 +112,7 @@ def test_hydra_project_points() -> None:
     # hydra projection
     ##################
     key = "left"
+    idx = 0
     hydra_projection = HydraProjection(
         HT_base_cam_init=HT,
         height=height,
@@ -127,7 +128,7 @@ def test_hydra_project_points() -> None:
 
     # project points
     projected_points = hydra_projection._project_points(
-        hydra_projection._mesh_point_clouds[0],
+        hydra_projection._mesh_point_clouds[idx],
         HT_optical_base=hydra_projection._HT_optical_base.unsqueeze(0),
         intrinsic_matrix=hydra_projection._intrinsic_matrices[key],
     )
@@ -136,8 +137,23 @@ def test_hydra_project_points() -> None:
     normalized_points = hydra_projection._normalize_projected_points(projected_points)
 
     # plot points
-    normalized_points = normalized_points.cpu().numpy()
-    plt.scatter(normalized_points[0, :, 0], -1 * normalized_points[0, :, 1])
+    normalized_points_np = normalized_points.cpu().numpy()
+    plt.scatter(normalized_points_np[0, :, 0], -1 * normalized_points_np[0, :, 1])
+    plt.xlim(-1, 1)
+    plt.ylim(-1, 1)
+    plt.show()
+
+    # mask samples
+    mask_samples = hydra_projection._mask_grid_samples(
+        normalized_points, hydra_projection._boundary_masks[key][idx]
+    )
+
+    # plot masked points
+    normalized_masked_points = normalized_points[mask_samples > 0.0]
+    normalized_masked_points_np = normalized_masked_points.cpu().numpy()
+    plt.scatter(
+        normalized_masked_points_np[:, 0], -1 * normalized_masked_points_np[:, 1]
+    )
     plt.xlim(-1, 1)
     plt.ylim(-1, 1)
     plt.show()

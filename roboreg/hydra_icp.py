@@ -12,7 +12,7 @@ from rich import print
 from rich.progress import track
 from theseus.third_party.utils import grid_sample
 
-from roboreg.util import normalized_symmetric_distance_function
+from roboreg.util import mask_boundary, normalized_symmetric_distance_function
 
 
 def to_homogeneous(x: torch.Tensor) -> torch.Tensor:
@@ -387,14 +387,21 @@ class HydraProjection:
             key: torch.from_numpy(extrinsic_matrices[key]).to(device)
             for key in extrinsic_matrices
         }
-        self._masks = {
-            key: [torch.from_numpy(image_mask).to(device) for image_mask in masks[key]]
+        self._boundary_masks = {
+            key: [
+                torch.from_numpy(mask_boundary(image_mask)).to(
+                    device
+                )  # only keep mask boundary
+                for image_mask in masks[key]
+            ]
             for key in masks
         }
         # build distance maps
         self._distance_maps = {
             key: [
-                torch.from_numpy(normalized_symmetric_distance_function(image_mask))
+                torch.from_numpy(normalized_symmetric_distance_function(image_mask)).to(
+                    device
+                )
                 for image_mask in masks[key]
             ]
             for key in masks
@@ -446,7 +453,17 @@ class HydraProjection:
         uv_point_cloud[..., 1] = (uv_point_cloud[..., 1] / self._height) * 2 - 1
         return uv_point_cloud
 
-    def _sample_distance_maps():
+    def _mask_grid_samples(
+        self,
+        uv_point_cloud: torch.Tensor,
+        mask: torch.Tensor,
+    ) -> torch.Tensor:
+        mask_samples = grid_sample(  # requires theseus grid sampler for backprop
+            mask.unsqueeze(0).unsqueeze(0), uv_point_cloud.unsqueeze(0)
+        ).squeeze(0, 1)
+        return mask_samples
+
+    def _distance_map_grid_samples():
         pass
 
     def _error_function(optim_vars, aux_vars):
