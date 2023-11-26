@@ -1,8 +1,10 @@
 import os
+from typing import Tuple
 
 import cv2
 import numpy as np
 import xacro
+import yaml
 from ament_index_python import get_package_share_directory
 from scipy.signal import convolve2d
 
@@ -111,3 +113,71 @@ def normalized_symmetric_distance_function(mask: np.ndarray) -> np.ndarray:
         dist_symmetric, None, 0, 1.0, cv2.NORM_MINMAX
     )
     return dist_symmetric_normalized
+
+
+def parse_camera_info(camera_info_file: str) -> Tuple[int, int, np.ndarray]:
+    r"""Parse camera info file.
+
+    Args:
+        camera_info_file (str): Absolute path to the camera info file.
+
+    Returns:
+        height (int): Height of the image.
+        width (int): Width of the image.
+        intrinsic_matrix (np.ndarray): Intrinsic matrix of shape 3x3.
+    """
+    with open(camera_info_file, "r") as f:
+        camera_info = yaml.load(f, Loader=yaml.FullLoader)
+    height = camera_info["height"]
+    width = camera_info["width"]
+    if (
+        camera_info["camera_matrix"]["cols"] != 3
+        or camera_info["camera_matrix"]["rows"] != 3
+    ):
+        raise ValueError("Camera matrix must be 3x3.")
+    intrinsic_matrix = np.array(camera_info["camera_matrix"]["data"]).reshape(3, 3)
+    return height, width, intrinsic_matrix
+
+
+def overlay_mask(
+    img: np.ndarray,
+    mask: np.ndarray,
+    mode: str = "r",
+    alpha: float = 0.5,
+    scale: float = 2.0,
+) -> np.ndarray:
+    r"""Overlay mask on image.
+
+    Args:
+        img: Image of shape HxWx3.
+        mask: Mask of shape HxW.
+        mode: Color mode. "r", "g", or "b".
+        alpha: Alpha value for the mask.
+        scale: Scale factor for the image.
+
+    Returns:
+        Mask overlayed on image.
+    """
+    colored_mask = None
+    if mode == "r":
+        colored_mask = np.stack(
+            [mask, np.zeros_like(mask), np.zeros_like(mask)], axis=2
+        )
+    elif mode == "g":
+        colored_mask = np.stack(
+            [np.zeros_like(mask), mask, np.zeros_like(mask)], axis=2
+        )
+    elif mode == "b":
+        colored_mask = np.stack(
+            [np.zeros_like(mask), np.zeros_like(mask), mask], axis=2
+        )
+    else:
+        raise ValueError("Mode must be r, g, or b.")
+
+    overlay_img_mask = cv2.addWeighted(img, alpha, colored_mask, 1.0, 0)
+    # resize by scale
+    overlay_img_mask = cv2.resize(
+        overlay_img_mask,
+        [int(size * scale) for size in overlay_img_mask.shape[:2][::-1]],
+    )
+    return overlay_img_mask
