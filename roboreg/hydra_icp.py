@@ -1,14 +1,16 @@
-from typing import List, Dict
+from typing import Dict, List
 
 import faiss
 import faiss.contrib.torch_utils
 import numpy as np
 import torch
+import transformations as tf
 from pytorch3d.ops import (
     corresponding_points_alignment,
 )  # TODO: remove this dependency and use kabsh_register instead
 from rich import print
 from rich.progress import track
+from theseus.third_party.utils import grid_sample
 
 from roboreg.util import normalized_symmetric_distance_function
 
@@ -225,7 +227,8 @@ def hydra_robust_icp(
     inner_max_iter: int = 3,
     rmse_change: float = 1e-6,
 ) -> torch.Tensor:
-    r"""Lie-algebra point-to-plane ICP with robust loss, refer to https://drive.google.com/file/d/1iIUqKchAbcYzwyS2D6jNI1J6KotReD1h/view?usp=sharing.
+    r"""Lie-algebra point-to-plane ICP with robust loss, refer to section 1
+    https://drive.google.com/file/d/1iIUqKchAbcYzwyS2D6jNI1J6KotReD1h/view?usp=sharing.
 
     Args:
         HT_init: Initial guess. HT_init @ observations = meshes.
@@ -356,6 +359,7 @@ def hydra_robust_icp(
 class HydraProjection:
     def __init__(
         self,
+        HT_base_cam_init: np.ndarray,
         height: int,
         width: int,
         intrinsic_matrices: Dict[str, np.ndarray],
@@ -364,6 +368,15 @@ class HydraProjection:
         mesh_point_clouds: List[np.ndarray],
         device: str = "cuda",
     ) -> None:
+        r"""Lie-algebra projective registration, refer to section 2 in
+        https://drive.google.com/file/d/1iIUqKchAbcYzwyS2D6jNI1J6KotReD1h/view?usp=sharing.
+
+        Given an initial estimate of the homogeneous transform, projects robot mesh into image space
+        and performs an iterative non-linear least squares optimization to minimize the reprojection error.
+        """
+        print("Initializing HydraProjection...")
+        self._HT_optical_base = self._ht_optical_base(HT_base_cam_init)
+        self._HT_optical_base = torch.from_numpy(self._HT_optical_base).to(device)
         self._height = height
         self._width = width
         self._intrinsic_matrices = {
@@ -391,6 +404,50 @@ class HydraProjection:
             for mesh_point_cloud in mesh_point_clouds
         ]
         self._device = device
+        print(f"Configured HydraProjection for {self._device}.")
 
-    def register():
+        # theseus layer: https://github.com/facebookresearch/theseus
+
+    def optimize():
+        pass
+
+    def _ht_optical_base(self, HT_base_cam: np.ndarray) -> np.ndarray:
+        HT_cam_optical = tf.quaternion_matrix(
+            [0.5, -0.5, 0.5, -0.5]
+        )  # camera -> optical
+        # base to optical frame
+        HT_base_optical = HT_base_cam @ HT_cam_optical  # base frame -> optical
+        HT_optical_base = np.linalg.inv(HT_base_optical)
+        return HT_optical_base
+
+    def _project_points(
+        self,
+        point_cloud: torch.Tensor,
+        HT_optical_base: torch.Tensor,
+        intrinsic_matrix: torch.Tensor,
+    ) -> torch.Tensor:
+        projected_point_cloud = torch.matmul(
+            point_cloud @ HT_optical_base[:, :3, :3].transpose(-2, -1)
+            + HT_optical_base[:, :3, 3],
+            intrinsic_matrix.transpose(-1, -2),
+        )
+        # normalize
+        projected_point_cloud = projected_point_cloud / projected_point_cloud[
+            ..., 2
+        ].unsqueeze(-1)
+        return projected_point_cloud
+
+    def _normalize_projected_points(
+        self,
+        projected_point_cloud: torch.Tensor,
+    ) -> torch.Tensor:
+        uv_point_cloud = projected_point_cloud[..., :2]
+        uv_point_cloud[..., 0] = (uv_point_cloud[..., 0] / self._width) * 2 - 1
+        uv_point_cloud[..., 1] = (uv_point_cloud[..., 1] / self._height) * 2 - 1
+        return uv_point_cloud
+
+    def _sample_distance_maps():
+        pass
+
+    def _error_function(optim_vars, aux_vars):
         pass
