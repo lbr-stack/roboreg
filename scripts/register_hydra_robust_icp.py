@@ -6,9 +6,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 import torch
-from common import find_files, load_data, visualize_registration
+from common import load_data, visualize_registration
 
 from roboreg.hydra_icp import hydra_centroid_alignment, hydra_robust_icp
+from roboreg.util import find_files
 
 
 def args_factory() -> argparse.Namespace:

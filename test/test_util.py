@@ -1,6 +1,12 @@
 import cv2
 
-from roboreg.util import extend_mask, mask_boundary, overlay_mask, shrink_mask
+from roboreg.util import (
+    extend_mask,
+    find_files,
+    mask_boundary,
+    overlay_mask,
+    shrink_mask,
+)
 
 
 def test_extend_mask() -> None:
@@ -33,7 +39,14 @@ def test_shrink_mask() -> None:
     cv2.waitKey()
 
 
+def test_find_files() -> None:
+    path = "test/data/high_res"
+    for mask_file in find_files(path, "mask_*.png"):
+        print(mask_file)
+
+
 if __name__ == "__main__":
     # test_extend_mask()
-    test_mask_boundary()
+    # test_mask_boundary()
     # test_shrink_mask()
+    test_find_files()

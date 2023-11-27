@@ -1,5 +1,3 @@
-import pathlib
-import re
 from typing import List, Tuple
 
 import cv2
@@ -154,14 +152,3 @@ def visualize_registration(
         visualizer.add_geometry(mesh_xyzs_pcd)
     visualizer.run()
     visualizer.close()
-
-
-def find_files(path: str, pattern: str = "img_*.png") -> List[str]:
-    def natural_sort(l):
-        convert = lambda text: int(text) if text.isdigit() else text.lower()
-        alphanum_key = lambda key: [convert(c) for c in re.split("([0-9]+)", key)]
-        return sorted(l, key=alphanum_key)
-
-    path = pathlib.Path(path)
-    image_paths = list(path.glob(pattern))
-    return sorted([image_path.name for image_path in image_paths], key=natural_sort)

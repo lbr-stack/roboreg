@@ -7,8 +7,7 @@ import numpy as np
 
 from roboreg.detector import OpenCVDetector
 from roboreg.segmentor import SamSegmentor
-
-from common import find_files
+from roboreg.util import find_files
 
 
 def args_factory() -> argparse.Namespace:

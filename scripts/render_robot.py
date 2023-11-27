@@ -1,15 +1,11 @@
 import argparse
 import os
-import sys
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import cv2
 import numpy as np
 import transformations as tf
-from common import find_files
 
-from roboreg.util import generate_o3d_robot, overlay_mask, parse_camera_info
+from roboreg.util import find_files, generate_o3d_robot, overlay_mask, parse_camera_info
 
 
 def args_factory() -> argparse.Namespace:

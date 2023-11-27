@@ -4,7 +4,8 @@ import pathlib
 
 import cv2
 import numpy as np
-from common import find_files
+
+from roboreg.util import find_files
 
 
 def args_factory() -> argparse.Namespace:
