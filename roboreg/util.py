@@ -56,10 +56,9 @@ def shrink_mask(mask: np.ndarray, kernel: np.ndarray = np.ones([4, 4])) -> np.nd
 
 def mask_boundary(
     mask: np.ndarray,
-    dilation_kernel: np.ndarray = np.ones([1, 1]),
     erosion_kernel: np.ndarray = np.ones([10, 10]),
 ) -> np.ndarray:
-    boundary_mask = cv2.dilate(mask, dilation_kernel) - cv2.erode(mask, erosion_kernel)
+    boundary_mask = mask - cv2.erode(mask, erosion_kernel)
     return boundary_mask
 
 
@@ -161,7 +160,7 @@ def overlay_mask(
     colored_mask = None
     if mode == "r":
         colored_mask = np.stack(
-            [mask, np.zeros_like(mask), np.zeros_like(mask)], axis=2
+            [np.zeros_like(mask), np.zeros_like(mask), mask], axis=2
         )
     elif mode == "g":
         colored_mask = np.stack(
@@ -169,7 +168,7 @@ def overlay_mask(
         )
     elif mode == "b":
         colored_mask = np.stack(
-            [np.zeros_like(mask), np.zeros_like(mask), mask], axis=2
+            [mask, np.zeros_like(mask), np.zeros_like(mask)], axis=2
         )
     else:
         raise ValueError("Mode must be r, g, or b.")
