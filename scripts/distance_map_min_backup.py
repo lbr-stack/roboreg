@@ -288,7 +288,7 @@ if __name__ == "__main__":
         name="cost_fn",
     )
     objective.add(cost_fn)
-    optimizer = th.GaussNewton(objective, max_iteration=100, step_size=0.1)
+    optimizer = th.GaussNewton(objective, max_iterations=100, step_size=0.1)
 
     layer = th.TheseusLayer(optimizer=optimizer)
     layer.to(device=device)
