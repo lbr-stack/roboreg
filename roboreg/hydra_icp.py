@@ -3,7 +3,9 @@ from typing import Dict, List
 import faiss
 import faiss.contrib.torch_utils
 import numpy as np
+import theseus
 import torch
+import torchlie
 import transformations as tf
 from pytorch3d.ops import (
     corresponding_points_alignment,
@@ -367,6 +369,7 @@ class HydraProjection:
         masks: Dict[str, List[np.ndarray]],
         mesh_point_clouds: List[np.ndarray],
         device: str = "cuda",
+        dtype: torch.dtype = torch.float32,
     ) -> None:
         r"""Lie-algebra projective registration, refer to section 2 in
         https://drive.google.com/file/d/1iIUqKchAbcYzwyS2D6jNI1J6KotReD1h/view?usp=sharing.
@@ -376,21 +379,27 @@ class HydraProjection:
         """
         print("Initializing HydraProjection...")
         self._HT_optical_base = self._ht_optical_base(HT_base_cam_init)
-        self._HT_optical_base = torch.from_numpy(self._HT_optical_base).to(device)
+        self._HT_optical_base = torch.from_numpy(self._HT_optical_base).to(
+            device=device, dtype=dtype
+        )
         self._height = height
         self._width = width
         self._intrinsic_matrices = {
-            key: torch.from_numpy(intrinsic_matrices[key]).to(device)
+            key: torch.from_numpy(intrinsic_matrices[key]).to(
+                device=device, dtype=dtype
+            )
             for key in intrinsic_matrices
         }
         self._extrinsic_matrices = {
-            key: torch.from_numpy(extrinsic_matrices[key]).to(device)
+            key: torch.from_numpy(extrinsic_matrices[key]).to(
+                device=device, dtype=dtype
+            )
             for key in extrinsic_matrices
         }
         self._boundary_masks = {
             key: [
                 torch.from_numpy(mask_boundary(image_mask)).to(
-                    device
+                    device=device, dtype=dtype
                 )  # only keep mask boundary
                 for image_mask in masks[key]
             ]
@@ -400,23 +409,135 @@ class HydraProjection:
         self._distance_maps = {
             key: [
                 torch.from_numpy(normalized_symmetric_distance_function(image_mask)).to(
-                    device
+                    device=device, dtype=dtype
                 )
                 for image_mask in masks[key]
             ]
             for key in masks
         }
         self._mesh_point_clouds = [
-            torch.from_numpy(mesh_point_cloud).to(device)
+            torch.from_numpy(mesh_point_cloud).to(device=device, dtype=dtype)
             for mesh_point_cloud in mesh_point_clouds
         ]
         self._device = device
+        self._dtype = dtype
         print(f"Configured HydraProjection for {self._device}.")
 
-        # theseus layer: https://github.com/facebookresearch/theseus
+    def optimize(
+        self, max_iterations: int = 100, step_size: float = 0.1
+    ) -> torch.Tensor:
+        def error_function(optim_vars, aux_vars):
+            Th_vec = optim_vars[0]
+            intrinsic_matrix, distance_map, mesh_point_cloud, boundary_mask = aux_vars
 
-    def optimize():
-        pass
+            # project pcd
+            Th = theseus.SE3.exp_map(Th_vec.tensor)
+
+            # project points
+            projected_points = self._project_points(
+                point_cloud=mesh_point_cloud.tensor,
+                HT_optical_base=Th.tensor,
+                intrinsic_matrix=intrinsic_matrix.tensor,
+            )
+
+            # normalize points [-1, 1]
+            normalized_projected_points = self._normalize_projected_points(
+                projected_points
+            )
+
+            # sample mask at projections
+            mask_samples = self._mask_grid_samples(
+                normalized_projected_points, boundary_mask.tensor
+            )
+
+            # sample from distance map at projections
+            d = self._distance_map_grid_samples(
+                normalized_projected_points, distance_map.tensor
+            )
+
+            # mask samples
+            d = mask_samples * d
+
+            # return error
+            return d
+
+        key = "left"
+        idx = 5
+
+        # theseus layer: https://github.com/facebookresearch/theseus
+        intrinsic_matrix_var = theseus.Variable(
+            self._intrinsic_matrices[key].unsqueeze(0), name="intrinsic_matrix"
+        )
+        distance_map_var = theseus.Variable(
+            self._distance_maps[key][idx].unsqueeze(0), name="distance_map"
+        )
+        mesh_point_cloud_var = theseus.Variable(
+            self._mesh_point_clouds[idx].unsqueeze(0), name="mesh_point_cloud"
+        )
+        boundary_mask_var = theseus.Variable(
+            self._boundary_masks[key][idx].unsqueeze(0), name="boundary_mask"
+        )
+
+        Th_vec = theseus.Vector(dof=6, name="Th_vec", dtype=self._dtype)
+
+        objective = theseus.Objective(dtype=self._dtype)
+        cost_fn = theseus.AutoDiffCostFunction(
+            optim_vars=[Th_vec],
+            err_fn=error_function,
+            dim=self._mesh_point_clouds[idx].shape[0],
+            cost_weight=theseus.ScaleCostWeight(1.0),
+            aux_vars=[
+                intrinsic_matrix_var,
+                distance_map_var,
+                mesh_point_cloud_var,
+                boundary_mask_var,
+            ],
+            name="cost_fn",
+        )
+        objective.add(cost_fn)
+        optimizer = theseus.GaussNewton(
+            objective, max_iterations=max_iterations, step_size=step_size
+        )
+
+        theseus_layer = theseus.TheseusLayer(optimizer=optimizer)
+        theseus_layer.to(device=self._device)
+
+        Th = torchlie.SE3(self._HT_optical_base[:3, :])
+        input = {
+            "intrinsic_matrix": intrinsic_matrix_var.tensor,
+            "distance_map": distance_map_var.tensor,
+            "mesh_point_cloud": mesh_point_cloud_var.tensor,
+            "boundary_mask": boundary_mask_var.tensor,
+            "Th_vec": Th.log().unsqueeze(0),
+        }
+
+        print("input: ", input)
+
+        with torch.no_grad():
+            output, info = theseus_layer.forward(
+                input, optimizer_kwargs={"track_best_solution": True, "verbose": True}
+            )  # runs entire optimization
+
+        HT_optical_base_optimal = (
+            theseus.SE3.exp_map(info.best_solution["Th_vec"])
+            .tensor.cpu()
+            .numpy()
+            .squeeze()
+        )
+
+        # post-processing
+        HT_optical_base_optimal = np.concatenate(
+            [HT_optical_base_optimal, np.array([[0.0, 0.0, 0.0, 1.0]])], axis=0
+        )
+
+        HT_cam_optical = tf.quaternion_matrix(
+            [0.5, -0.5, 0.5, -0.5]
+        )  # camera -> optical
+
+        HT_cam_base_optimal = HT_cam_optical @ HT_optical_base_optimal
+        HT_base_cam_optimal = np.linalg.inv(HT_cam_base_optimal)
+
+        return HT_base_cam_optimal
 
     def _ht_optical_base(self, HT_base_cam: np.ndarray) -> np.ndarray:
         HT_cam_optical = tf.quaternion_matrix(
@@ -448,23 +569,33 @@ class HydraProjection:
         self,
         projected_point_cloud: torch.Tensor,
     ) -> torch.Tensor:
-        uv_point_cloud = projected_point_cloud[..., :2]
-        uv_point_cloud[..., 0] = (uv_point_cloud[..., 0] / self._width) * 2 - 1
-        uv_point_cloud[..., 1] = (uv_point_cloud[..., 1] / self._height) * 2 - 1
-        return uv_point_cloud
+        normalized_projected_point_cloud = projected_point_cloud[..., :2]
+        normalized_projected_point_cloud[..., 0] = (
+            normalized_projected_point_cloud[..., 0] / self._width
+        ) * 2 - 1
+        normalized_projected_point_cloud[..., 1] = (
+            normalized_projected_point_cloud[..., 1] / self._height
+        ) * 2 - 1
+        return normalized_projected_point_cloud
 
     def _mask_grid_samples(
         self,
-        uv_point_cloud: torch.Tensor,
+        normalized_projected_point_cloud: torch.Tensor,
         mask: torch.Tensor,
     ) -> torch.Tensor:
         mask_samples = grid_sample(  # requires theseus grid sampler for backprop
-            mask.unsqueeze(0).unsqueeze(0), uv_point_cloud.unsqueeze(0)
+            mask.unsqueeze(0),
+            normalized_projected_point_cloud.unsqueeze(0),
         ).squeeze(0, 1)
         return mask_samples
 
-    def _distance_map_grid_samples():
-        pass
-
-    def _error_function(optim_vars, aux_vars):
-        pass
+    def _distance_map_grid_samples(
+        self,
+        normalized_projected_point_cloud: torch.Tensor,
+        distance_map: torch.Tensor,
+    ) -> torch.Tensor:
+        distance_map_samples = grid_sample(
+            distance_map.unsqueeze(0),
+            normalized_projected_point_cloud.unsqueeze(0),
+        ).squeeze(0, 1)
+        return distance_map_samples

@@ -5,13 +5,12 @@ from typing import List, Tuple
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import cv2
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from common import find_files
-import matplotlib.pyplot as plt
 
 from roboreg.hydra_icp import HydraProjection
-from roboreg.util import generate_o3d_robot, parse_camera_info
+from roboreg.util import find_files, generate_o3d_robot, parse_camera_info
 
 
 def load_data(
@@ -21,7 +20,7 @@ def load_data(
     # parameters
     ############
     path = "test/data/high_res"
-    sample_points_per_link = 1000
+    sample_points_per_link = 200
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
     ###########
@@ -32,7 +31,7 @@ def load_data(
         os.path.join(path, "left_camera_info.yaml")
     )
     masks = []
-    for mask_file in find_files(path, "mask_*.png")[:1]:  # TODO: replace this by all!
+    for mask_file in find_files(path, "mask_*.png"):
         masks.append(cv2.imread(os.path.join(path, mask_file), cv2.IMREAD_GRAYSCALE))
 
     robot = generate_o3d_robot(
@@ -41,9 +40,7 @@ def load_data(
     )
 
     mesh_point_clouds = []
-    for joint_state_file in find_files(path, "joint_state_*.npy")[
-        :1
-    ]:  # TODO: replace this by all!
+    for joint_state_file in find_files(path, "joint_state_*.npy"):
         joint_state = np.load(os.path.join(path, joint_state_file))
         robot.set_joint_positions(joint_state)
         mesh_point_cloud = np.concatenate(
@@ -68,6 +65,7 @@ def load_data(
 
 
 def test_hydra_projection_full() -> None:
+    path = "test/data/high_res"
     (
         HT,
         height,
@@ -76,13 +74,15 @@ def test_hydra_projection_full() -> None:
         masks,
         mesh_point_clouds,
         device,
-    ) = load_data("test/data/high_res")
+    ) = load_data(path)
+
+    print("HT:\n", HT)
 
     ##############
     # registration
     ##############
     hydra_projection = HydraProjection(
-        HT_init=HT,
+        HT_base_cam_init=HT,
         height=height,
         width=width,
         intrinsic_matrices={"left": intrinsic_matrix},
@@ -93,8 +93,9 @@ def test_hydra_projection_full() -> None:
         mesh_point_clouds=mesh_point_clouds,
         device=device,
     )
-
-    print(hydra_projection._distance_maps["left"][0].shape)
+    HT_base_cam_optimal = hydra_projection.optimize(max_iterations=1000)
+    print("HT_base_cam_optimal:\n", HT_base_cam_optimal)
+    np.save(os.path.join(path, "HT_base_cam_optimal_new.npy"), HT_base_cam_optimal)
 
 
 def test_hydra_project_points() -> None:
@@ -145,14 +146,21 @@ def test_hydra_project_points() -> None:
 
     # mask samples
     mask_samples = hydra_projection._mask_grid_samples(
-        normalized_points, hydra_projection._boundary_masks[key][idx]
+        normalized_points, hydra_projection._boundary_masks[key][idx].unsqueeze(0)
     )
 
     # plot masked points
     normalized_masked_points = normalized_points[mask_samples > 0.0]
+
+    distance_map_samples = hydra_projection._distance_map_grid_samples(
+        normalized_masked_points.unsqueeze(0), hydra_projection._distance_maps[key][idx].unsqueeze(0)
+    )
+
     normalized_masked_points_np = normalized_masked_points.cpu().numpy()
     plt.scatter(
-        normalized_masked_points_np[:, 0], -1 * normalized_masked_points_np[:, 1]
+        normalized_masked_points_np[:, 0],
+        -1 * normalized_masked_points_np[:, 1],
+        c=distance_map_samples.squeeze().cpu().numpy(),
     )
     plt.xlim(-1, 1)
     plt.ylim(-1, 1)
@@ -160,5 +168,5 @@ def test_hydra_project_points() -> None:
 
 
 if __name__ == "__main__":
-    # test_hydra_projection_full()
-    test_hydra_project_points()
+    test_hydra_projection_full()
+    # test_hydra_project_points()

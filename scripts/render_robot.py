@@ -1,5 +1,8 @@
 import argparse
 import os
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import cv2
 import numpy as np
@@ -103,7 +106,7 @@ def main():
         render_overlay = overlay_mask(
             img,
             o3d_render,
-            "r",
+            "b",
             0.8,
             1.0,
         )

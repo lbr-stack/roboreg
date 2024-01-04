@@ -15,6 +15,7 @@ from roboreg.util import (
     mask_boundary,
     normalized_distance_transform,
     normalized_symmetric_distance_function,
+    parse_camera_info,
 )
 
 # https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html
@@ -25,14 +26,8 @@ if __name__ == "__main__":
     prefix = "test/data/high_res"
 
     # camera intrinsics
-    width = 960
-    height = 540
-    intrinsic_matrix = np.array(
-        [
-            [533.9981079101562, 0.0, 478.0845642089844],
-            [0.0, 533.9981079101562, 260.9956970214844],
-            [0.0, 0.0, 1.0],
-        ]
+    height, width, intrinsic_matrix = parse_camera_info(
+        os.path.join(prefix, "left_camera_info.yaml")
     )
 
     # load robot and generate render given homogeneous transform
@@ -89,7 +84,7 @@ if __name__ == "__main__":
     idx = 2
     joint_state = np.load(os.path.join(prefix, f"joint_state_{idx}.npy"))
     robot.set_joint_positions(joint_state)
-    pcds = robot.sample_point_clouds(number_of_points_per_link=1000)
+    pcds = robot.sample_point_clouds(number_of_points_per_link=400)
     # print("Visualizeing sampled points...")
     # plot_render(idx)
 

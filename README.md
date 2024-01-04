@@ -25,9 +25,6 @@ python3 scripts/render_robot.py \
 ## Hydra Projection
 
 
-## Render Results
-
-
 ## Baselines
 
 ## Environment

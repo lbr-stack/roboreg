@@ -1,6 +1,9 @@
 import argparse
 import os
 import pathlib
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import cv2
 import numpy as np
