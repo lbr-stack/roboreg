@@ -70,7 +70,7 @@ class O3DRobot:
     def mesh_to_point_cloud(
         self, mesh: o3d.geometry.TriangleMesh, number_of_points: int = 1000
     ) -> o3d.geometry.PointCloud:
-        return mesh.to_legacy().sample_points_uniformly(
+        return mesh.to_legacy().sample_points_poisson_disk(
             number_of_points=number_of_points
         )
 

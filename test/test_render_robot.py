@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import transformations as tf
 
-from roboreg.util import generate_o3d_robot
+from roboreg.util import generate_o3d_robot, parse_camera_info, find_files
 
 
 def test_render_robot():
@@ -16,24 +16,17 @@ def test_render_robot():
     robot = generate_o3d_robot()
 
     # camera intrinsics
-    width = 960
-    height = 540
-    intrinsic_matrix = np.array(
-        [
-            [533.9981079101562, 0.0, 478.0845642089844],
-            [0.0, 533.9981079101562, 260.9956970214844],
-            [0.0, 0.0, 1.0],
-        ]
+    height, width, intrinsic_matrix = parse_camera_info(
+        os.path.join(input_prefix, "left_camera_info.yaml")
     )
 
-    for i in range(7):
-        ###########
-        # load data
-        ###########
-        joint_state_file = f"joint_state_{i}.npy"
-        img_file = f"img_{i}.png"
-        mask_file = f"mask_{i}.png"
+    joint_state_files = find_files(input_prefix, "joint_state_*.npy")
+    img_files = find_files(input_prefix, "left_img_*.png")
+    mask_files = find_files(input_prefix, "left_mask_*.png")
 
+    for joint_state_file, img_file, mask_file in zip(
+        joint_state_files, img_files, mask_files
+    ):
         joint_state = np.load(os.path.join(input_prefix, joint_state_file))
         img = cv2.imread(os.path.join(input_prefix, img_file))
         mask = cv2.imread(os.path.join(input_prefix, mask_file), cv2.IMREAD_GRAYSCALE)
@@ -102,11 +95,12 @@ def test_render_robot():
         # save
         ######
         cv2.imwrite(
-            os.path.join(output_prefix, f"overlay_img_render_{i}.jpg"),
+            os.path.join(output_prefix, img_file.replace("img", "overlay_render")),
             overlay_img_render,
         )
         cv2.imwrite(
-            os.path.join(output_prefix, f"overlay_img_mask_{i}.jpg"), overlay_img_mask
+            os.path.join(output_prefix, img_file.replace("img", "overlay_mask")),
+            overlay_img_mask,
         )
 
 

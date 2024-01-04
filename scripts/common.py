@@ -1,4 +1,4 @@
-import pathlib
+import os
 from typing import List, Tuple
 
 import cv2
@@ -6,15 +6,17 @@ import numpy as np
 import open3d as o3d
 import pyvista as pv
 
-from roboreg.ray_cast import RayCastRobot
-from roboreg.util import clean_xyz, generate_o3d_robot
+from roboreg.util import clean_xyz, generate_o3d_robot, mask_boundary
 
 
 def load_data(
-    idcs: List[int],
-    scan: bool = True,
+    path: str,
+    mask_files: List[str],
+    xyz_files: List[str],
+    joint_state_files: List[str],
+    sample_points_per_link: int = 1000,
     visualize: bool = False,
-    prefix: str = "test/data/low_res",
+    masked_boundary: bool = True,
 ) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
     clean_observed_xyzs = []
     mesh_xyzs = []
@@ -23,11 +25,15 @@ def load_data(
     # load robot
     robot = generate_o3d_robot()
 
-    for idx in idcs:
+    for mask_file, xyz_file, joint_state_file in zip(
+        mask_files, xyz_files, joint_state_files
+    ):
         # load data
-        mask = cv2.imread(f"{prefix}/mask_{idx}.png", cv2.IMREAD_GRAYSCALE)
-        observed_xyz = np.load(f"{prefix}/xyz_{idx}.npy")
-        joint_state = np.load(f"{prefix}/joint_state_{idx}.npy")
+        mask = cv2.imread(os.path.join(path, mask_file), cv2.IMREAD_GRAYSCALE)
+        if masked_boundary:
+            mask = mask_boundary(mask)
+        observed_xyz = np.load(os.path.join(path, xyz_file))
+        joint_state = np.load(os.path.join(path, joint_state_file))
 
         # clean cloud
         clean_observed_xyzs.append(clean_xyz(observed_xyz, mask))
@@ -43,51 +49,78 @@ def load_data(
         mesh_xyz = None
         mesh_xyz_normals = None
 
-        if scan:
-            # raycast views
-            ray_cast = RayCastRobot(robot)
-            ray_cast.robot.set_joint_positions(joint_state)
-            mesh_pcds = []
-            eyes = [
-                [0, 2, 0],
-                [0, -2, 0],
-                [2, 0, 0],
-                [-2, 0, 0],
-            ]
-            for eye in eyes:
-                mesh_pcds.append(
-                    ray_cast.cast(
-                        fov_deg=90,
-                        center=o3d.core.Tensor([0, 0, 0]),
-                        eye=o3d.core.Tensor(eye),
-                        up=o3d.core.Tensor([0, 0, 1]),
-                        width_px=640,
-                        height_px=480,
-                    )
-                )
-
-            mesh_xyz = np.concatenate(
-                [mesh_pcd.point.positions.numpy() for mesh_pcd in mesh_pcds], axis=0
-            )
-            [mesh_pcd.estimate_normals() for mesh_pcd in mesh_pcds]
-            mesh_xyz_normals = np.concatenate(
-                [mesh_pcd.point.normals.numpy() for mesh_pcd in mesh_pcds], axis=0
-            )
-        else:
-            robot.set_joint_positions(joint_state)
-            mesh_xyz = np.concatenate(
-                [np.array(pcd.points) for pcd in robot.sample_point_clouds()]
-            )
-            mesh_xyz_normals = np.concatenate(
-                [np.array(pcd.normals) for pcd in robot.sample_point_clouds()]
-            )
+        robot.set_joint_positions(joint_state)
+        pcds = robot.sample_point_clouds(
+            number_of_points_per_link=sample_points_per_link
+        )
+        mesh_xyz = np.concatenate([np.array(pcd.points) for pcd in pcds])
+        mesh_xyz_normals = np.concatenate([np.array(pcd.normals) for pcd in pcds])
         mesh_xyzs.append(mesh_xyz)
         mesh_xyzs_normals.append(mesh_xyz_normals)
 
     return clean_observed_xyzs, mesh_xyzs, mesh_xyzs_normals
 
 
-def find_files(path: str, pattern: str = "img_*.png") -> List[str]:
-    path = pathlib.Path(path)
-    image_paths = list(path.glob(pattern))
-    return [image_path.name for image_path in image_paths]
+def visualize_registration(
+    observed_xyzs: List[np.ndarray], mesh_xyzs: List[np.ndarray], HT: np.ndarray
+) -> None:
+    # visualize
+    observed_xyzs_pcds = [
+        o3d.geometry.PointCloud(o3d.utility.Vector3dVector(observed_xyz))
+        for observed_xyz in observed_xyzs
+    ]
+    mesh_xyzs_pcds = [
+        o3d.geometry.PointCloud(o3d.utility.Vector3dVector(mesh_xyz))
+        for mesh_xyz in mesh_xyzs
+    ]
+
+    # array of colors
+    [
+        observed_xyzs_pcd.paint_uniform_color(
+            [
+                0.5,
+                0.8,
+                0.5
+                + (len(observed_xyzs_pcds) - idx - 1) / len(observed_xyzs_pcds) / 2.0,
+            ]
+        )
+        for idx, observed_xyzs_pcd in enumerate(observed_xyzs_pcds)
+    ]
+    [
+        mesh_xyzs_pcd.paint_uniform_color(
+            [
+                0.5 + (len(mesh_xyzs_pcds) - idx - 1) / len(mesh_xyzs_pcds) / 2.0,
+                0.5,
+                0.8,
+            ]
+        )
+        for idx, mesh_xyzs_pcd in enumerate(mesh_xyzs_pcds)
+    ]
+
+    # visualize
+    visualizer = o3d.visualization.Visualizer()
+    visualizer.create_window()
+
+    visualizer.get_render_option().background_color = np.asarray([0, 0, 0])
+    for observed_xyzs_pcd in observed_xyzs_pcds:
+        visualizer.add_geometry(observed_xyzs_pcd)
+    for mesh_xyzs_pcd in mesh_xyzs_pcds:
+        visualizer.add_geometry(mesh_xyzs_pcd)
+    visualizer.run()
+    visualizer.close()
+
+    # transform mesh
+    for i in range(len(mesh_xyzs_pcds)):
+        mesh_xyzs_pcds[i] = mesh_xyzs_pcds[i].transform(HT)
+
+    # visualize
+    visualizer = o3d.visualization.Visualizer()
+    visualizer.create_window()
+
+    visualizer.get_render_option().background_color = np.asarray([0, 0, 0])
+    for observed_xyzs_pcd in observed_xyzs_pcds:
+        visualizer.add_geometry(observed_xyzs_pcd)
+    for mesh_xyzs_pcd in mesh_xyzs_pcds:
+        visualizer.add_geometry(mesh_xyzs_pcd)
+    visualizer.run()
+    visualizer.close()

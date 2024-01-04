@@ -1,21 +1,27 @@
 import argparse
 import os
 import pathlib
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import cv2
 import numpy as np
 
 from roboreg.detector import OpenCVDetector
 from roboreg.segmentor import SamSegmentor
-
-from common import find_files
+from roboreg.util import find_files
 
 
 def args_factory() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--path", type=str, required=True)
-    parser.add_argument("--pattern", type=str, default="img_*.png")
-    parser.add_argument("--buffer_size", type=int, default=5)
+    parser.add_argument("--path", type=str, required=True, help="Path to the images.")
+    parser.add_argument(
+        "--pattern", type=str, default="img_*.png", help="Image file pattern."
+    )
+    parser.add_argument(
+        "--buffer_size", type=int, default=5, help="Number of detected points."
+    )
     parser.add_argument(
         "--sam_checkpoint",
         type=str,
