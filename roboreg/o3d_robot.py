@@ -67,6 +67,20 @@ class O3DRobot:
             for mesh in self.meshes
         ]
 
+    def sample_point_clouds_equally(
+        self,
+        number_of_points: int = 5000,
+    ) -> List[o3d.geometry.PointCloud]:
+        vertices_per_mesh = [mesh.vertex.positions.shape[0] for mesh in self.meshes]
+        total_vertices = sum(vertices_per_mesh)
+        samples_per_mesh = [
+            int(number_of_points * v / total_vertices) for v in vertices_per_mesh
+        ]
+        return [
+            self.mesh_to_point_cloud(mesh, samples_per_mesh[idx])
+            for idx, mesh in enumerate(self.meshes)
+        ]
+
     def mesh_to_point_cloud(
         self, mesh: o3d.geometry.TriangleMesh, number_of_points: int = 1000
     ) -> o3d.geometry.PointCloud:
