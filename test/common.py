@@ -14,7 +14,7 @@ def load_data(
     scan: bool = True,
     visualize: bool = False,
     prefix: str = "test/data/low_res",
-    number_of_points_per_link: int = 1000,
+    number_of_points: int = 5000,
     masked_boundary: bool = True,
 ) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
     clean_observed_xyzs = []
@@ -78,9 +78,7 @@ def load_data(
             )
         else:
             robot.set_joint_positions(joint_state)
-            pcds = robot.sample_point_clouds(
-                number_of_points_per_link=number_of_points_per_link
-            )
+            pcds = robot.sample_point_clouds_equally(number_of_points=number_of_points)
             mesh_xyz = np.concatenate([np.array(pcd.points) for pcd in pcds])
             mesh_xyz_normals = np.concatenate([np.array(pcd.normals) for pcd in pcds])
         mesh_xyzs.append(mesh_xyz)

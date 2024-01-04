@@ -1,4 +1,7 @@
 import os
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import cv2
 import numpy as np
@@ -9,7 +12,7 @@ from roboreg.util import generate_o3d_robot, parse_camera_info, find_files
 
 def test_render_robot():
     input_prefix = "test/data/high_res"
-    ht_file = "HT_hydra_robust.npy"
+    ht_file = "HT_base_cam_optimal_new.npy"
     output_prefix = input_prefix
 
     # load robot
@@ -21,8 +24,8 @@ def test_render_robot():
     )
 
     joint_state_files = find_files(input_prefix, "joint_state_*.npy")
-    img_files = find_files(input_prefix, "left_img_*.png")
-    mask_files = find_files(input_prefix, "left_mask_*.png")
+    img_files = find_files(input_prefix, "img_*.png")
+    mask_files = find_files(input_prefix, "mask_*.png")
 
     for joint_state_file, img_file, mask_file in zip(
         joint_state_files, img_files, mask_files

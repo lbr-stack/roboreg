@@ -1,12 +1,17 @@
+import os
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
 import cv2
 import numpy as np
 import open3d as o3d
 import torch
 import transformations as tf
 
-from roboreg.ray_cast import RayCastRobot
-from roboreg.util import generate_o3d_robot, clean_xyz
 from roboreg.hydra_icp import hydra_centroid_alignment
+from roboreg.ray_cast import RayCastRobot
+from roboreg.util import clean_xyz, generate_o3d_robot
 
 
 def test_ray_casting() -> None:
@@ -99,7 +104,7 @@ def test_ray_cast_with_centroid_align(cast_ht: bool = True) -> None:
         )
 
         robot.set_joint_positions(joint_state)
-        pcds = robot.sample_point_clouds()
+        pcds = robot.sample_point_clouds_equally()
         mesh_xyzs.append(
             torch.from_numpy(np.concatenate([np.array(pcd.points) for pcd in pcds]))
             .to(device)

@@ -84,7 +84,7 @@ if __name__ == "__main__":
     idx = 2
     joint_state = np.load(os.path.join(prefix, f"joint_state_{idx}.npy"))
     robot.set_joint_positions(joint_state)
-    pcds = robot.sample_point_clouds(number_of_points_per_link=400)
+    pcds = robot.sample_point_clouds_equally()
     # print("Visualizeing sampled points...")
     # plot_render(idx)
 

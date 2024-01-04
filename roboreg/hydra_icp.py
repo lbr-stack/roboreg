@@ -462,20 +462,22 @@ class HydraProjection:
             return d
 
         key = "left"
-        idx = 5
 
         # theseus layer: https://github.com/facebookresearch/theseus
         intrinsic_matrix_var = theseus.Variable(
             self._intrinsic_matrices[key].unsqueeze(0), name="intrinsic_matrix"
         )
         distance_map_var = theseus.Variable(
-            self._distance_maps[key][idx].unsqueeze(0), name="distance_map"
+            torch.min(torch.stack(self._distance_maps[key]), dim=0)[0].unsqueeze(0),
+            name="distance_map",
         )
         mesh_point_cloud_var = theseus.Variable(
-            self._mesh_point_clouds[idx].unsqueeze(0), name="mesh_point_cloud"
+            torch.concatenate(self._mesh_point_clouds).unsqueeze(0),
+            name="mesh_point_cloud",
         )
         boundary_mask_var = theseus.Variable(
-            self._boundary_masks[key][idx].unsqueeze(0), name="boundary_mask"
+            torch.max(torch.stack(self._boundary_masks[key]), dim=0)[0].unsqueeze(0),
+            name="boundary_mask",
         )
 
         Th_vec = theseus.Vector(dof=6, name="Th_vec", dtype=self._dtype)
@@ -484,7 +486,7 @@ class HydraProjection:
         cost_fn = theseus.AutoDiffCostFunction(
             optim_vars=[Th_vec],
             err_fn=error_function,
-            dim=self._mesh_point_clouds[idx].shape[0],
+            dim=mesh_point_cloud_var.shape[1],
             cost_weight=theseus.ScaleCostWeight(1.0),
             aux_vars=[
                 intrinsic_matrix_var,
