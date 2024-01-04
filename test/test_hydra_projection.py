@@ -20,7 +20,7 @@ def load_data(
     # parameters
     ############
     path = "test/data/high_res"
-    number_of_points = 1000
+    number_of_points = 200
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
     ###########
