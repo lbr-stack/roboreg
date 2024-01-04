@@ -14,7 +14,7 @@ def load_data(
     mask_files: List[str],
     xyz_files: List[str],
     joint_state_files: List[str],
-    sample_points_per_link: int = 1000,
+    number_of_points: int = 5000,
     visualize: bool = False,
     masked_boundary: bool = True,
 ) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
@@ -50,9 +50,7 @@ def load_data(
         mesh_xyz_normals = None
 
         robot.set_joint_positions(joint_state)
-        pcds = robot.sample_point_clouds(
-            number_of_points_per_link=sample_points_per_link
-        )
+        pcds = robot.sample_point_clouds_equally(number_of_points=number_of_points)
         mesh_xyz = np.concatenate([np.array(pcd.points) for pcd in pcds])
         mesh_xyz_normals = np.concatenate([np.array(pcd.normals) for pcd in pcds])
         mesh_xyzs.append(mesh_xyz)

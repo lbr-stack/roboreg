@@ -55,7 +55,7 @@ class O3DRobot:
         o3d.visualization.draw(self.meshes)
 
     def visualize_point_clouds(self) -> None:
-        clouds = self.sample_point_clouds()
+        clouds = self.sample_point_clouds_equally()
         o3d.visualization.draw_geometries(clouds)
 
     def sample_point_clouds(
@@ -71,10 +71,14 @@ class O3DRobot:
         self,
         number_of_points: int = 5000,
     ) -> List[o3d.geometry.PointCloud]:
-        vertices_per_mesh = [mesh.vertex.positions.shape[0] for mesh in self.meshes]
-        total_vertices = sum(vertices_per_mesh)
+        # compute bounding box volume per mesh
+        bounding_box_volumes = [
+            mesh.get_axis_aligned_bounding_box().volume() for mesh in self.meshes
+        ]
+        total_bounding_box_volume = sum(bounding_box_volumes)
         samples_per_mesh = [
-            int(number_of_points * v / total_vertices) for v in vertices_per_mesh
+            int(number_of_points * bounding_box_volume / total_bounding_box_volume)
+            for bounding_box_volume in bounding_box_volumes
         ]
         return [
             self.mesh_to_point_cloud(mesh, samples_per_mesh[idx])

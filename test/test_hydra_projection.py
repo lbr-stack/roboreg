@@ -20,7 +20,7 @@ def load_data(
     # parameters
     ############
     path = "test/data/high_res"
-    sample_points_per_link = 200
+    number_of_points = 1000
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
     ###########
@@ -46,8 +46,8 @@ def load_data(
         mesh_point_cloud = np.concatenate(
             [
                 link_point_cloud.points
-                for link_point_cloud in robot.sample_point_clouds(
-                    number_of_points_per_link=sample_points_per_link
+                for link_point_cloud in robot.sample_point_clouds_equally(
+                    number_of_points=number_of_points
                 )
             ]
         )
@@ -153,7 +153,8 @@ def test_hydra_project_points() -> None:
     normalized_masked_points = normalized_points[mask_samples > 0.0]
 
     distance_map_samples = hydra_projection._distance_map_grid_samples(
-        normalized_masked_points.unsqueeze(0), hydra_projection._distance_maps[key][idx].unsqueeze(0)
+        normalized_masked_points.unsqueeze(0),
+        hydra_projection._distance_maps[key][idx].unsqueeze(0),
     )
 
     normalized_masked_points_np = normalized_masked_points.cpu().numpy()
