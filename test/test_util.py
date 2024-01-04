@@ -1,3 +1,8 @@
+import os
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
 import cv2
 
 from roboreg.util import (
@@ -47,6 +52,6 @@ def test_find_files() -> None:
 
 if __name__ == "__main__":
     # test_extend_mask()
-    # test_mask_boundary()
+    test_mask_boundary()
     # test_shrink_mask()
-    test_find_files()
+    # test_find_files()
