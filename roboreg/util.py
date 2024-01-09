@@ -79,6 +79,26 @@ def generate_o3d_robot(
     return robot
 
 
+def logarithmic_asymmetric_distance_transform(mask: np.ndarray) -> np.ndarray:
+    r"""Compute the logarithmic asymmetric distance transform.
+
+    Args:
+        mask: Binary mask.
+
+    Returns:
+        The logarithmic asymmetric distance transform.
+    """
+    inverse_mask = (mask.max() - mask).astype(np.uint8)
+
+    dist = cv2.distanceTransform(mask, cv2.DIST_L2, 3)
+    dist_inverse = cv2.distanceTransform(inverse_mask, cv2.DIST_L2, 3)
+
+    dist = np.log(dist + 1.0)
+
+    dist_asymmetric = dist + dist_inverse
+    return dist_asymmetric
+
+
 def normalized_distance_transform(mask: np.ndarray) -> np.ndarray:
     r"""Compute the normalized distance transform.
 

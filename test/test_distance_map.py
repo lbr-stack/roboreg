@@ -6,9 +6,21 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 import cv2
 
 from roboreg.util import (
+    logarithmic_asymmetric_distance_transform,
     normalized_distance_transform,
     normalized_symmetric_distance_function,
 )
+
+
+def test_logrithmic_asymmetric_distance_map() -> None:
+    # given segmentation, compute distance map by any means
+    mask = cv2.imread("test/data/high_res/mask_0.png", cv2.IMREAD_GRAYSCALE)
+
+    # install via pip from github
+    dist_asymmetric = logarithmic_asymmetric_distance_transform(mask)
+    cv2.imshow("mask", mask)
+    cv2.imshow("dist_asymmetric", dist_asymmetric)
+    cv2.waitKey(0)
 
 
 def test_normalized_distance_map() -> None:
@@ -34,5 +46,6 @@ def test_normalized_symmetric_distance_map() -> None:
 
 
 if __name__ == "__main__":
-    # test_normalized_distance_map()
     test_normalized_symmetric_distance_map()
+    # test_normalized_distance_map()
+    # test_normalized_symmetric_distance_map()

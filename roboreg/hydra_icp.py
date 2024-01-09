@@ -14,7 +14,11 @@ from rich import print
 from rich.progress import track
 from theseus.third_party.utils import grid_sample
 
-from roboreg.util import mask_boundary, normalized_symmetric_distance_function
+from roboreg.util import (
+    logarithmic_asymmetric_distance_transform,
+    mask_boundary,
+    normalized_symmetric_distance_function,
+)
 
 
 def to_homogeneous(x: torch.Tensor) -> torch.Tensor:
@@ -408,9 +412,9 @@ class HydraProjection:
         # build distance maps
         self._distance_maps = {
             key: [
-                torch.from_numpy(normalized_symmetric_distance_function(image_mask)).to(
-                    device=device, dtype=dtype
-                )
+                torch.from_numpy(
+                    logarithmic_asymmetric_distance_transform(image_mask)
+                ).to(device=device, dtype=dtype)
                 for image_mask in masks[key]
             ]
             for key in masks
