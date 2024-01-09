@@ -30,6 +30,6 @@ python3 scripts/render_robot.py \
 ## Environment
 ```shell
 conda install mamba -c conda-forge
-conda create -n roboreg
+conda create -n roboreg_0.1.1
 mamba env update -f env.yaml
 ```
