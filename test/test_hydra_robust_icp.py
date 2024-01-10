@@ -17,7 +17,7 @@ def test_hydra_robust_icp():
         scan=False,
         visualize=False,
         prefix=prefix,
-        number_of_points_per_link=8000,
+        number_of_points=8000,
     )
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
