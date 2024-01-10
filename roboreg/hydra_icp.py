@@ -123,8 +123,8 @@ def hydra_centroid_alignment(
     )
 
     HT = torch.eye(4, dtype=R.dtype, device=R.device)
-    R = R.to(HT.device).squeeze(0)
-    t = t.to(HT.device).squeeze(0)
+    R = R.squeeze(0)
+    t = t.squeeze(0)
     HT[:3, :3] = R.T
     HT[:3, 3] = t
     return HT
