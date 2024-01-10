@@ -35,7 +35,6 @@ def test_hydra_icp():
     prefix = "test/data/high_res"
     observed_xyzs, mesh_xyzs, _ = load_data(
         idcs=[i for i in range(7)],
-        scan=False,
         visualize=False,
         prefix=prefix,
     )
