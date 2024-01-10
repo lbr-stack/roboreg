@@ -208,7 +208,7 @@ def hydra_icp(
         prev_rmse = rmse.item()
 
     print_line()
-    print("HT final:\n", HT)
+    print("HT estimate:\n", HT)
     print_line()
 
     return HT
@@ -347,7 +347,7 @@ def hydra_robust_icp(
         prev_rmse = rmse.item()
 
     print_line()
-    print("HT final:\n", HT)
+    print("HT estimate:\n", HT)
     print_line()
 
     return HT
