@@ -1,6 +1,19 @@
 # Roboreg
 Robot registration from RGB-D images. Allows for target-less camera to robot calibrations.
 
+<body>
+    <table>
+        <tr>
+            <th align="left" width="50%">Raw</th>
+            <th align="left" width="50%">Registered</th>
+        </tr>
+        <tr>
+            <td align="center"><img src="doc/img//hydra_robust_icp_raw.png" alt="Raw"></td>
+            <td align="center"><img src="doc/img//hydra_robust_icp_registered.png" alt="Registered"></td>
+        </tr>
+    </table>
+</body>
+
 ## Segment
 ```shell
 python3 scripts/generate_masks.py \
