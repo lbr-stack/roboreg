@@ -18,24 +18,29 @@ def from_homogeneous(x: torch.Tensor) -> torch.Tensor:
 
 
 def kabsh_register(
-    observation: torch.Tensor, mesh: torch.Tensor
+    input: torch.Tensor, target: torch.Tensor
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    r"""Kabsh algorithm: https://en.wikipedia.org/wiki/Kabsch_algorithm
+    r"""Kabsh algorithm: https://en.wikipedia.org/wiki/Kabsch_algorithm.
+    Computes rotation and translation such that input @ R + t = target.
 
     Args:
-        observation: observation of shape (..., M, 3).
-        mesh: mesh of shape (..., M, 3).
+        input: input of shape (..., M, 3).
+        target: target of shape (..., M, 3).
+
+    Return:
+        R: Rotation matrix of shape (..., 3, 3).
+        t: Translation vector of shape (..., 3).
     """
     # compute centroids
-    observation_centroid = torch.mean(observation, dim=-2)
-    mesh_centroid = torch.mean(mesh, dim=-2)
+    input_centroid = torch.mean(input, dim=-2)
+    target_centroid = torch.mean(target, dim=-2)
 
     # compute centered points
-    observation_centered = observation - observation_centroid
-    mesh_centered = mesh - mesh_centroid
+    input_centered = input - input_centroid
+    target_centered = target - target_centroid
 
     # compute covariance matrix
-    H = mesh_centered.transpose(-1, -2) @ observation_centered
+    H = target_centered.transpose(-1, -2) @ input_centered
 
     # compute SVD
     U, _, V = torch.svd(H)
@@ -47,7 +52,7 @@ def kabsh_register(
     R = V @ E @ U.transpose(-1, -2)
 
     # compute translation
-    t = mesh_centroid - observation_centroid @ R
+    t = target_centroid - input_centroid @ R
     return R, t
 
 
