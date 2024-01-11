@@ -1,5 +1,5 @@
 # Roboreg
-Robot registration from RGB-D images. Allows for target-less camera to robot calibrations.
+Unified eye-in-hand / eye-to-hand calibration from RGB-D images using robot mesh as calibration target.
 
 <body>
     <table>
@@ -13,6 +13,13 @@ Robot registration from RGB-D images. Allows for target-less camera to robot cal
         </tr>
     </table>
 </body>
+
+## Environment Setup
+```shell
+conda install mamba -c conda-forge
+conda create -n roboreg_1.0.0
+mamba env update -f env.yaml
+```
 
 ## Segment
 ```shell
@@ -37,12 +44,11 @@ python3 scripts/render_robot.py \
 
 ## Hydra Projection
 
+## Acknowledgements
+<img src="https://medicalengineering.org.uk/wp-content/themes/aalto-child/_assets/images/medicalengineering-logo.svg" alt="wellcome" height="45" width="65" align="left">
 
-## Baselines
+This work was supported by core and project funding from the Wellcome/EPSRC [WT203148/Z/16/Z; NS/A000049/1; WT101957; NS/A000027/1]. 
 
-## Environment
-```shell
-conda install mamba -c conda-forge
-conda create -n roboreg
-mamba env update -f env.yaml
-```
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Flag_of_Europe.svg/1920px-Flag_of_Europe.svg.png" alt="eu_flag" height="45" width="65" align="left" >
+
+This project has received funding from the European Union's Horizon 2020 research and innovation programme under grant agreement No 101016985 (FAROS project).
