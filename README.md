@@ -3,13 +3,14 @@ Unified eye-in-hand / eye-to-hand calibration from RGB-D images using robot mesh
 
 <body>
     <table>
+    <caption>Mesh (purple) and Point Cloud (turqoise).</caption>
         <tr>
-            <th align="left" width="50%">Raw</th>
+            <th align="left" width="50%">Unregistered</th>
             <th align="left" width="50%">Registered</th>
         </tr>
         <tr>
-            <td align="center"><img src="doc/img//hydra_robust_icp_raw.png" alt="Raw"></td>
-            <td align="center"><img src="doc/img//hydra_robust_icp_registered.png" alt="Registered"></td>
+            <td align="center"><img src="doc/img//hydra_robust_icp_unregistered.png" alt="Unregistered Mesh and Point Cloud"></td>
+            <td align="center"><img src="doc/img//hydra_robust_icp_registered.png" alt="Registered Mesh and Point Cloud"></td>
         </tr>
     </table>
 </body>
