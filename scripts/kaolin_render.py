@@ -1,53 +1,57 @@
-import glob
+# taken from: https://github.com/NVIDIAGameWorks/kaolin/blob/master/examples/tutorial/dibr_tutorial.ipynb
 import json
 import os
+import glob
 import time
 
-import kaolin as kal
-import numpy as np
-import torch
-from matplotlib import pyplot as plt
 from PIL import Image
+import torch
+import numpy as np
+from matplotlib import pyplot as plt
 
-# # path to the rendered image (using the data synthesizer)
-# rendered_path = "test/data/mesh"
-# # path to the output logs (readable with the training visualizer in the omniverse app)
-# logs_path = "./logs/"
+import kaolin as kal
 
-# # We initialize the timelapse that will store USD for the visualization apps
-# timelapse = kal.visualize.Timelapse(logs_path)
+# path to the rendered image (using the data synthesizer)
+rendered_path = "../samples/rendered_clock/"
+# path to the output logs (readable with the training visualizer in the omniverse app)
+logs_path = "./logs/"
+
+# We initialize the timelapse that will store USD for the visualization apps
+timelapse = kal.visualize.Timelapse(logs_path)
 
 
-# # Hyperparameters
-# num_epoch = 50
-# batch_size = 2
-# laplacian_weight = 0.03
-# image_weight = 0.1
-# mask_weight = 1.0
-# texture_lr = 5e-2
-# vertice_lr = 5e-4
-# scheduler_step_size = 20
-# scheduler_gamma = 0.5
+# Hyperparameters
+num_epoch = 50
+batch_size = 2
+laplacian_weight = 0.03
+image_weight = 0.1
+mask_weight = 1.0
+texture_lr = 5e-2
+vertice_lr = 5e-4
+scheduler_step_size = 20
+scheduler_gamma = 0.5
 
-# texture_res = 400
+texture_res = 400
 
-# # select camera angle for best visualization
-# test_batch_ids = [2, 5, 10]
-# test_batch_size = len(test_batch_ids)
+# select camera angle for best visualization
+test_batch_ids = [2, 5, 10]
+test_batch_size = len(test_batch_ids)
 
-# num_views = len(glob.glob(os.path.join(rendered_path, "*_rgb.png")))
-# train_data = []
-# for i in range(num_views):
-#     data = kal.io.render.import_synthetic_view(
-#         rendered_path, i, rgb=True, semantic=True
-#     )
-#     train_data.append(data)
 
-# dataloader = torch.utils.data.DataLoader(
-#     train_data, batch_size=batch_size, shuffle=True, pin_memory=True
-# )
+num_views = len(glob.glob(os.path.join(rendered_path, "*_rgb.png")))
+train_data = []
+for i in range(num_views):
+    data = kal.io.render.import_synthetic_view(
+        rendered_path, i, rgb=True, semantic=True
+    )
+    train_data.append(data)
 
-mesh = kal.io.obj.import_mesh("test/data/mesh/link_0.obj", with_materials=True)
+dataloader = torch.utils.data.DataLoader(
+    train_data, batch_size=batch_size, shuffle=True, pin_memory=True
+)
+
+
+mesh = kal.io.obj.import_mesh("../samples/sphere.obj", with_materials=True)
 mesh = mesh.to_batched().cuda()
 mesh.vertices = mesh.vertices * 0.75  # adjust initial size
 mesh.vertices.requires_grad = True
