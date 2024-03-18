@@ -1,12 +1,8 @@
 # taken from: https://github.com/NVIDIAGameWorks/kaolin/blob/master/examples/tutorial/dibr_tutorial.ipynb
-import json
 import os
 import glob
-import time
 
-from PIL import Image
 import torch
-import numpy as np
 from matplotlib import pyplot as plt
 
 import kaolin as kal
