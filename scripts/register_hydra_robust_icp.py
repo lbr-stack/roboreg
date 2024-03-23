@@ -31,10 +31,10 @@ def args_factory() -> argparse.Namespace:
         help="Joint state file pattern.",
     )
     parser.add_argument(
-        "--sample_points_per_link",
+        "--number_of_points",
         type=int,
-        default=8000,
-        help="Number of points to be sampled per link.",
+        default=5000,
+        help="Number of points to sample from robot mesh.",
     )
     parser.add_argument(
         "--max_distance",
@@ -70,14 +70,14 @@ def main():
     mask_files = find_files(path, args.mask_pattern)
     xyz_files = find_files(path, args.xyz_pattern)
     joint_state_files = find_files(path, args.joint_state_pattern)
-    sample_points_per_link = args.sample_points_per_link
+    number_of_points = args.number_of_points
 
     observed_xyzs, mesh_xyzs, mesh_xyzs_normals = load_data(
         path=path,
         mask_files=mask_files,
         xyz_files=xyz_files,
         joint_state_files=joint_state_files,
-        sample_points_per_link=sample_points_per_link,
+        number_of_points=number_of_points,
         visualize=False,
     )
 

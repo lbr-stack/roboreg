@@ -26,7 +26,7 @@ def args_factory() -> argparse.Namespace:
         "--sam_checkpoint",
         type=str,
         required=True,
-        help="FUll path to SAM checkpoint. Should be named ~sam_vit_h_4b8939.pth",
+        help="Full path to SAM checkpoint. Should be named ~sam_vit_h_4b8939.pth",
     )
     parser.add_argument(
         "--device",
