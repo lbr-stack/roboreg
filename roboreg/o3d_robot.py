@@ -21,13 +21,13 @@ class O3DRobot:
     link_names: List[str]
     meshes: List[o3d.t.geometry.TriangleMesh]
 
-    def __init__(self, urdf: str) -> None:
+    def __init__(self, urdf: str, convex_hull: bool = False) -> None:
         self.chain = self._load_chain(urdf)
         self.joint_names = self.chain.get_joint_parameter_names(exclude_fixed=True)
         self.dof = len(self.joint_names)
         self.q = np.zeros(self.dof)
         self.paths, self.link_names = self._get_collision_mesh_paths(urdf)
-        self.meshes = self._load_meshes(self.paths)
+        self.meshes = self._load_meshes(self.paths, convex_hull)
 
     def set_joint_positions(self, q: np.ndarray) -> None:
         current_tf = self._get_transforms(self.q)
@@ -156,16 +156,20 @@ class O3DRobot:
                     paths.append(path)
         return paths, names
 
-    def _load_mesh(self, path: str) -> pyvista.PolyData:
+    def _load_mesh(self, path: str, convex_hull: bool = False) -> pyvista.PolyData:
         print(f"Loading mesh from {path}")
         if not path.endswith(".stl"):
             raise NotImplementedError(f"File type {path} not supported yet.")
         mesh = o3d.t.geometry.TriangleMesh.from_legacy(o3d.io.read_triangle_mesh(path))
+        if convex_hull:
+            mesh = mesh.compute_convex_hull()
         mesh = mesh.compute_vertex_normals()
         return mesh
 
-    def _load_meshes(self, paths: List[str]) -> List[pyvista.PolyData]:
-        meshes = [self._load_mesh(path) for path in paths]
+    def _load_meshes(
+        self, paths: List[str], convex_hull: bool = False
+    ) -> List[pyvista.PolyData]:
+        meshes = [self._load_mesh(path, convex_hull) for path in paths]
         return meshes
 
     def _load_chain(self, urdf: str) -> Chain:

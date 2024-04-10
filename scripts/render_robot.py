@@ -103,7 +103,7 @@ def main():
         #################
         o3d_render = cv2.cvtColor(o3d_render, cv2.COLOR_RGB2GRAY)
 
-        render_overlay = overlay_mask(
+        rendered = overlay_mask(
             img,
             o3d_render,
             "b",
@@ -111,7 +111,7 @@ def main():
             1.0,
         )
 
-        mask_overlay = overlay_mask(
+        masked = overlay_mask(
             img,
             mask,
             "g",
@@ -123,12 +123,12 @@ def main():
         # save
         ######
         cv2.imwrite(
-            os.path.join(output_path, img_file.replace("img", "render_overlay")),
-            render_overlay,
+            os.path.join(output_path, img_file.replace("img", "rendered")),
+            rendered,
         )
         cv2.imwrite(
-            os.path.join(output_path, img_file.replace("img", "mask_overlay")),
-            mask_overlay,
+            os.path.join(output_path, img_file.replace("img", "masked")),
+            masked,
         )
 
 

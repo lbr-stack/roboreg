@@ -17,13 +17,15 @@ def load_data(
     number_of_points: int = 5000,
     visualize: bool = False,
     masked_boundary: bool = True,
+    erosion_kernel_size: int = 10,
+    convex_hull: bool = False,
 ) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
     clean_observed_xyzs = []
     mesh_xyzs = []
     mesh_xyzs_normals = []
 
     # load robot
-    robot = generate_o3d_robot()
+    robot = generate_o3d_robot(convex_hull=convex_hull)
 
     for mask_file, xyz_file, joint_state_file in zip(
         mask_files, xyz_files, joint_state_files
@@ -31,7 +33,9 @@ def load_data(
         # load data
         mask = cv2.imread(os.path.join(path, mask_file), cv2.IMREAD_GRAYSCALE)
         if masked_boundary:
-            mask = mask_boundary(mask)
+            mask = mask_boundary(
+                mask, np.ones([erosion_kernel_size, erosion_kernel_size])
+            )
         observed_xyz = np.load(os.path.join(path, xyz_file))
         joint_state = np.load(os.path.join(path, joint_state_file))
 

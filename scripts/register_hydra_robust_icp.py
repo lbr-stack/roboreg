@@ -60,6 +60,17 @@ def args_factory() -> argparse.Namespace:
         default="HT_hydra_robust.npy",
         help="Output file name. Relative to the path.",
     )
+    parser.add_argument(
+        "--convex_hull",
+        action="store_true",
+        help="Use convex hull for collision mesh.",
+    )
+    parser.add_argument(
+        "--erosion_kernel_size",
+        type=int,
+        default=10,
+        help="Erosion kernel size for mask boundary.",
+    )
     return parser.parse_args()
 
 
@@ -79,6 +90,8 @@ def main():
         joint_state_files=joint_state_files,
         number_of_points=number_of_points,
         visualize=False,
+        erosion_kernel_size=args.erosion_kernel_size,
+        convex_hull=args.convex_hull,
     )
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
