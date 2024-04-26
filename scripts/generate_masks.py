@@ -7,6 +7,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import cv2
 import numpy as np
+from rich import progress
 
 from roboreg.detector import OpenCVDetector
 from roboreg.segmentor import SamSegmentor
@@ -59,7 +60,7 @@ def main():
         sam_checkpoint=sam_checkpoint, model_type=args.model_type, device=args.device
     )
 
-    for image_name in image_names:
+    for image_name in progress.track(image_names, description="Generating masks..."):
         img = cv2.imread(os.path.join(path.absolute(), image_name))
         points, labels = detector.detect(img)
         detector.clear()
