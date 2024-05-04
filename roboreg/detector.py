@@ -24,7 +24,7 @@ class OpenCVDetector(Detector):
     def __init__(self, buffer_size: int = 3) -> None:
         super().__init__(buffer_size)
 
-    def on_mouse(self, event, x, y, flags, param):
+    def _on_mouse(self, event, x, y, flags, param):
         if len(self.points) >= self.buffer_size:
             self.points.pop(0)
             self.labels.pop(0)
@@ -37,11 +37,21 @@ class OpenCVDetector(Detector):
 
     def detect(self, img: np.ndarray) -> Tuple[List, List]:
         cv2.namedWindow("detect")
-        cv2.setMouseCallback("detect", self.on_mouse)
+        cv2.setMouseCallback("detect", self._on_mouse)
         while len(self.points) < self.buffer_size:
             try:
                 cv2.imshow("detect", img)
                 cv2.waitKey(10)
+
+                # draw points
+                if len(self.points) > 0:
+                    cv2.circle(
+                        img,
+                        (self.points[-1][0], self.points[-1][1]),
+                        5,
+                        (255, 255, 0),
+                        -1,
+                    )
             except KeyboardInterrupt:
                 break
         cv2.destroyAllWindows()
