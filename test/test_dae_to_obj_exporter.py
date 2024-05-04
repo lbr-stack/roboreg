@@ -8,9 +8,9 @@ from roboreg.diff_rend.util import export_dae_to_obj_mtl
 
 
 def test_dae_to_obj_exporter() -> None:
-    input_dae = "test/data/mesh/link_0.dae"
+    input_dae = "test/data/lbr_med7/mesh/link_0.dae"
 
-    output_path = "test/data/mesh"
+    output_path = "test/data/lbr_med7/mesh"
 
     obj_name = "link_0.obj"
     mtl_name = "link_0.mtl"

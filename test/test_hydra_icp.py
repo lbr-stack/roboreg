@@ -32,7 +32,7 @@ def test_hydra_centroid_alignment():
 
 
 def test_hydra_icp():
-    prefix = "test/data/high_res"
+    prefix = "test/data/lbr_med7/high_res"
     observed_xyzs, mesh_xyzs, _ = load_data(
         idcs=[i for i in range(7)],
         visualize=False,

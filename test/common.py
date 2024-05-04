@@ -11,7 +11,7 @@ from roboreg.util import clean_xyz, generate_o3d_robot, mask_boundary
 def load_data(
     idcs: List[int],
     visualize: bool = False,
-    prefix: str = "test/data/low_res",
+    prefix: str = "test/data/lbr_med7/low_res",
     number_of_points: int = 5000,
     masked_boundary: bool = True,
 ) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:

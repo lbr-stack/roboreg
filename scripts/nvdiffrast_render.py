@@ -12,13 +12,13 @@ from matplotlib import pyplot as plt
 
 # from roboreg.util import parse_camera_info
 
-# height, width, _ = parse_camera_info("test/data/high_res/left_camera_info.yaml") # height divisible by 8 ???? -> try kaolin for rendering, not nvdiffrast
+# height, width, _ = parse_camera_info("test/data/lbr_med7/high_res/left_camera_info.yaml") # height divisible by 8 ???? -> try kaolin for rendering, not nvdiffrast
 height, width = 480, 640
 
 glctx = nvdiffrast.torch.RasterizeCudaContext(device="cuda")
 
 # Load a specific obj instead
-OBJ_PATH = "test/data/mesh/link_0.obj"
+OBJ_PATH = "test/data/lbr_med7/mesh/link_0.obj"
 mesh = kal.io.obj.import_mesh(OBJ_PATH, with_materials=True, triangulate=True)
 
 # Batch, move to GPU and center and normalize vertices in the range [-0.5, 0.5]
