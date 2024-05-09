@@ -1,4 +1,6 @@
 # Roboreg
+[![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 Unified eye-in-hand / eye-to-hand calibration from RGB-D images using robot mesh as calibration target.
 
 <body>
