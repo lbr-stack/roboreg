@@ -8,7 +8,7 @@ from roboreg.segmentor import SamSegmentor
 
 
 def test_sam_segmentor() -> None:
-    img = cv2.imread("test/data/low_res/img_1.png")
+    img = cv2.imread("test/data/lbr_med7/low_res/img_1.png")
 
     # detect
     detector = OpenCVDetector(buffer_size=5)  # number of detected points

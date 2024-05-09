@@ -11,13 +11,12 @@ from roboreg.hydra_icp import hydra_centroid_alignment, hydra_robust_icp
 
 
 def test_hydra_robust_icp():
-    prefix = "test/data/high_res"
+    prefix = "test/data/lbr_med7/high_res"
     observed_xyzs, mesh_xyzs, mesh_xyzs_normals = load_data(
         idcs=[i for i in range(7)],
-        scan=False,
         visualize=False,
         prefix=prefix,
-        number_of_points_per_link=8000,
+        number_of_points=8000,
     )
 
     device = "cuda" if torch.cuda.is_available() else "cpu"

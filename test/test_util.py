@@ -16,7 +16,9 @@ from roboreg.util import (
 
 def test_extend_mask() -> None:
     idx = 1
-    mask = cv2.imread(f"test/data/high_res/mask_{idx}.png", cv2.IMREAD_GRAYSCALE)
+    mask = cv2.imread(
+        f"test/data/lbr_med7/high_res/mask_{idx}.png", cv2.IMREAD_GRAYSCALE
+    )
     extended_mask = extend_mask(mask)
     cv2.imshow("mask", mask)
     cv2.imshow("extended_mask", extended_mask)
@@ -25,8 +27,10 @@ def test_extend_mask() -> None:
 
 def test_mask_boundary() -> None:
     idx = 1
-    img = cv2.imread(f"test/data/high_res/img_{idx}.png")
-    mask = cv2.imread(f"test/data/high_res/mask_{idx}.png", cv2.IMREAD_GRAYSCALE)
+    img = cv2.imread(f"test/data/lbr_med7/high_res/img_{idx}.png")
+    mask = cv2.imread(
+        f"test/data/lbr_med7/high_res/mask_{idx}.png", cv2.IMREAD_GRAYSCALE
+    )
     boundary_mask = mask_boundary(mask)
     overlay = overlay_mask(img, boundary_mask, mode="b", alpha=1.0, scale=1.0)
     cv2.imshow("mask", mask)
@@ -37,7 +41,9 @@ def test_mask_boundary() -> None:
 
 def test_shrink_mask() -> None:
     idx = 1
-    mask = cv2.imread(f"test/data/high_res/mask_{idx}.png", cv2.IMREAD_GRAYSCALE)
+    mask = cv2.imread(
+        f"test/data/lbr_med7/high_res/mask_{idx}.png", cv2.IMREAD_GRAYSCALE
+    )
     shrinked_mask = shrink_mask(mask)
     cv2.imshow("mask", mask)
     cv2.imshow("shrinked_mask", shrinked_mask)
@@ -45,7 +51,7 @@ def test_shrink_mask() -> None:
 
 
 def test_find_files() -> None:
-    path = "test/data/high_res"
+    path = "test/data/lbr_med7/high_res"
     for mask_file in find_files(path, "mask_*.png"):
         print(mask_file)
 

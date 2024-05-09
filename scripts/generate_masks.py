@@ -7,6 +7,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import cv2
 import numpy as np
+from rich import progress
 
 from roboreg.detector import OpenCVDetector
 from roboreg.segmentor import SamSegmentor
@@ -26,7 +27,19 @@ def args_factory() -> argparse.Namespace:
         "--sam_checkpoint",
         type=str,
         required=True,
-        help="FUll path to SAM checkpoint. Should be named ~sam_vit_h_4b8939.pth",
+        help="Full path to SAM checkpoint. Should be named ~sam_vit_h_4b8939.pth",
+    )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="cuda",
+        help="Device to run the model. Default: cuda",
+    )
+    parser.add_argument(
+        "--model_type",
+        type=str,
+        default="vit_h",
+        help="Type of the model. Default: vit_h",
     )
 
     return parser.parse_args()
@@ -42,14 +55,12 @@ def main():
 
     # segment
     sam_checkpoint = os.path.join(args.sam_checkpoint)
-    model_type = "vit_h"
-    device = "cuda"
 
     segmentor = SamSegmentor(
-        sam_checkpoint=sam_checkpoint, model_type=model_type, device=device
+        sam_checkpoint=sam_checkpoint, model_type=args.model_type, device=args.device
     )
 
-    for image_name in image_names:
+    for image_name in progress.track(image_names, description="Generating masks..."):
         img = cv2.imread(os.path.join(path.absolute(), image_name))
         points, labels = detector.detect(img)
         detector.clear()

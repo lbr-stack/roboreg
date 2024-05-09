@@ -34,17 +34,6 @@ def clean_xyz(xyz: np.ndarray, mask: np.ndarray = None) -> np.ndarray:
     return clean_xyz
 
 
-def sub_sample(data: np.ndarray, N: int) -> np.ndarray:
-    if data.shape[0] < N:
-        print(
-            "N must be smaller than the number of points in data. Using all available."
-        )
-        N = data.shape[0]
-    indices = np.random.choice(data.shape[0], N, replace=False)
-    sampled_points = data[indices]
-    return sampled_points
-
-
 def extend_mask(mask: np.ndarray, kernel: np.ndarray = np.ones([10, 10])) -> np.ndarray:
     extended_mask = convolve2d(mask, kernel, mode="same")
     extended_mask = np.where(extended_mask > 0.0, 255.0, 0.0).astype(np.uint8)
@@ -67,6 +56,7 @@ def mask_boundary(
 def generate_o3d_robot(
     package_name: str = "lbr_description",
     relative_xacro_path: str = "urdf/med7/med7.urdf.xacro",
+    convex_hull: bool = False,
 ) -> O3DRobot:
     # load robot
     urdf = xacro.process(
@@ -75,65 +65,8 @@ def generate_o3d_robot(
             relative_xacro_path,
         )
     )
-    robot = O3DRobot(urdf=urdf)
+    robot = O3DRobot(urdf=urdf, convex_hull=convex_hull)
     return robot
-
-
-def logarithmic_asymmetric_distance_transform(mask: np.ndarray) -> np.ndarray:
-    r"""Compute the logarithmic asymmetric distance transform.
-
-    Args:
-        mask: Binary mask.
-
-    Returns:
-        The logarithmic asymmetric distance transform.
-    """
-    inverse_mask = (mask.max() - mask).astype(np.uint8)
-
-    dist = cv2.distanceTransform(mask, cv2.DIST_L2, 3)
-    dist_inverse = cv2.distanceTransform(inverse_mask, cv2.DIST_L2, 3)
-
-    dist = np.log(dist + 1.0)
-
-    dist_asymmetric = dist + dist_inverse
-    return dist_asymmetric
-
-
-def normalized_distance_transform(mask: np.ndarray) -> np.ndarray:
-    r"""Compute the normalized distance transform.
-
-    Args:
-        mask: Binary mask.
-
-    Returns:
-        The normalized distance transform.
-    """
-    dist = cv2.distanceTransform(mask.max() - mask, cv2.DIST_L2, 3)
-    dist_normalized = cv2.normalize(dist, None, 0, 1.0, cv2.NORM_MINMAX)
-    return dist_normalized
-
-
-def normalized_symmetric_distance_function(mask: np.ndarray) -> np.ndarray:
-    r"""Commpute the normalized symmetric distance function.
-    The function puts zeros at the boundary of the mask.
-    The values increase by distance from the boundary.
-
-    Args:
-        mask: Binary mask.
-
-    Returns:
-        The normalized symmetric distance function.
-    """
-    inverse_mask = (mask.max() - mask).astype(np.uint8)
-
-    dist = cv2.distanceTransform(mask, cv2.DIST_L2, 3)
-    dist_inverse = cv2.distanceTransform(inverse_mask, cv2.DIST_L2, 3)
-
-    dist_symmetric = dist + dist_inverse
-    dist_symmetric_normalized = cv2.normalize(
-        dist_symmetric, None, 0, 1.0, cv2.NORM_MINMAX
-    )
-    return dist_symmetric_normalized
 
 
 def parse_camera_info(camera_info_file: str) -> Tuple[int, int, np.ndarray]:

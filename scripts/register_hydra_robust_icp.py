@@ -31,10 +31,10 @@ def args_factory() -> argparse.Namespace:
         help="Joint state file pattern.",
     )
     parser.add_argument(
-        "--sample_points_per_link",
+        "--number_of_points",
         type=int,
-        default=8000,
-        help="Number of points to be sampled per link.",
+        default=5000,
+        help="Number of points to sample from robot mesh.",
     )
     parser.add_argument(
         "--max_distance",
@@ -60,6 +60,17 @@ def args_factory() -> argparse.Namespace:
         default="HT_hydra_robust.npy",
         help="Output file name. Relative to the path.",
     )
+    parser.add_argument(
+        "--convex_hull",
+        action="store_true",
+        help="Use convex hull for collision mesh.",
+    )
+    parser.add_argument(
+        "--erosion_kernel_size",
+        type=int,
+        default=10,
+        help="Erosion kernel size for mask boundary.",
+    )
     return parser.parse_args()
 
 
@@ -70,15 +81,17 @@ def main():
     mask_files = find_files(path, args.mask_pattern)
     xyz_files = find_files(path, args.xyz_pattern)
     joint_state_files = find_files(path, args.joint_state_pattern)
-    sample_points_per_link = args.sample_points_per_link
+    number_of_points = args.number_of_points
 
     observed_xyzs, mesh_xyzs, mesh_xyzs_normals = load_data(
         path=path,
         mask_files=mask_files,
         xyz_files=xyz_files,
         joint_state_files=joint_state_files,
-        sample_points_per_link=sample_points_per_link,
+        number_of_points=number_of_points,
         visualize=False,
+        erosion_kernel_size=args.erosion_kernel_size,
+        convex_hull=args.convex_hull,
     )
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
