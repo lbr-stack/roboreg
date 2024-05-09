@@ -6,4 +6,3 @@ open3d
 pyvista
 scipy
 transformations
-trimesh
