@@ -89,7 +89,6 @@ def main():
         xyz_files=xyz_files,
         joint_state_files=joint_state_files,
         number_of_points=number_of_points,
-        visualize=False,
         erosion_kernel_size=args.erosion_kernel_size,
         convex_hull=args.convex_hull,
     )

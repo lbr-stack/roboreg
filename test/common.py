@@ -10,7 +10,6 @@ from roboreg.util import clean_xyz, generate_o3d_robot, mask_boundary
 
 def load_data(
     idcs: List[int],
-    visualize: bool = False,
     prefix: str = "test/data/lbr_med7/low_res",
     number_of_points: int = 5000,
     masked_boundary: bool = True,
@@ -32,13 +31,6 @@ def load_data(
 
         # clean cloud
         clean_observed_xyzs.append(clean_xyz(observed_xyz, mask))
-
-        # visualize clean cloud
-        if visualize:
-            plotter = pv.Plotter()
-            plotter.background_color = "black"
-            plotter.add_mesh(clean_observed_xyzs[-1], point_size=2.0, color="white")
-            plotter.show()
 
         # transform mesh
         robot.set_joint_positions(joint_state)

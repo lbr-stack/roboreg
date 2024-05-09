@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "roboreg"
+version = "0.0.0"
+authors = [
+  { name="mhubii", email="m.huber_1994@hotmail.de" },
+]
+description = "Unified eye-in-hand / eye-to-hand calibration from RGB-D images using robot mesh as calibration target."
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "torch",
+    "faiss-gpu",
+    "opencv-python",
+    "rich",
+    "open3d",
+    "matplotlib",
+    "numpy",
+    "kinpy",
+    "pyvista",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: CC BY-NC 4.0 Deed",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/lbr-stack/roboreg"
+Issues = "https://github.com/lbr-stack/roboreg/issues"

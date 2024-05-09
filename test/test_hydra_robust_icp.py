@@ -14,7 +14,6 @@ def test_hydra_robust_icp():
     prefix = "test/data/lbr_med7/high_res"
     observed_xyzs, mesh_xyzs, mesh_xyzs_normals = load_data(
         idcs=[i for i in range(7)],
-        visualize=False,
         prefix=prefix,
         number_of_points=8000,
     )

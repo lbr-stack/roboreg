@@ -4,7 +4,6 @@ from typing import List, Tuple
 import cv2
 import numpy as np
 import open3d as o3d
-import pyvista as pv
 
 from roboreg.util import clean_xyz, generate_o3d_robot, mask_boundary
 
@@ -15,7 +14,6 @@ def load_data(
     xyz_files: List[str],
     joint_state_files: List[str],
     number_of_points: int = 5000,
-    visualize: bool = False,
     masked_boundary: bool = True,
     erosion_kernel_size: int = 10,
     convex_hull: bool = False,
@@ -41,13 +39,6 @@ def load_data(
 
         # clean cloud
         clean_observed_xyzs.append(clean_xyz(observed_xyz, mask))
-
-        # visualize clean cloud
-        if visualize:
-            plotter = pv.Plotter()
-            plotter.background_color = "black"
-            plotter.add_mesh(clean_observed_xyzs[-1], point_size=2.0, color="white")
-            plotter.show()
 
         # transform mesh
         mesh_xyz = None
