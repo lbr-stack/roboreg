@@ -1,5 +1,5 @@
 # Roboreg
-[![License: CC BY-ND 4.0](https://img.shields.io/badge/License-CC_BY--ND_4.0-lightgrey.svg)](https://github.com/lbr-stack/roboreg?tab=License-1-ov-file#readme)
+[![License: CC BY-NC 4.0](https://licensebuttons.net/l/by-nc/4.0/80x15.png)](https://github.com/lbr-stack/roboreg?tab=License-1-ov-file#readme)
 [![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 Unified eye-in-hand / eye-to-hand calibration from RGB-D images using robot mesh as calibration target.
