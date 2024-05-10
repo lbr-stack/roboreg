@@ -1,8 +1,0 @@
-ament_index_python
-faiss
-kinpy
-numpy
-open3d
-pyvista
-scipy
-transformations

@@ -12,15 +12,15 @@ description = "Unified eye-in-hand / eye-to-hand calibration from RGB-D images u
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-    "torch",
-    "faiss-gpu",
-    "opencv-python",
-    "rich",
-    "open3d",
-    "matplotlib",
-    "numpy",
-    "kinpy",
-    "pyvista",
+  "faiss-gpu",
+  "kinpy",
+  "matplotlib",
+  "numpy",
+  "open3d",
+  "opencv-python",
+  "rich",
+  "torch",
+  "xacro",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -31,3 +31,8 @@ classifiers = [
 [project.urls]
 Homepage = "https://github.com/lbr-stack/roboreg"
 Issues = "https://github.com/lbr-stack/roboreg/issues"
+
+[project.scripts]
+rr_hydra = "roboreg.cli.rr_hydra:main"
+rr_render = "roboreg.cli.rr_render:main"
+rr_segment = "roboreg.cli.rr_segment:main"

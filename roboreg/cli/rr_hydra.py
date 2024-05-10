@@ -1,14 +1,11 @@
 import argparse
 import os
-import sys
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 import torch
-from common import load_data, visualize_registration
 
 from roboreg.hydra_icp import hydra_centroid_alignment, hydra_robust_icp
+from roboreg.io import load_data, visualize_registration
 from roboreg.util import find_files
 
 

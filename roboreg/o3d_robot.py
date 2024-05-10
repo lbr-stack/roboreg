@@ -6,7 +6,6 @@ import kinpy
 import numpy as np
 import open3d as o3d
 import open3d.visualization.rendering as rendering
-import pyvista
 import transformations as tf
 from ament_index_python import get_package_share_directory
 from kinpy.chain import Chain
@@ -156,7 +155,9 @@ class O3DRobot:
                     paths.append(path)
         return paths, names
 
-    def _load_mesh(self, path: str, convex_hull: bool = False) -> pyvista.PolyData:
+    def _load_mesh(
+        self, path: str, convex_hull: bool = False
+    ) -> o3d.t.geometry.TriangleMesh:
         print(f"Loading mesh from {path}")
         if not path.endswith(".stl"):
             raise NotImplementedError(f"File type {path} not supported yet.")
@@ -168,7 +169,7 @@ class O3DRobot:
 
     def _load_meshes(
         self, paths: List[str], convex_hull: bool = False
-    ) -> List[pyvista.PolyData]:
+    ) -> List[o3d.t.geometry.TriangleMesh]:
         meshes = [self._load_mesh(path, convex_hull) for path in paths]
         return meshes
 
