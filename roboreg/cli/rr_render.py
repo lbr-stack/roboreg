@@ -14,17 +14,17 @@ def args_factory() -> argparse.Namespace:
     parser.add_argument(
         "--camera_info",
         type=str,
-        default="left_camera_info.yaml",
+        default="camera_info.yaml",
         help="Path to the camera parameters.",
     )
     parser.add_argument(
         "--image_pattern",
         type=str,
-        default="left_img_*.png",
+        default="img_*.png",
         help="Image file pattern.",
     )
     parser.add_argument(
-        "--mask_pattern", type=str, default="left_mask_*.png", help="Mask file pattern."
+        "--mask_pattern", type=str, default="mask_*.png", help="Mask file pattern."
     )
     parser.add_argument(
         "--joint_state_pattern",

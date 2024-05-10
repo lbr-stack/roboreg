@@ -15,7 +15,7 @@ def args_factory() -> argparse.Namespace:
     parser.add_argument(
         "--mask_pattern",
         type=str,
-        default="left_mask_*.png",
+        default="mask_*.png",
         help="Mask file pattern.",
     )
     parser.add_argument(
@@ -89,6 +89,8 @@ def main():
         erosion_kernel_size=args.erosion_kernel_size,
         convex_hull=args.convex_hull,
     )
+    if len(observed_xyzs) == 0 or len(mesh_xyzs) == 0 or len(mesh_xyzs_normals) == 0:
+        raise ValueError("Failed to load data.")
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 

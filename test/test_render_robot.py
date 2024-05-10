@@ -20,7 +20,7 @@ def test_render_robot():
 
     # camera intrinsics
     height, width, intrinsic_matrix = parse_camera_info(
-        os.path.join(input_prefix, "left_camera_info.yaml")
+        os.path.join(input_prefix, "camera_info.yaml")
     )
 
     joint_state_files = find_files(input_prefix, "joint_state_*.npy")
