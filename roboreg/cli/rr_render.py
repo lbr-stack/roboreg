@@ -27,7 +27,7 @@ def args_factory() -> argparse.Namespace:
         "--mask_pattern", type=str, default="mask_*.png", help="Mask file pattern."
     )
     parser.add_argument(
-        "--joint_state_pattern",
+        "--joint_states_pattern",
         type=str,
         default="joint_states_*.npy",
         help="Joint state file pattern.",
@@ -57,7 +57,7 @@ def main():
     )
 
     # read files
-    joint_states_files = find_files(path, args.joint_state_pattern)
+    joint_states_files = find_files(path, args.joint_states_pattern)
     img_files = find_files(path, args.image_pattern)
     mask_files = find_files(path, args.mask_pattern)
 

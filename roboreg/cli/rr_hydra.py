@@ -22,7 +22,7 @@ def args_factory() -> argparse.Namespace:
         "--xyz_pattern", type=str, default="xyz_*.npy", help="XYZ file pattern."
     )
     parser.add_argument(
-        "--joint_state_pattern",
+        "--joint_states_pattern",
         type=str,
         default="joint_states_*.npy",
         help="Joint state file pattern.",
@@ -77,7 +77,7 @@ def main():
     path = args.path
     mask_files = find_files(path, args.mask_pattern)
     xyz_files = find_files(path, args.xyz_pattern)
-    joint_state_files = find_files(path, args.joint_state_pattern)
+    joint_state_files = find_files(path, args.joint_states_pattern)
     number_of_points = args.number_of_points
 
     observed_xyzs, mesh_xyzs, mesh_xyzs_normals = load_data(
