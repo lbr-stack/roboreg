@@ -20,7 +20,7 @@ Unified eye-in-hand / eye-to-hand calibration from RGB-D images using robot mesh
 
 ## Installation
 ```shell
-pip install git+https://github.com/lbr-stack/roboreg.git
+pip3 install git+https://github.com/lbr-stack/roboreg.git
 ```
 
 ## Command Line Interface
