@@ -26,7 +26,7 @@ pip3 install git+https://github.com/lbr-stack/roboreg.git
 ## Command Line Interface
 ### Segment
 ```shell
-rr_segment \
+rr-segment \
     --path <path_to_images> \
     --pattern "*_img_*.png" \
     --sam_checkpoint <full_path_to_checkpoint>/*.pth
@@ -35,13 +35,13 @@ rr_segment \
 ### Hydra Robust ICP
 Note, this registration only works for registered point clouds!
 ```shell
-rr_hydra \
+rr-hydra \
     --path <path_to_data>
 ```
 
 ### Render Results
 ```shell
-rr_render \
+rr-render \
     --path <path_to_data>
 ```
 

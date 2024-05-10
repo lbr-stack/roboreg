@@ -33,6 +33,6 @@ Homepage = "https://github.com/lbr-stack/roboreg"
 Issues = "https://github.com/lbr-stack/roboreg/issues"
 
 [project.scripts]
-rr_hydra = "roboreg.cli.rr_hydra:main"
-rr_render = "roboreg.cli.rr_render:main"
-rr_segment = "roboreg.cli.rr_segment:main"
+rr-hydra = "roboreg.cli.rr_hydra:main"
+rr-render = "roboreg.cli.rr_render:main"
+rr-segment = "roboreg.cli.rr_segment:main"
