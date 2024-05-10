@@ -137,7 +137,7 @@ def overlay_mask(
     return overlay_img_mask
 
 
-def find_files(path: str, pattern: str = "img_*.png") -> List[str]:
+def find_files(path: str, pattern: str = "image_*.png") -> List[str]:
     r"""Find files in a directory.
 
     Args:

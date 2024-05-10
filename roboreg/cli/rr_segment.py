@@ -15,7 +15,7 @@ def args_factory() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--path", type=str, required=True, help="Path to the images.")
     parser.add_argument(
-        "--pattern", type=str, default="img_*.png", help="Image file pattern."
+        "--pattern", type=str, default="image_*.png", help="Image file pattern."
     )
     parser.add_argument(
         "--buffer_size", type=int, default=5, help="Number of detected points."

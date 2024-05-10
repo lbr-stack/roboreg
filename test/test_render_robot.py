@@ -23,8 +23,8 @@ def test_render_robot():
         os.path.join(input_prefix, "camera_info.yaml")
     )
 
-    joint_state_files = find_files(input_prefix, "joint_state_*.npy")
-    img_files = find_files(input_prefix, "img_*.png")
+    joint_state_files = find_files(input_prefix, "joint_states_*.npy")
+    img_files = find_files(input_prefix, "image_*.png")
     mask_files = find_files(input_prefix, "mask_*.png")
 
     for joint_state_file, img_file, mask_file in zip(

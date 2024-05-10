@@ -20,7 +20,7 @@ def args_factory() -> argparse.Namespace:
     parser.add_argument(
         "--image_pattern",
         type=str,
-        default="img_*.png",
+        default="image_*.png",
         help="Image file pattern.",
     )
     parser.add_argument(
@@ -29,7 +29,7 @@ def args_factory() -> argparse.Namespace:
     parser.add_argument(
         "--joint_state_pattern",
         type=str,
-        default="joint_state_*.npy",
+        default="joint_states_*.npy",
         help="Joint state file pattern.",
     )
     parser.add_argument(
