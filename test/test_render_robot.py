@@ -11,7 +11,7 @@ from roboreg.util import generate_o3d_robot, parse_camera_info, find_files
 
 
 def test_render_robot():
-    input_prefix = "test/data/lbr_med7/high_res"
+    input_prefix = "test/data/lbr_med7/zed2i/high_res"
     ht_file = "HT_base_cam_optimal_new.npy"
     output_prefix = input_prefix
 

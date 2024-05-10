@@ -4,7 +4,7 @@ from roboreg.util import parse_camera_info
 
 
 def test_parse_camera_info() -> None:
-    path = "test/data/lbr_med7/high_res"
+    path = "test/data/lbr_med7/zed2i/high_res"
     file = "camera_info.yaml"
     height, width, intrinsic_matrix = parse_camera_info(os.path.join(path, file))
 

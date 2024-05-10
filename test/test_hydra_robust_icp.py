@@ -11,7 +11,7 @@ from roboreg.io import load_data, visualize_registration
 
 
 def test_hydra_robust_icp():
-    prefix = "test/data/lbr_med7/high_res"
+    prefix = "test/data/lbr_med7/zed2i/high_res"
     observed_xyzs, mesh_xyzs, mesh_xyzs_normals = load_data(
         idcs=[i for i in range(7)],
         prefix=prefix,

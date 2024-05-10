@@ -28,7 +28,7 @@ pip3 install git+https://github.com/lbr-stack/roboreg.git
 ```shell
 rr-segment \
     --path <path_to_images> \
-    --pattern "*_img_*.png" \
+    --pattern "*_image_*.png" \
     --sam_checkpoint <full_path_to_checkpoint>/*.pth
 ```
 
