@@ -64,7 +64,9 @@ def main():
         mask = segmentor(img, np.array(points), np.array(labels))
 
         # write mask
-        mask_path = os.path.join(path.absolute(), image_name.replace("img", "mask"))
+        prefix = image_name.split(".")[0]
+        suffix = image_name.split(".")[1]
+        mask_path = os.path.join(path.absolute(), f"{prefix}_mask.{suffix}")
         cv2.imwrite(mask_path, mask.astype(np.uint8) * 255)
 
 
