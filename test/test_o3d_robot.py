@@ -13,7 +13,7 @@ from roboreg.o3d_robot import O3DRobot
 def test_meshify_robot() -> None:
     urdf = xacro.process(
         os.path.join(
-            get_package_share_directory("lbr_description"), "urdf/med7/med7.urdf.xacro"
+            get_package_share_directory("lbr_description"), "urdf/med7/med7.xacro"
         )
     )
 
@@ -32,7 +32,7 @@ def test_meshify_robot() -> None:
 def test_sample_points_equally() -> None:
     urdf = xacro.process(
         os.path.join(
-            get_package_share_directory("lbr_description"), "urdf/med7/med7.urdf.xacro"
+            get_package_share_directory("lbr_description"), "urdf/med7/med7.xacro"
         )
     )
 

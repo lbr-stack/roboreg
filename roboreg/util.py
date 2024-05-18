@@ -55,7 +55,7 @@ def mask_boundary(
 
 def generate_o3d_robot(
     package_name: str = "lbr_description",
-    relative_xacro_path: str = "urdf/med7/med7.urdf.xacro",
+    relative_xacro_path: str = "urdf/med7/med7.xacro",
     convex_hull: bool = False,
 ) -> O3DRobot:
     # load robot
