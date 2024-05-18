@@ -15,7 +15,7 @@ def args_factory() -> argparse.Namespace:
     parser.add_argument(
         "--mask_pattern",
         type=str,
-        default="mask_*.png",
+        default="image_*_mask.png",
         help="Mask file pattern.",
     )
     parser.add_argument(

@@ -24,7 +24,10 @@ def args_factory() -> argparse.Namespace:
         help="Image file pattern.",
     )
     parser.add_argument(
-        "--mask_pattern", type=str, default="mask_*.png", help="Mask file pattern."
+        "--mask_pattern",
+        type=str,
+        default="image_*_mask.png",
+        help="Mask file pattern.",
     )
     parser.add_argument(
         "--joint_states_pattern",
@@ -119,12 +122,14 @@ def main():
         ######
         # save
         ######
+        prefix = img_file.split(".")[0]
+        suffix = img_file.split(".")[1]
         cv2.imwrite(
-            os.path.join(output_path, img_file.replace("img", "rendered")),
+            os.path.join(output_path, f"{prefix}_render_overlay.{suffix}"),
             rendered,
         )
         cv2.imwrite(
-            os.path.join(output_path, img_file.replace("img", "masked")),
+            os.path.join(output_path, f"{prefix}_mask_overlay.{suffix}"),
             masked,
         )
 
