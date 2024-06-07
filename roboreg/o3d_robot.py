@@ -155,11 +155,10 @@ class O3DRobot:
                     paths.append(path)
         return paths, names
 
-    def _load_mesh(
-        self, path: str, convex_hull: bool = False
-    ) -> o3d.t.geometry.TriangleMesh:
+    @staticmethod
+    def _load_mesh(path: str, convex_hull: bool = False) -> o3d.t.geometry.TriangleMesh:
         print(f"Loading mesh from {path}")
-        if not path.endswith(".stl"):
+        if not (path.endswith(".stl") or path.endswith(".STL")):
             raise NotImplementedError(f"File type {path} not supported yet.")
         mesh = o3d.t.geometry.TriangleMesh.from_legacy(o3d.io.read_triangle_mesh(path))
         if convex_hull:
@@ -167,12 +166,14 @@ class O3DRobot:
         mesh = mesh.compute_vertex_normals()
         return mesh
 
+    @staticmethod
     def _load_meshes(
-        self, paths: List[str], convex_hull: bool = False
+        paths: List[str], convex_hull: bool = False
     ) -> List[o3d.t.geometry.TriangleMesh]:
-        meshes = [self._load_mesh(path, convex_hull) for path in paths]
+        meshes = [O3DRobot._load_mesh(path, convex_hull) for path in paths]
         return meshes
 
+    @staticmethod
     def _load_chain(self, urdf: str) -> Chain:
         chain = kinpy.build_chain_from_urdf(urdf)
         return chain
