@@ -174,6 +174,6 @@ class O3DRobot:
         return meshes
 
     @staticmethod
-    def _load_chain(self, urdf: str) -> Chain:
+    def _load_chain(urdf: str) -> Chain:
         chain = kinpy.build_chain_from_urdf(urdf)
         return chain
