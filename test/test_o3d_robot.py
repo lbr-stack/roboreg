@@ -10,12 +10,10 @@ from ament_index_python import get_package_share_directory
 from roboreg.o3d_robot import O3DRobot
 
 
-def test_meshify_robot() -> None:
-    urdf = xacro.process(
-        os.path.join(
-            get_package_share_directory("lbr_description"), "urdf/med7/med7.xacro"
-        )
-    )
+def test_meshify_robot(
+    package: str = "lbr_description", filename: str = "urdf/med7/med7.xacro"
+) -> None:
+    urdf = xacro.process(os.path.join(get_package_share_directory(package), filename))
 
     robot = O3DRobot(urdf)
     # clouds = robot.meshes_to_point_clouds(robot.meshes)
@@ -44,5 +42,5 @@ def test_sample_points_equally() -> None:
 
 
 if __name__ == "__main__":
-    test_meshify_robot()
+    test_meshify_robot("lbr_description", "urdf/med7/med7.xacro")
     # test_sample_points_equally()
