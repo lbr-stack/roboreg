@@ -1,11 +1,11 @@
-FROM ros:humble-ros-base-jammy
+FROM osrf/ros:humble-desktop-full
 
 # change default shell
 SHELL ["/bin/bash", "-c"]
 
 # update and upgrade
 RUN apt-get update
-RUN apt-get install -y
+RUN apt-get upgrade -y
 
 # create a workspace
 RUN mkdir -p /home/ros2_ws/src
@@ -18,12 +18,16 @@ RUN git clone https://github.com/xArm-Developer/xarm_ros2.git src/xarm_ros2 --re
 RUN export FRI_CLIENT_VERSION=1.15 && \
     vcs import src --input https://raw.githubusercontent.com/lbr-stack/lbr_fri_ros2_stack/$ROS_DISTRO/lbr_fri_ros2_stack/repos-fri-${FRI_CLIENT_VERSION}.yaml
 
+# install dependencies
+RUN rosdep install --from-paths src -i -r -y --rosdistro $ROS_DISTRO
+
 # build description packages
 RUN source /opt/ros/$ROS_DISTRO/setup.bash &&  \
-    colcon build --packages-select lbr_description xarm_description
+    colcon build --symlink-install
 
 # copy this to the container
-COPY . /home
+RUN mkdir -p /home/roboreg
+COPY . /home/roboreg
 
 # install roboreg dependencies
 RUN apt-get install -y python3-pip

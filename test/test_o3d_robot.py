@@ -1,5 +1,6 @@
 import os
 import sys
+from typing import Dict
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -11,9 +12,13 @@ from roboreg.o3d_robot import O3DRobot
 
 
 def test_meshify_robot(
-    package: str = "lbr_description", filename: str = "urdf/med7/med7.xacro"
+    package: str = "lbr_description",
+    filename: str = "urdf/med7/med7.xacro",
+    mappings: Dict[str, str] = {},
 ) -> None:
-    urdf = xacro.process(os.path.join(get_package_share_directory(package), filename))
+    urdf = xacro.process(
+        os.path.join(get_package_share_directory(package), filename), mappings=mappings
+    )
 
     robot = O3DRobot(urdf)
     # clouds = robot.meshes_to_point_clouds(robot.meshes)
@@ -42,5 +47,6 @@ def test_sample_points_equally() -> None:
 
 
 if __name__ == "__main__":
-    test_meshify_robot("lbr_description", "urdf/med7/med7.xacro")
+    # test_meshify_robot("lbr_description", "urdf/med7/med7.xacro")
+    test_meshify_robot("xarm_description", "urdf/xarm_device.urdf.xacro")
     # test_sample_points_equally()
