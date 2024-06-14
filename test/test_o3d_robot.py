@@ -16,8 +16,9 @@ def test_meshify_robot(
     filename: str = "urdf/med7/med7.xacro",
     mappings: Dict[str, str] = {},
     joint_positions: List[np.ndarray] = [
-        np.array([0, 1.0, 0, 1, 0, 0, 0]),
-        np.array([0, 0, 0, 0, 0, 0, 0]),
+        np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+        np.array([0.0, 0.4, 0.0, 0.4, 0.0, 0.0, 0.0]),
+        np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
     ],
 ) -> None:
     urdf = xacro.process(
@@ -25,16 +26,10 @@ def test_meshify_robot(
     )
 
     robot = O3DRobot(urdf)
-    # clouds = robot.meshes_to_point_clouds(robot.meshes)
 
-    robot.set_joint_positions(joint_positions[0])
-    robot.visualize_point_clouds()
-    robot.visualize_meshes()
-    robot.visualize_meshes()
-
-    robot.set_joint_positions(joint_positions[1])
-    robot.visualize_point_clouds()
-    robot.visualize_meshes()
+    for joint_position in joint_positions:
+        robot.set_joint_positions(joint_position)
+        robot.visualize_point_clouds()
 
 
 def test_sample_points_equally() -> None:
@@ -58,6 +53,10 @@ if __name__ == "__main__":
     #     "ur_description",
     #     "urdf/ur.urdf.xacro",
     #     mappings={"name": "ur5", "ur_type": "ur5"},
-    #     joint_positions=[np.array([0, 1.0, 0, 1, 0, 0]), np.array([0, 0, 0, 0, 0, 0])],
+    #     joint_positions=[
+    #         np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+    #         np.array([0.0, 0.4, 0.0, 0.4, 0.0, 0.0]),
+    #         np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+    #     ],
     # )
     # test_sample_points_equally()

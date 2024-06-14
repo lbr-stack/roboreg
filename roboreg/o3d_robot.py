@@ -29,10 +29,7 @@ class O3DRobot:
             urdf
         )
         self.meshes = self._load_meshes(self.paths, convex_hull)
-
-        #
-        self.mesh_centers = [mesh.get_center() for mesh in self.meshes]
-        self.link_origins = self.chain.forward_kinematics([0.0] * self.dof).values()
+        self._initial_meshes_transform()
 
     def set_joint_positions(self, q: np.ndarray) -> None:
         current_tf = self._get_transforms(self.q)
@@ -40,20 +37,12 @@ class O3DRobot:
 
         for idx, link in enumerate(self.link_names):
             # zero transform
-            r0 = tf.quaternion_matrix(current_tf[link].rot)
-            t0 = tf.translation_matrix(current_tf[link].pos)
-            ht0 = np.eye(4)
-            ht0[:3, :3] = r0[:3, :3]
-            ht0[:3, 3] = t0[:3, 3]
+            ht0 = current_tf[link].matrix()
 
             # desired transform
-            r = tf.quaternion_matrix(tf_dict[link].rot)
-            t = tf.translation_matrix(tf_dict[link].pos)
-            ht = np.eye(4)
-            ht[:3, :3] = r[:3, :3]
-            ht[:3, 3] = t[:3, 3]
+            ht = tf_dict[link].matrix()
 
-            self.meshes[idx] = self.meshes[idx].transform(ht @ np.linalg.inv(ht0))
+            self.meshes[idx].transform(ht @ np.linalg.inv(ht0))
         self.q = q
 
     def visualize_meshes(self) -> None:
@@ -131,6 +120,13 @@ class O3DRobot:
         # render
         o3d_render = render.render_to_image()
         return np.asarray(o3d_render)
+
+    def _initial_meshes_transform(self) -> None:
+        current_tf = self._get_transforms([0.0] * self.dof)
+        for idx, link in enumerate(self.link_names):
+            coll_ht = self.collision_origins[idx]
+            ht0 = current_tf[link].matrix()
+            self.meshes[idx].transform(ht0 @ coll_ht)
 
     def _get_transforms(self, q: np.ndarray) -> Dict[str, kinpy.Transform]:
         transforms = self.chain.forward_kinematics(q)
