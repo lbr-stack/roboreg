@@ -1,6 +1,6 @@
 import os
 import sys
-from typing import Dict
+from typing import Dict, List
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -15,6 +15,10 @@ def test_meshify_robot(
     package: str = "lbr_description",
     filename: str = "urdf/med7/med7.xacro",
     mappings: Dict[str, str] = {},
+    joint_positions: List[np.ndarray] = [
+        np.array([0, 1.0, 0, 1, 0, 0, 0]),
+        np.array([0, 0, 0, 0, 0, 0, 0]),
+    ],
 ) -> None:
     urdf = xacro.process(
         os.path.join(get_package_share_directory(package), filename), mappings=mappings
@@ -23,12 +27,13 @@ def test_meshify_robot(
     robot = O3DRobot(urdf)
     # clouds = robot.meshes_to_point_clouds(robot.meshes)
 
-    robot.set_joint_positions(np.array([0, 1.0, 0, 1, 0, 0, 0]))
+    robot.set_joint_positions(joint_positions[0])
     robot.visualize_point_clouds()
     robot.visualize_meshes()
     robot.visualize_meshes()
 
-    robot.set_joint_positions(np.array([0, 0, 0, 0, 0, 0, 0]))
+    robot.set_joint_positions(joint_positions[1])
+    robot.visualize_point_clouds()
     robot.visualize_meshes()
 
 
@@ -47,6 +52,12 @@ def test_sample_points_equally() -> None:
 
 
 if __name__ == "__main__":
-    # test_meshify_robot("lbr_description", "urdf/med7/med7.xacro")
-    test_meshify_robot("xarm_description", "urdf/xarm_device.urdf.xacro")
+    test_meshify_robot("lbr_description", "urdf/med7/med7.xacro")
+    # test_meshify_robot("xarm_description", "urdf/xarm_device.urdf.xacro")
+    # test_meshify_robot(
+    #     "ur_description",
+    #     "urdf/ur.urdf.xacro",
+    #     mappings={"name": "ur5", "ur_type": "ur5"},
+    #     joint_positions=[np.array([0, 1.0, 0, 1, 0, 0]), np.array([0, 0, 0, 0, 0, 0])],
+    # )
     # test_sample_points_equally()

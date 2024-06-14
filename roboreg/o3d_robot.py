@@ -25,8 +25,14 @@ class O3DRobot:
         self.joint_names = self.chain.get_joint_parameter_names(exclude_fixed=True)
         self.dof = len(self.joint_names)
         self.q = np.zeros(self.dof)
-        self.paths, self.link_names = self._get_collision_mesh_paths(urdf)
+        self.paths, self.link_names, self.collision_origins = self._extract_urdf_data(
+            urdf
+        )
         self.meshes = self._load_meshes(self.paths, convex_hull)
+
+        #
+        self.mesh_centers = [mesh.get_center() for mesh in self.meshes]
+        self.link_origins = self.chain.forward_kinematics([0.0] * self.dof).values()
 
     def set_joint_positions(self, q: np.ndarray) -> None:
         current_tf = self._get_transforms(self.q)
@@ -130,9 +136,12 @@ class O3DRobot:
         transforms = self.chain.forward_kinematics(q)
         return transforms
 
-    def _get_collision_mesh_paths(self, urdf: str) -> Tuple[List[str], List[str]]:
+    def _extract_urdf_data(
+        self, urdf: str
+    ) -> Tuple[List[str], List[str], List[np.ndarray]]:
         paths = []
         names = []
+        origins = []
 
         def handle_package_path(package: str, filename: str):
             package_path = get_package_share_directory(package)
@@ -141,7 +150,7 @@ class O3DRobot:
         robot = ET.fromstring(urdf)
         for link in robot.findall("link"):
             visual = link.find("collision")
-            if visual:
+            if visual is not None:
                 name = link.attrib["name"]
                 geometry = visual.find("geometry")
                 mesh = geometry.find("mesh")
@@ -153,7 +162,17 @@ class O3DRobot:
                     path = handle_package_path(package, filename)
                     names.append(name)
                     paths.append(path)
-        return paths, names
+
+                origin = visual.find("origin")
+                if origin is not None:
+                    xyz = origin.attrib.get("xyz", "0 0 0").split()
+                    xyz = np.array([float(x) for x in xyz])
+                    rpy = origin.attrib.get("rpy", "0 0 0").split()
+                    rpy = [float(x) for x in rpy]
+                    collision_origin = tf.euler_matrix(rpy[0], rpy[1], rpy[2], "sxyz")
+                    collision_origin[:3, 3] = xyz
+                    origins.append(collision_origin)
+        return paths, names, origins
 
     @staticmethod
     def _load_mesh(path: str, convex_hull: bool = False) -> o3d.t.geometry.TriangleMesh:
