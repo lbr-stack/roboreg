@@ -85,11 +85,10 @@ def parse_camera_info(camera_info_file: str) -> Tuple[int, int, np.ndarray]:
     height = camera_info["height"]
     width = camera_info["width"]
     if (
-        camera_info["camera_matrix"]["cols"] != 3
-        or camera_info["camera_matrix"]["rows"] != 3
+        len(camera_info["k"]) != 9
     ):
         raise ValueError("Camera matrix must be 3x3.")
-    intrinsic_matrix = np.array(camera_info["camera_matrix"]["data"]).reshape(3, 3)
+    intrinsic_matrix = np.array(camera_info["k"]).reshape(3, 3)
     return height, width, intrinsic_matrix
 
 

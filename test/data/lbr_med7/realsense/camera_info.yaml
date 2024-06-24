@@ -1,6 +1,4 @@
-camera_matrix:
-  cols: 3
-  data:
+k:
   - 908.3020629882812
   - 0.0
   - 642.962158203125
@@ -10,22 +8,16 @@ camera_matrix:
   - 0.0
   - 0.0
   - 1.0
-  rows: 3
-distortion_coefficients:
-  cols: 5
-  data:
+d:
   - 0.0
   - 0.0
   - 0.0
   - 0.0
   - 0.0
-  rows: 1
 distortion_model: plumb_bob
 frame_id: camera_color_optical_frame
 height: 720
-projection_matrix:
-  cols: 4
-  data:
+p:
   - 908.3020629882812
   - 0.0
   - 642.962158203125
@@ -38,10 +30,7 @@ projection_matrix:
   - 0.0
   - 1.0
   - 0.0
-  rows: 3
-rectification_matrix:
-  cols: 3
-  data:
+r:
   - 1.0
   - 0.0
   - 0.0
@@ -51,5 +40,4 @@ rectification_matrix:
   - 0.0
   - 0.0
   - 1.0
-  rows: 3
 width: 1280

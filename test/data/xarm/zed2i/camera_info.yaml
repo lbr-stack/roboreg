@@ -1,6 +1,4 @@
-camera_matrix:
-  cols: 3
-  data:
+k:
   - 263.9858703613281
   - 0.0
   - 318.255126953125
@@ -10,10 +8,7 @@ camera_matrix:
   - 0.0
   - 0.0
   - 1.0
-  rows: 3
-distortion_coefficients:
-  cols: 5
-  data:
+d:
   - 0.0
   - 0.0
   - 0.0
@@ -22,13 +17,10 @@ distortion_coefficients:
   - 0.0
   - 0.0
   - 0.0
-  rows: 1
 distortion_model: rational_polynomial
 frame_id: zed_left_camera_optical_frame
 height: 360
-projection_matrix:
-  cols: 4
-  data:
+p:
   - 263.9858703613281
   - 0.0
   - 318.255126953125
@@ -41,10 +33,7 @@ projection_matrix:
   - 0.0
   - 1.0
   - 0.0
-  rows: 3
-rectification_matrix:
-  cols: 3
-  data:
+r:
   - 1.0
   - 0.0
   - 0.0
@@ -54,5 +43,4 @@ rectification_matrix:
   - 0.0
   - 0.0
   - 1.0
-  rows: 3
 width: 640
