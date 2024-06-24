@@ -10,12 +10,13 @@ from roboreg.util import find_files, generate_o3d_robot, overlay_mask, parse_cam
 
 def args_factory() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--path", type=str, required=True, help="Path to the images.")
+    parser.add_argument("--images_path", type=str, required=True, help="Path to the images.")
+    parser.add_argument("--joint_states_path", type=str, required=True, help="Path to the joint states.")
     parser.add_argument(
         "--camera_info",
         type=str,
-        default="camera_info.yaml",
-        help="Path to the camera parameters.",
+        required=True,
+        help="Path to the camera parameters, <path_to>/camera_info.yaml.",
     )
     parser.add_argument(
         "--image_pattern",
@@ -24,22 +25,22 @@ def args_factory() -> argparse.Namespace:
         help="Image file pattern.",
     )
     parser.add_argument(
-        "--mask_pattern",
-        type=str,
-        default="image_*_mask.png",
-        help="Mask file pattern.",
-    )
-    parser.add_argument(
         "--joint_states_pattern",
         type=str,
         default="joint_states_*.npy",
         help="Joint state file pattern.",
     )
     parser.add_argument(
-        "--ht_file",
+        "--ht",
         type=str,
-        default="HT_hydra_robust.npy",
-        help="Homogeneous transform from base to camera frame.",
+        required=True,
+        help="Homogeneous transform from base to camera frame, <path_to>/HT_hydra_robust.npy.",
+    )
+    parser.add_argument(
+        "--output_path",
+        type=str,
+        required=True,
+        help="Output path.",
     )
     return parser.parse_args()
 
@@ -47,35 +48,34 @@ def args_factory() -> argparse.Namespace:
 def main():
     args = args_factory()
 
-    path = args.path
-    ht_file = args.ht_file
-    output_path = path
+    images_path = args.images_path
+    joint_states_path = args.joint_states_path
+    ht = args.ht
+    output_path = args.output_path
 
     # load robot
     robot = generate_o3d_robot()
 
     # load camera info
     height, width, intrinsic_matrix = parse_camera_info(
-        os.path.join(path, args.camera_info)
+        args.camera_info
     )
 
     # read files
-    joint_states_files = find_files(path, args.joint_states_pattern)
-    img_files = find_files(path, args.image_pattern)
-    mask_files = find_files(path, args.mask_pattern)
+    joint_states_files = find_files(joint_states_path, args.joint_states_pattern)
+    img_files = find_files(images_path, args.image_pattern)
 
-    for joint_state_file, img_file, mask_file in zip(
-        joint_states_files, img_files, mask_files
+    for joint_state_file, img_file in zip(
+        joint_states_files, img_files
     ):
-        joint_state = np.load(os.path.join(path, joint_state_file))
-        img = cv2.imread(os.path.join(path, img_file))
-        mask = cv2.imread(os.path.join(path, mask_file), cv2.IMREAD_GRAYSCALE)
+        joint_state = np.load(os.path.join(joint_states_path, joint_state_file))
+        img = cv2.imread(os.path.join(images_path, img_file))
 
         ########################
         # homogeneous -> optical
         ########################
         HT_base_cam = np.load(
-            os.path.join(path, ht_file)
+            ht
         )  # base frame (reference / world) -> camera
 
         # static transforms
@@ -111,14 +111,6 @@ def main():
             1.0,
         )
 
-        masked = overlay_mask(
-            img,
-            mask,
-            "g",
-            0.8,
-            1.0,
-        )
-
         ######
         # save
         ######
@@ -128,11 +120,6 @@ def main():
             os.path.join(output_path, f"{prefix}_render_overlay.{suffix}"),
             rendered,
         )
-        cv2.imwrite(
-            os.path.join(output_path, f"{prefix}_mask_overlay.{suffix}"),
-            masked,
-        )
-
 
 if __name__ == "__main__":
     main()

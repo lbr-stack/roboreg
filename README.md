@@ -41,8 +41,7 @@ rr-hydra \
 
 ### Render Results
 ```shell
-rr-render \
-    --path <path_to_data>
+rr-render --help
 ```
 
 ## Acknowledgements
