@@ -94,9 +94,10 @@ class O3DRobot:
         height: int,
         material_color: List[float] = [1.0, 1.0, 1.0, 1.0],
         background_color: List[float] = [0.0, 0.0, 0.0, 1.0],
+        headless: bool = True,
     ) -> np.ndarray:
         # create rendering scene
-        render = rendering.OffscreenRenderer(width, height)
+        render = rendering.OffscreenRenderer(width, height, headless=headless)
         mtl = o3d.visualization.rendering.MaterialRecord()
         mtl.base_color = material_color
         mtl.shader = "defaultUnlit"
