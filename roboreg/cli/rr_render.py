@@ -1,5 +1,6 @@
 import argparse
 import os
+import pathlib
 
 import cv2
 import numpy as np
@@ -55,7 +56,9 @@ def main():
     images_path = args.images_path
     joint_states_path = args.joint_states_path
     ht = args.ht
-    output_path = args.output_path
+    output_path = pathlib.Path(args.output_path)
+    if not output_path.exists():
+        output_path.mkdir(parents=True)
 
     # load robot
     robot = generate_o3d_robot()
@@ -115,7 +118,9 @@ def main():
         prefix = img_file.split(".")[0]
         suffix = img_file.split(".")[1]
         cv2.imwrite(
-            os.path.join(output_path, f"{prefix}_render_overlay.{suffix}"),
+            os.path.join(
+                str(output_path.absolute()), f"{prefix}_render_overlay.{suffix}"
+            ),
             rendered,
         )
 
