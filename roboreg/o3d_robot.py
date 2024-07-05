@@ -95,7 +95,10 @@ class O3DRobot:
         height: int,
         material_color: List[float] = [1.0, 1.0, 1.0, 1.0],
         background_color: List[float] = [0.0, 0.0, 0.0, 1.0],
-    ):
+    ) -> None:
+        if self._render_setup:
+            return
+
         # create rendering scene
         self._render = rendering.OffscreenRenderer(width, height)
         self._mtl = o3d.visualization.rendering.MaterialRecord()
