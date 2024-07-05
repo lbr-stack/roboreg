@@ -70,34 +70,34 @@ def main():
     joint_states_files = find_files(joint_states_path, args.joint_states_pattern)
     img_files = find_files(images_path, args.image_pattern)
 
+    ########################
+    # homogeneous -> optical
+    ########################
+    HT_base_cam = np.load(ht)  # base frame (reference / world) -> camera
+
+    # static transforms
+    HT_cam_optical = tf.quaternion_matrix([0.5, -0.5, 0.5, -0.5])  # camera -> optical
+
+    # base to optical frame
+    HT_base_optical = HT_base_cam @ HT_cam_optical  # base frame -> optical
+    HT_optical_base = np.linalg.inv(HT_base_optical)
+
+    robot.setup_render(
+        intrinsic_matrix=intrinsic_matrix,
+        extrinsic_matrix=HT_optical_base,
+        width=width,
+        height=height,
+    )
+
     for joint_state_file, img_file in zip(joint_states_files, img_files):
         joint_state = np.load(os.path.join(joint_states_path, joint_state_file))
         img = cv2.imread(os.path.join(images_path, img_file))
-
-        ########################
-        # homogeneous -> optical
-        ########################
-        HT_base_cam = np.load(ht)  # base frame (reference / world) -> camera
-
-        # static transforms
-        HT_cam_optical = tf.quaternion_matrix(
-            [0.5, -0.5, 0.5, -0.5]
-        )  # camera -> optical
-
-        # base to optical frame
-        HT_base_optical = HT_base_cam @ HT_cam_optical  # base frame -> optical
-        HT_optical_base = np.linalg.inv(HT_base_optical)
 
         #############
         # render mask
         #############
         robot.set_joint_positions(joint_state)
-        o3d_render = robot.render(
-            intrinsic_matrix=intrinsic_matrix,
-            extrinsic_matrix=HT_optical_base,
-            width=width,
-            height=height,
-        )
+        o3d_render = robot.render()
 
         #################
         # post-processing

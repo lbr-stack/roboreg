@@ -30,6 +30,7 @@ class O3DRobot:
         )
         self.meshes = self._load_meshes(self.paths, convex_hull)
         self._initial_meshes_transform()
+        self._render_setup = False
 
     def set_joint_positions(self, q: np.ndarray) -> None:
         current_tf = self._get_transforms(self.q)
@@ -86,7 +87,7 @@ class O3DRobot:
             number_of_points=number_of_points
         )
 
-    def render(
+    def setup_render(
         self,
         intrinsic_matrix: np.ndarray,
         extrinsic_matrix: np.ndarray,
@@ -94,17 +95,15 @@ class O3DRobot:
         height: int,
         material_color: List[float] = [1.0, 1.0, 1.0, 1.0],
         background_color: List[float] = [0.0, 0.0, 0.0, 1.0],
-    ) -> np.ndarray:
+    ):
         # create rendering scene
-        render = rendering.OffscreenRenderer(width, height)
-        mtl = o3d.visualization.rendering.MaterialRecord()
-        mtl.base_color = material_color
-        mtl.shader = "defaultUnlit"
-        render.scene.set_background(background_color)
-        for idx, mesh in enumerate(self.meshes):
-            render.scene.add_geometry(f"link_{idx}", mesh, mtl)
+        self._render = rendering.OffscreenRenderer(width, height)
+        self._mtl = o3d.visualization.rendering.MaterialRecord()
+        self._mtl.base_color = material_color
+        self._mtl.shader = "defaultUnlit"
+        self._render.scene.set_background(background_color)
 
-        render.setup_camera(
+        self._render.setup_camera(
             intrinsic_matrix,
             extrinsic_matrix,
             width,
@@ -116,10 +115,20 @@ class O3DRobot:
         # eye = -np.linalg.inv(extrinsic_matrix[:3, :3]) @ extrinsic_matrix[:3, 3]
         # center = eye + extrinsic_matrix[2, :3]
         # render.scene.camera.look_at(center, eye, up)
+        self._render_setup = True
 
-        # render
-        o3d_render = render.render_to_image()
-        return np.asarray(o3d_render)
+    def render(
+        self,
+    ) -> np.ndarray:
+        for idx, mesh in enumerate(self.meshes):
+            self._render.scene.add_geometry(f"link_{idx}", mesh, self._mtl)
+        if not self._render_setup:
+            raise RuntimeError("Render not prepared. Call setup_render first.")
+        render = self._render.render_to_image()
+        # remove geometries
+        for idx in range(len(self.meshes)):
+            self._render.scene.remove_geometry(f"link_{idx}")
+        return np.asarray(render)
 
     def _initial_meshes_transform(self) -> None:
         current_tf = self._get_transforms([0.0] * self.dof)
