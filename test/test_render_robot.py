@@ -31,9 +31,7 @@ def test_render_robot():
     )  # base frame (reference / world) -> camera
 
     # static transforms
-    HT_cam_optical = tf.quaternion_matrix(
-        [0.5, -0.5, 0.5, -0.5]
-    )  # camera -> optical
+    HT_cam_optical = tf.quaternion_matrix([0.5, -0.5, 0.5, -0.5])  # camera -> optical
 
     # base to optical frame
     HT_base_optical = HT_base_cam @ HT_cam_optical  # base frame -> optical

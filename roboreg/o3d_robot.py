@@ -123,13 +123,10 @@ class O3DRobot:
         # render.scene.camera.look_at(center, eye, up)
         self._render_setup = True
 
-    def render(
-        self,
-        q: np.ndarray
-    ) -> np.ndarray:
+    def render(self, q: np.ndarray) -> np.ndarray:
         if not self._render_setup:
             raise RuntimeError("Render not prepared. Call setup_render first.")
-        
+
         current_tf = self._get_transforms(self.q)
         tf_dict = self._get_transforms(q)
 
@@ -139,7 +136,9 @@ class O3DRobot:
 
             # desired transform
             ht = tf_dict[link].matrix()
-            self._render.scene.set_geometry_transform(f"link_{idx}", ht @ np.linalg.inv(ht0))
+            self._render.scene.set_geometry_transform(
+                f"link_{idx}", ht @ np.linalg.inv(ht0)
+            )
 
         return np.asarray(self._render.render_to_image())
 
