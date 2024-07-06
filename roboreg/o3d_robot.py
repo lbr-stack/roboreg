@@ -113,6 +113,9 @@ class O3DRobot:
             height,
         )
 
+        for idx, mesh in enumerate(self.meshes):
+            self._render.scene.add_geometry(f"link_{idx}", mesh, self._mtl)
+
         # # compute up eye center from extrinsic matrix
         # up = -extrinsic_matrix[1, :3]
         # eye = -np.linalg.inv(extrinsic_matrix[:3, :3]) @ extrinsic_matrix[:3, 3]
@@ -122,16 +125,23 @@ class O3DRobot:
 
     def render(
         self,
+        q: np.ndarray
     ) -> np.ndarray:
-        for idx, mesh in enumerate(self.meshes):
-            self._render.scene.add_geometry(f"link_{idx}", mesh, self._mtl)
         if not self._render_setup:
             raise RuntimeError("Render not prepared. Call setup_render first.")
-        render = self._render.render_to_image()
-        # remove geometries
-        for idx in range(len(self.meshes)):
-            self._render.scene.remove_geometry(f"link_{idx}")
-        return np.asarray(render)
+        
+        current_tf = self._get_transforms(self.q)
+        tf_dict = self._get_transforms(q)
+
+        for idx, link in enumerate(self.link_names):
+            # zero transform
+            ht0 = current_tf[link].matrix()
+
+            # desired transform
+            ht = tf_dict[link].matrix()
+            self._render.scene.set_geometry_transform(f"link_{idx}", ht @ np.linalg.inv(ht0))
+
+        return np.asarray(self._render.render_to_image())
 
     def _initial_meshes_transform(self) -> None:
         current_tf = self._get_transforms([0.0] * self.dof)

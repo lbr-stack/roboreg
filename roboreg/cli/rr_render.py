@@ -96,8 +96,7 @@ def main():
         #############
         # render mask
         #############
-        robot.set_joint_positions(joint_state)
-        o3d_render = robot.render()
+        o3d_render = robot.render(joint_state)
 
         #################
         # post-processing

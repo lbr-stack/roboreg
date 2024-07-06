@@ -23,6 +23,29 @@ def test_render_robot():
         os.path.join(input_prefix, "camera_info.yaml")
     )
 
+    ########################
+    # homogeneous -> optical
+    ########################
+    HT_base_cam = np.load(
+        os.path.join(input_prefix, ht_file)
+    )  # base frame (reference / world) -> camera
+
+    # static transforms
+    HT_cam_optical = tf.quaternion_matrix(
+        [0.5, -0.5, 0.5, -0.5]
+    )  # camera -> optical
+
+    # base to optical frame
+    HT_base_optical = HT_base_cam @ HT_cam_optical  # base frame -> optical
+    HT_optical_base = np.linalg.inv(HT_base_optical)
+
+    robot.setup_render(
+        intrinsic_matrix=intrinsic_matrix,
+        extrinsic_matrix=HT_optical_base,
+        width=width,
+        height=height,
+    )
+
     joint_state_files = find_files(input_prefix, "joint_states_*.npy")
     img_files = find_files(input_prefix, "image_*.png")
     mask_files = find_files(input_prefix, "mask_*.png")
@@ -34,32 +57,10 @@ def test_render_robot():
         img = cv2.imread(os.path.join(input_prefix, img_file))
         mask = cv2.imread(os.path.join(input_prefix, mask_file), cv2.IMREAD_GRAYSCALE)
 
-        ########################
-        # homogeneous -> optical
-        ########################
-        HT_base_cam = np.load(
-            os.path.join(input_prefix, ht_file)
-        )  # base frame (reference / world) -> camera
-
-        # static transforms
-        HT_cam_optical = tf.quaternion_matrix(
-            [0.5, -0.5, 0.5, -0.5]
-        )  # camera -> optical
-
-        # base to optical frame
-        HT_base_optical = HT_base_cam @ HT_cam_optical  # base frame -> optical
-        HT_optical_base = np.linalg.inv(HT_base_optical)
-
         #############
         # render mask
         #############
-        robot.set_joint_positions(joint_state)
-        o3d_render = robot.render(
-            intrinsic_matrix=intrinsic_matrix,
-            extrinsic_matrix=HT_optical_base,
-            width=width,
-            height=height,
-        )
+        o3d_render = robot.render(joint_state)
 
         #################
         # post-processing
