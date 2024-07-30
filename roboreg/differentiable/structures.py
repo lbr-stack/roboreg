@@ -11,15 +11,15 @@ class TorchRobotMesh:
     _lower_indices: List[int]
     _upper_indices: List[int]
 
-    def __init__(self, meshes: List[str], device: torch.device = "cuda") -> None:
+    def __init__(self, mesh_paths: List[str], device: torch.device = "cuda") -> None:
         self._vertices = []
         self._faces = []
         self._per_link_vertex_count = []
         self._lower_indices = []
         self._upper_indices = []
         offset = 0
-        for mesh in meshes:
-            m = trimesh.load(mesh)
+        for mesh_path in mesh_paths:
+            m = trimesh.load(mesh_path)
             self._vertices.append(
                 torch.tensor(m.vertices, dtype=torch.float32, device=device)
             )
