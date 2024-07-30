@@ -4,7 +4,7 @@ import nvdiffrast.torch as dr
 import torch
 
 
-class NVDiffRastRender:
+class NVDiffRastRenderer:
     def __init__(self, device: torch.device) -> None:
         super().__init__()
         if not torch.cuda.is_available():
@@ -20,6 +20,8 @@ class NVDiffRastRender:
         color: List[float] = [1.0],
     ) -> torch.Tensor:
         rast, _ = dr.rasterize(self._ctx, vertices, faces, resolution)
+        # the nvdiffrast interpolation is not required for this simple case
+        # simply assign a constant color where there is a triange id != 0
         col = torch.tensor(color, device=self._device, dtype=torch.float32).unsqueeze(0)
         render = torch.where(
             rast[..., -1].unsqueeze(-1) != 0, col, torch.zeros_like(col)

@@ -17,7 +17,7 @@ import xacro
 from ament_index_python import get_package_share_directory
 
 from roboreg.differentiable.data_structures import TorchRobotMesh
-from roboreg.differentiable.render import NVDiffRastRender
+from roboreg.differentiable.renderer import NVDiffRastRenderer
 
 
 class FK:
@@ -102,7 +102,7 @@ class FK:
         return hts
 
 
-if __name__ == "__main__":
+def test_pipeline() -> None:
     meshes: List[trimesh.Geometry] = [
         trimesh.load(f"test/data/lbr_med7/mesh/link_{idx}.stl") for idx in range(8)
     ]
@@ -147,7 +147,7 @@ if __name__ == "__main__":
             torch_robot_mesh.vertices, DUMMY_HT.t()
         )
 
-        render = NVDiffRastRender(device=device)
+        render = NVDiffRastRenderer(device=device)
 
         while True:
             cnt += 1
@@ -170,3 +170,67 @@ if __name__ == "__main__":
             cv2.waitKey(1)
     except KeyboardInterrupt:
         pass
+
+
+def test_nvdiffrast_renderer() -> None:
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    meshes: List[trimesh.Geometry] = [
+        trimesh.load(f"test/data/lbr_med7/mesh/link_{idx}.stl") for idx in range(8)
+    ]
+    torch_robot_mesh = TorchRobotMesh(meshes=meshes, device=device)
+    renderer = NVDiffRastRenderer(device=device)
+
+    # transform mesh to it becomes visible
+    HT_TARGET = torch.tensor(
+        tf.euler_matrix(np.pi / 2, 0.0, 0.0).astype("float32"),
+        device=device,
+        dtype=torch.float32,
+    )
+    torch_robot_mesh.vertices = torch.matmul(torch_robot_mesh.vertices, HT_TARGET.T)
+
+    # create a target render
+    resolution = [256, 256]
+    target_render = renderer.constant_color(
+        torch_robot_mesh.vertices, torch_robot_mesh.faces, resolution
+    )
+
+    # modify transform
+    HT = torch.tensor(
+        tf.euler_matrix(0.0, 0.0, np.pi / 16.0).astype("float32"),
+        device=device,
+        requires_grad=True,
+        dtype=torch.float32,
+    )
+
+    # create an optimizer an optimize HT -> HT_TARGET
+    optimizer = torch.optim.Adam([HT], lr=0.001)
+    metric = torch.nn.MSELoss()
+    try:
+        for i in range(1000):
+            vertices = torch.matmul(torch_robot_mesh.vertices, HT.T)
+            current_render = renderer.constant_color(
+                vertices, torch_robot_mesh.faces, resolution
+            )
+            loss = metric(current_render, target_render)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            # visualize
+            current_image = current_render.squeeze().cpu().detach().numpy()
+            target_image = target_render.squeeze().cpu().numpy()
+            difference_image = current_image - target_image
+            concatenated_image = np.concatenate(
+                [target_image, current_image, difference_image], axis=-1
+            )
+            cv2.imshow(
+                "target render / current render / difference", concatenated_image
+            )
+            cv2.waitKey(0)
+    except KeyboardInterrupt:
+        pass
+
+
+if __name__ == "__main__":
+    # test_pipeline()
+    test_nvdiffrast_renderer()
