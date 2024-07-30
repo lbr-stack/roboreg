@@ -12,8 +12,8 @@ import torch
 import transformations as tf
 import trimesh
 
-from roboreg.differentiable.renderer import NVDiffRastRenderer
-from roboreg.differentiable.structures import TorchRobotMesh
+from roboreg.differentiable.rendering import NVDiffRastRenderer
+from roboreg.differentiable.structs import TorchRobotMesh
 
 
 def test_nvdiffrast_pose_optimization() -> None:

@@ -10,12 +10,15 @@ from roboreg.util import clean_xyz, generate_o3d_robot, mask_boundary
 
 
 class URDFParser:
+    _urdf: str
     _robot: urdf_parser_py.urdf.Robot
 
     def __init__(self) -> None:
+        self._urdf = None
         self._robot = None
 
     def from_urdf(self, urdf: str) -> None:
+        self._urdf = urdf
         self._robot = urdf_parser_py.urdf.Robot.from_xml_string(urdf)
 
     def from_ros_xacro(self, ros_package: str, xacro_path: str) -> None:
@@ -29,9 +32,10 @@ class URDFParser:
         import xacro
         from ament_index_python import get_package_share_directory
 
-        return xacro.process(
+        self._urdf = xacro.process(
             os.path.join(get_package_share_directory(ros_package), xacro_path)
         )
+        return self._urdf
 
     def chain_link_names(self, root_link_name: str, end_link_name: str) -> List[str]:
         self._verify_links_in_chain(
@@ -123,6 +127,10 @@ class URDFParser:
             raise ValueError(f"Link {end_link_name} not in robot.")
         if not root_link_name in link_names:
             raise ValueError(f"Link {root_link_name} not in robot.")
+
+    @property
+    def urdf(self) -> str:
+        return self._urdf
 
     @property
     def robot(self) -> urdf_parser_py.urdf.Robot:

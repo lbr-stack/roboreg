@@ -10,8 +10,8 @@ from roboreg.io import URDFParser
 
 
 def test_torch_robot_mesh() -> None:
-    parser = URDFParser()
-    urdf = parser.urdf_from_ros_xacro(
+    urdf_parser = URDFParser()
+    urdf = urdf_parser.urdf_from_ros_xacro(
         ros_package="lbr_description", xacro_path="urdf/med7/med7.xacro"
     )
     device = "cuda" if torch.cuda.is_available() else "cpu"
