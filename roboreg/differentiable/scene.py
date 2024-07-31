@@ -2,32 +2,34 @@ import torch
 
 from .kinematics import TorchKinematics
 from .rendering import NVDiffRastRenderer
-from .structs import TorchRobotMesh
+from .structs import TorchMeshContainer
 
 
 class RobotScene:
     r"""Differentiable robot scene."""
 
-    _mesh: TorchRobotMesh
+    _meshes: TorchMeshContainer
     _kinematics: TorchKinematics
     _renderer: NVDiffRastRenderer
 
     def __init__(
         self,
-        mesh: TorchRobotMesh,
+        meshes: TorchMeshContainer,
         kinematics: TorchKinematics,
         renderer: NVDiffRastRenderer,
     ) -> None:
-        self._mesh = mesh
+        self._meshes = meshes
         self._kinematics = kinematics
         self._renderer = renderer
 
     def view(self, camera_pose: torch.Tensor, q: torch.Tensor) -> torch.Tensor:
-        pass
+        return self._renderer.constant_color(
+            self._meshes.vertices, self._meshes.faces, resolution=[256, 256]
+        )
 
     @property
-    def mesh(self) -> TorchRobotMesh:
-        return self._mesh
+    def meshes(self) -> TorchMeshContainer:
+        return self._meshes
 
     @property
     def kinematics(self) -> TorchKinematics:

@@ -1,37 +1,52 @@
-from typing import List
+from collections import OrderedDict
+from typing import Dict, List
 
 import torch
 import trimesh
 
 
-class TorchRobotMesh:
+class TorchMeshContainer:
+    _mesh_names: List[str]
     _vertices: torch.FloatTensor  # tensor of shape (N, 3)
+    _per_mesh_vertex_count: OrderedDict[str, int]
     _faces: torch.IntTensor  # tensor of shape (N, 3)
-    _per_link_vertex_count: List[int]
-    _lower_indices: List[int]
-    _upper_indices: List[int]
+    _lower_index_lookup: Dict[str, int]
+    _upper_index_lookup: Dict[str, int]
 
-    def __init__(self, mesh_paths: List[str], device: torch.device = "cuda") -> None:
+    def __init__(
+        self, mesh_paths: Dict[str, str], device: torch.device = "cuda"
+    ) -> None:
+        self._mesh_names = []
         self._vertices = []
+        self._per_mesh_vertex_count = OrderedDict()
         self._faces = []
-        self._per_link_vertex_count = []
-        self._lower_indices = []
-        self._upper_indices = []
+        self._lower_index_lookup = {}
+        self._upper_index_lookup = {}
+
         offset = 0
-        for mesh_path in mesh_paths:
+        for mesh_name, mesh_path in mesh_paths.items():
+            # populate mesh names
+            self._mesh_names.append(mesh_name)
+
+            # load mesh
             m = trimesh.load(mesh_path)
+
+            # populate mesh vertex count
+            self._per_mesh_vertex_count[mesh_name] = len(m.vertices)
+
+            # populate vertices
             self._vertices.append(
                 torch.tensor(m.vertices, dtype=torch.float32, device=device)
             )
-            # (x,y,z) -> (x,y,z,1)
             self._vertices[-1] = torch.cat(
                 [
                     self._vertices[-1],
                     torch.ones_like(self._vertices[-1][:, :1]),
                 ],
                 dim=1,
-            )
-            self._per_link_vertex_count.append(len(m.vertices))
+            )  # (x,y,z) -> (x,y,z,1): homogeneous coordinates
+
+            # populate faces (also add an offset to the point ids)
             self._faces.append(
                 torch.add(
                     torch.tensor(m.faces, dtype=torch.int32, device=device),
@@ -39,21 +54,20 @@ class TorchRobotMesh:
                 )
             )
             offset += len(m.vertices)
+
         self._vertices = torch.cat(self._vertices, dim=0)
         self._faces = torch.cat(self._faces, dim=0)
 
         # add batch dim
         self._vertices = self._vertices.unsqueeze(0)
 
-        for i in range(len(self._per_link_vertex_count)):
-            if i == 0:
-                self._lower_indices.append(0)
-                self._upper_indices.append(self._per_link_vertex_count[i])
-            else:
-                self._lower_indices.append(self._upper_indices[i - 1])
-                self._upper_indices.append(
-                    self._upper_indices[i - 1] + self._per_link_vertex_count[i]
-                )
+        # create index lookup
+        # crucial: self._per_mesh_vertex_count sorted same as self._vertices!
+        index = 0
+        for mesh_name, vertex_count in self._per_mesh_vertex_count.items():
+            self._lower_index_lookup[mesh_name] = index
+            index += vertex_count
+            self._upper_index_lookup[mesh_name] = index
 
     @property
     def vertices(self) -> torch.FloatTensor:
@@ -68,25 +82,41 @@ class TorchRobotMesh:
         return self._faces
 
     @property
-    def per_link_vertex_count(self) -> List[torch.IntTensor]:
-        return self._per_link_vertex_count
+    def per_mesh_vertex_count(self) -> OrderedDict[str, torch.IntTensor]:
+        return self._per_mesh_vertex_count
 
     @property
-    def lower_indices(self) -> List[int]:
-        return self._lower_indices
+    def lower_index_lookup(self) -> Dict[str, int]:
+        return self._lower_index_lookup
 
     @property
-    def upper_indices(self) -> List[int]:
-        return self._upper_indices
+    def upper_index_lookup(self) -> Dict[str, int]:
+        return self._upper_index_lookup
 
-    def set_link_vertices(self, idx: int, vertices: torch.FloatTensor) -> None:
+    @property
+    def mesh_names(self) -> List[str]:
+        return self._mesh_names
+
+    def set_mesh_vertices(self, mesh_name: str, vertices: torch.FloatTensor) -> None:
+        r"""Utility setter for easier access to vertices by mesh."""
         self._vertices[
             :,
-            self._lower_indices[idx] : self._upper_indices[idx],
+            self._lower_index_lookup[mesh_name] : self._upper_index_lookup[mesh_name],
         ] = vertices
 
-    def get_link_vertices(self, idx: int) -> torch.FloatTensor:
+    def get_mesh_vertices(self, mesh_name: str) -> torch.FloatTensor:
+        r"""Utility getter for easier access to vertices by mesh."""
         return self._vertices[
             :,
-            self._lower_indices[idx] : self._upper_indices[idx],
+            self._lower_index_lookup[mesh_name] : self._upper_index_lookup[mesh_name],
         ]
+
+    def transform_mesh(self, ht: torch.FloatTensor, mesh_name: str) -> None:
+        if mesh_name not in self._mesh_names:
+            raise ValueError(f"Mesh name {mesh_name} not found in mesh container.")
+        self.set_mesh_vertices(
+            mesh_name=mesh_name,
+            vertices=torch.matmul(
+                self.get_mesh_vertices(mesh_name=mesh_name), ht.transpose(-1, -2)
+            ),
+        )

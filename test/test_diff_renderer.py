@@ -3,7 +3,6 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import os
 from typing import List
 
 import cv2
@@ -11,17 +10,18 @@ import numpy as np
 import torch
 import transformations as tf
 import trimesh
+from tqdm import tqdm
 
 from roboreg.differentiable.rendering import NVDiffRastRenderer
-from roboreg.differentiable.structs import TorchRobotMesh
+from roboreg.differentiable.structs import TorchMeshContainer
 
 
 def test_nvdiffrast_pose_optimization() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    mesh_paths: List[trimesh.Geometry] = [
-        trimesh.load(f"test/data/lbr_med7/mesh/link_{idx}.stl") for idx in range(8)
-    ]
-    torch_robot_mesh = TorchRobotMesh(mesh_paths=mesh_paths, device=device)
+    mesh_paths: List[trimesh.Geometry] = {
+        f"link_{idx}": f"test/data/lbr_med7/mesh/link_{idx}.stl" for idx in range(8)
+    }
+    meshes = TorchMeshContainer(mesh_paths=mesh_paths, device=device)
     renderer = NVDiffRastRenderer(device=device)
 
     # transform mesh to it becomes visible
@@ -30,13 +30,11 @@ def test_nvdiffrast_pose_optimization() -> None:
         device=device,
         dtype=torch.float32,
     )
-    torch_robot_mesh.vertices = torch.matmul(torch_robot_mesh.vertices, HT_TARGET.T)
+    meshes.vertices = torch.matmul(meshes.vertices, HT_TARGET.T)
 
     # create a target render
-    resolution = [256, 256]
-    target_render = renderer.constant_color(
-        torch_robot_mesh.vertices, torch_robot_mesh.faces, resolution
-    )
+    resolution = [512, 512]
+    target_render = renderer.constant_color(meshes.vertices, meshes.faces, resolution)
 
     # modify transform
     HT = torch.tensor(
@@ -50,11 +48,9 @@ def test_nvdiffrast_pose_optimization() -> None:
     optimizer = torch.optim.Adam([HT], lr=0.001)
     metric = torch.nn.MSELoss()
     try:
-        for i in range(1000):
-            vertices = torch.matmul(torch_robot_mesh.vertices, HT.T)
-            current_render = renderer.constant_color(
-                vertices, torch_robot_mesh.faces, resolution
-            )
+        for _ in tqdm(range(1000)):
+            vertices = torch.matmul(meshes.vertices, HT.T)
+            current_render = renderer.constant_color(vertices, meshes.faces, resolution)
             loss = metric(current_render, target_render)
             optimizer.zero_grad()
             loss.backward()
