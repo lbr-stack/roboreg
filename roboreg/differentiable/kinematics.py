@@ -9,9 +9,14 @@ class TorchKinematics:
     _end_link_name: str
     _chain: pk.SerialChain
     _global_joint_offset: Dict[str, torch.Tensor]
+    _device: torch.device
 
     def __init__(
-        self, urdf: str, root_link_name: str, end_link_name: str, device: torch.device
+        self,
+        urdf: str,
+        root_link_name: str,
+        end_link_name: str,
+        device: torch.device = "cuda",
     ) -> None:
         self._root_link_name = root_link_name
         self._end_link_name = end_link_name
@@ -47,6 +52,7 @@ class TorchKinematics:
             self._global_joint_offset[link_name] = self._global_joint_offset[
                 link_name
             ].to(device=device)
+        self._device = device
 
     def mesh_forward_kinematics(self, q: torch.Tensor) -> Dict[str, torch.Tensor]:
         r"""Computes forward kinematics and returns corresponding homogeneous transformations.
@@ -69,3 +75,7 @@ class TorchKinematics:
     @property
     def chain(self) -> pk.SerialChain:
         return self._chain
+
+    @property
+    def device(self) -> torch.device:
+        return self._device

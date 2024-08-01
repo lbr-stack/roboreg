@@ -1,7 +1,9 @@
 import os
 import sys
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(
+    os.path.dirname((os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+)
 
 import cv2
 import numpy as np
@@ -97,6 +99,7 @@ def test_diff_kinematics() -> None:
     )
     q_target[:, 1] = torch.pi / 2.0
     q_target[:, 3] = torch.pi / 2.0
+    q_target[:, 5] = torch.pi / 4.0
 
     ht_lookup = kinematics.mesh_forward_kinematics(q_target)
     for link_name, ht in ht_lookup.items():
@@ -172,10 +175,13 @@ def test_diff_kinematics() -> None:
                 .numpy()
                 .squeeze()
             )
+            difference_render = current_render - target_render
 
             cv2.imshow(
-                "target / current",
-                np.concatenate([target_render, current_render], axis=-1),
+                "target joint states / current joint states / difference",
+                np.concatenate(
+                    [target_render, current_render, difference_render], axis=-1
+                ),
             )
             cv2.waitKey(1)
     except KeyboardInterrupt:

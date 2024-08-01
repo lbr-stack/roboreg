@@ -1,7 +1,9 @@
 import os
 import sys
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(
+    os.path.dirname((os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+)
 
 import torch
 
@@ -14,12 +16,12 @@ def test_pipeline() -> None:
     urdf_parser.from_ros_xacro("lbr_description", "urdf/med7/med7.xacro")
 
     root_link_name = "link_0"
-    end_link_name = "link_ee"
+    end_link_name = "link_7"
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # instantiate scene objects
-    mesh = rrd.structs.TorchRobotMesh(
+    mesh = rrd.structs.TorchMeshContainer(
         mesh_paths=urdf_parser.ros_package_mesh_paths(
             root_link_name=root_link_name, end_link_name=end_link_name
         ),
@@ -32,9 +34,19 @@ def test_pipeline() -> None:
         device=device,
     )
     renderer = rrd.rendering.NVDiffRastRenderer(device=device)
+    cameras = {
+        "left": rrd.structs.Camera(
+            intrinsics=torch.eye(4),
+            extrinsics=torch.eye(4),
+            resolution=[512, 512],
+            device=device,
+        )
+    }
 
     # generate scene
-    scene = rrd.scene.RobotScene(mesh=mesh, kinematics=kinematics, renderer=renderer)
+    scene = rrd.scene.RobotScene(
+        meshes=mesh, kinematics=kinematics, renderer=renderer, cameras=cameras
+    )
 
     # # parse mesh as torch robot mesh: read mesh paths from urdf
 
@@ -51,7 +63,7 @@ def test_pipeline() -> None:
     # urdf_parser.from_urdf(urdf=urdf)
 
     # self._mesh_paths = []
-    # self._mesh = TorchRobotMesh(self._mesh_paths)
+    # self._mesh = TorchMeshContainer(self._mesh_paths)
     # # intrinsics: torch.Tensor,
 
     # # intrinsics: torch.Tensor,
@@ -63,7 +75,7 @@ def test_pipeline() -> None:
     # ]
 
     # device = "cuda" if torch.cuda.is_available() else "cpu"
-    # torch_robot_mesh = TorchRobotMesh(mesh_paths=mesh_paths, device=device)
+    # torch_robot_mesh = TorchMeshContainer(mesh_paths=mesh_paths, device=device)
 
     # try:
     #     cnt = 0

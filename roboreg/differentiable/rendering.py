@@ -5,7 +5,10 @@ import torch
 
 
 class NVDiffRastRenderer:
-    def __init__(self, device: torch.device) -> None:
+    _device: torch.device
+    _ctx: dr.RasterizeCudaContext
+
+    def __init__(self, device: torch.device = "cuda") -> None:
         super().__init__()
         if not torch.cuda.is_available():
             raise ValueError("CUDA is not available.")
@@ -27,3 +30,11 @@ class NVDiffRastRenderer:
             rast[..., -1].unsqueeze(-1) != 0, col, torch.zeros_like(col)
         )
         return dr.antialias(render, rast, vertices, faces)
+
+    @property
+    def device(self) -> torch.device:
+        return self._device
+
+    @property
+    def ctx(self) -> dr.RasterizeCudaContext:
+        return self._ctx

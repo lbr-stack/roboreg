@@ -12,6 +12,7 @@ class TorchMeshContainer:
     _faces: torch.IntTensor  # tensor of shape (N, 3)
     _lower_index_lookup: Dict[str, int]
     _upper_index_lookup: Dict[str, int]
+    _device: torch.device
 
     def __init__(
         self, mesh_paths: Dict[str, str], device: torch.device = "cuda"
@@ -69,6 +70,8 @@ class TorchMeshContainer:
             index += vertex_count
             self._upper_index_lookup[mesh_name] = index
 
+        self._device = device
+
     @property
     def vertices(self) -> torch.FloatTensor:
         return self._vertices
@@ -97,6 +100,15 @@ class TorchMeshContainer:
     def mesh_names(self) -> List[str]:
         return self._mesh_names
 
+    @property
+    def device(self) -> torch.device:
+        return self._device
+
+    def to(self, device: torch.device) -> None:
+        self._vertices = self._vertices.to(device=device)
+        self._faces = self._faces.to(device=device)
+        self._device = device
+
     def set_mesh_vertices(self, mesh_name: str, vertices: torch.FloatTensor) -> None:
         r"""Utility setter for easier access to vertices by mesh."""
         self._vertices[
@@ -120,3 +132,43 @@ class TorchMeshContainer:
                 self.get_mesh_vertices(mesh_name=mesh_name), ht.transpose(-1, -2)
             ),
         )
+
+
+class Camera:
+    _intrinsic: torch.FloatTensor
+    _extrinsics: torch.FloatTensor
+    _resolution: List[int]
+    _device: torch.device
+
+    def __init__(
+        self,
+        intrinsics: torch.FloatTensor,
+        extrinsics: torch.FloatTensor,
+        resolution: List[int],
+        device: torch.device = "cuda",
+    ) -> None:
+        self._intrinsic = intrinsics
+        self._extrinsics = extrinsics
+        self._resolution = resolution
+        self.to(device=device)
+
+    def to(self, device: torch.device) -> None:
+        self._intrinsic = self._intrinsic.to(device=device)
+        self._extrinsics = self._extrinsics.to(device=device)
+        self._device = device
+
+    @property
+    def intrinsic(self) -> torch.FloatTensor:
+        return self._intrinsic
+
+    @property
+    def extrinsics(self) -> torch.FloatTensor:
+        return self._extrinsics
+
+    @property
+    def resolution(self) -> List[int]:
+        return self._resolution
+
+    @property
+    def device(self) -> torch.device:
+        return self._device
