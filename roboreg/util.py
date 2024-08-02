@@ -5,6 +5,7 @@ from typing import List, Tuple
 
 import cv2
 import numpy as np
+import torch
 import xacro
 import yaml
 from ament_index_python import get_package_share_directory
@@ -153,3 +154,13 @@ def find_files(path: str, pattern: str = "image_*.png") -> List[str]:
     path = pathlib.Path(path)
     image_paths = list(path.glob(pattern))
     return sorted([image_path.name for image_path in image_paths], key=natural_sort)
+
+
+def to_homogeneous(x: torch.Tensor) -> torch.Tensor:
+    """Converts a tensor of shape (..., N) to (..., N+1) by appending ones."""
+    return torch.nn.functional.pad(x, (0, 1), "constant", 1.0)
+
+
+def from_homogeneous(x: torch.Tensor) -> torch.Tensor:
+    """Converts a tensor of shape (..., N+1) to (..., N)."""
+    return x[..., :-1]
