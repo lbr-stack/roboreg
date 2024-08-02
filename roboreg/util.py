@@ -9,6 +9,7 @@ import torch
 import xacro
 import yaml
 from ament_index_python import get_package_share_directory
+from rich import print
 from scipy.signal import convolve2d
 
 from roboreg.o3d_robot import O3DRobot
@@ -164,3 +165,7 @@ def to_homogeneous(x: torch.Tensor) -> torch.Tensor:
 def from_homogeneous(x: torch.Tensor) -> torch.Tensor:
     """Converts a tensor of shape (..., N+1) to (..., N)."""
     return x[..., :-1]
+
+
+def print_line():
+    print("--------------------------------------------------")

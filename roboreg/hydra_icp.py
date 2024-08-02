@@ -6,6 +6,8 @@ import torch
 from rich import print
 from rich.progress import track
 
+from .util import print_line
+
 
 def kabsh_register(
     input: torch.Tensor, target: torch.Tensor
@@ -44,10 +46,6 @@ def kabsh_register(
     # compute translation
     t = target_centroid - input_centroid @ R
     return R, t
-
-
-def print_line():
-    print("--------------------------------------------------")
 
 
 def hydra_closest_correspondence_indices(
