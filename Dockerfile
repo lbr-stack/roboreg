@@ -40,7 +40,6 @@ RUN pip3 install \
     open3d \
     rich \
     torch \
-    torchvision \
     xacro
 
 # source the workspace
