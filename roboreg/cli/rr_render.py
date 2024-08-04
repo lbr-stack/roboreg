@@ -6,7 +6,8 @@ import cv2
 import numpy as np
 import transformations as tf
 
-from roboreg.util import find_files, generate_o3d_robot, overlay_mask, parse_camera_info
+from roboreg.io import find_files
+from roboreg.util import generate_o3d_robot, overlay_mask, parse_camera_info
 
 
 def args_factory() -> argparse.Namespace:

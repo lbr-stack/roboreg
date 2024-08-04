@@ -5,8 +5,7 @@ import numpy as np
 import torch
 
 from roboreg.hydra_icp import hydra_centroid_alignment, hydra_robust_icp
-from roboreg.io import load_data, visualize_registration
-from roboreg.util import find_files
+from roboreg.io import find_files, load_data, visualize_registration
 
 
 def args_factory() -> argparse.Namespace:

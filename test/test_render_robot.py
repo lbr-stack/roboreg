@@ -7,7 +7,8 @@ import cv2
 import numpy as np
 import transformations as tf
 
-from roboreg.util import generate_o3d_robot, parse_camera_info, find_files
+from roboreg.io import find_files
+from roboreg.util import generate_o3d_robot, parse_camera_info
 
 
 def test_render_robot():

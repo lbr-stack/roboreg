@@ -1,7 +1,5 @@
 import os
-import pathlib
-import re
-from typing import List, Tuple
+from typing import Tuple
 
 import cv2
 import numpy as np
@@ -134,27 +132,6 @@ def overlay_mask(
         [int(size * scale) for size in overlay_img_mask.shape[:2][::-1]],
     )
     return overlay_img_mask
-
-
-def find_files(path: str, pattern: str = "image_*.png") -> List[str]:
-    r"""Find files in a directory.
-
-    Args:
-        path: Path to the directory.
-        pattern: Pattern to match.
-
-    Returns:
-        List of file names.
-    """
-
-    def natural_sort(l):
-        convert = lambda text: int(text) if text.isdigit() else text.lower()
-        alphanum_key = lambda key: [convert(c) for c in re.split("([0-9]+)", key)]
-        return sorted(l, key=alphanum_key)
-
-    path = pathlib.Path(path)
-    image_paths = list(path.glob(pattern))
-    return sorted([image_path.name for image_path in image_paths], key=natural_sort)
 
 
 def to_homogeneous(x: torch.Tensor) -> torch.Tensor:
