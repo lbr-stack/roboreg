@@ -6,16 +6,26 @@ import trimesh
 
 
 class TorchMeshContainer:
+    r"""Compatability utility structure for NVDiffRast rendering and pytorch-kinematics.
+
+    When given meshes, this structure stores vertex positions, and respectively faces, in a
+    single concatenated tensor. Indices (lower and upper) for accessing individual meshes in
+    this tensor are stored in a lookup dictionary.
+    """
+
     _mesh_names: List[str]
-    _vertices: torch.FloatTensor  # tensor of shape (N, 3)
+    _vertices: torch.FloatTensor  # tensor of shape (B, N, 4) -> homogeneous coordinates
     _per_mesh_vertex_count: OrderedDict[str, int]
-    _faces: torch.IntTensor  # tensor of shape (N, 3)
+    _faces: torch.IntTensor  # tensor of shape (B, N, 3)
     _lower_index_lookup: Dict[str, int]
     _upper_index_lookup: Dict[str, int]
     _device: torch.device
 
     def __init__(
-        self, mesh_paths: Dict[str, str], device: torch.device = "cuda"
+        self,
+        mesh_paths: Dict[str, str],
+        batch_size: int = 1,
+        device: torch.device = "cuda",
     ) -> None:
         self._mesh_names = []
         self._vertices = []
@@ -60,7 +70,7 @@ class TorchMeshContainer:
         self._faces = torch.cat(self._faces, dim=0)
 
         # add batch dim
-        self._vertices = self._vertices.unsqueeze(0)
+        self._vertices = self._vertices.unsqueeze(0).repeat(batch_size, 1, 1)
 
         # create index lookup
         # crucial: self._per_mesh_vertex_count sorted same as self._vertices!
@@ -111,6 +121,18 @@ class TorchMeshContainer:
 
     def set_mesh_vertices(self, mesh_name: str, vertices: torch.FloatTensor) -> None:
         r"""Utility setter for easier access to vertices by mesh."""
+        if vertices.dim() != 3:
+            raise ValueError(
+                f"Expected vertices of shape (B, N, 4), got {vertices.shape}."
+            )
+        if vertices.shape[0] != self._vertices.shape[0]:
+            raise ValueError(
+                f"Expected same batch size {self._vertices.shape[0]} as vertices, got {vertices.shape[0]}."
+            )
+        if vertices.shape[-2] != self._per_mesh_vertex_count[mesh_name]:
+            raise ValueError(
+                f"Expected vertices of shape {self._per_mesh_vertex_count[mesh_name]}, got {vertices.shape[-2]}."
+            )
         self._vertices[
             :,
             self._lower_index_lookup[mesh_name] : self._upper_index_lookup[mesh_name],
@@ -135,7 +157,9 @@ class TorchMeshContainer:
 
 
 class Camera:
-    _intrinsic: torch.FloatTensor
+    r"""Simple structure for camera parameters."""
+
+    _intrinsics: torch.FloatTensor
     _extrinsics: torch.FloatTensor
     _resolution: List[int]
     _device: torch.device
@@ -147,27 +171,39 @@ class Camera:
         resolution: List[int],
         device: torch.device = "cuda",
     ) -> None:
-        self._intrinsic = intrinsics
+        self._intrinsics = intrinsics
         self._extrinsics = extrinsics
         self._resolution = resolution
         self.to(device=device)
 
     def to(self, device: torch.device) -> None:
-        self._intrinsic = self._intrinsic.to(device=device)
+        self._intrinsics = self._intrinsics.to(device=device)
         self._extrinsics = self._extrinsics.to(device=device)
         self._device = device
 
     @property
-    def intrinsic(self) -> torch.FloatTensor:
-        return self._intrinsic
+    def intrinsics(self) -> torch.FloatTensor:
+        return self._intrinsics
+
+    @intrinsics.setter
+    def intrinsics(self, intrinsics: torch.FloatTensor) -> None:
+        self._intrinsics = intrinsics
 
     @property
     def extrinsics(self) -> torch.FloatTensor:
         return self._extrinsics
 
+    @extrinsics.setter
+    def extrinsics(self, extrinsics: torch.FloatTensor) -> None:
+        self._extrinsics = extrinsics
+
     @property
     def resolution(self) -> List[int]:
         return self._resolution
+
+    @resolution.setter
+    def resolution(self, resolution: List[int]) -> None:
+        self._resolution = resolution
 
     @property
     def device(self) -> torch.device:
