@@ -1,6 +1,6 @@
 import os
 
-from roboreg.util import parse_camera_info
+from roboreg.io import parse_camera_info
 
 
 def test_parse_camera_info() -> None:

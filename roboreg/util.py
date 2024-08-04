@@ -1,11 +1,9 @@
 import os
-from typing import Tuple
 
 import cv2
 import numpy as np
 import torch
 import xacro
-import yaml
 from ament_index_python import get_package_share_directory
 from rich import print
 from scipy.signal import convolve2d
@@ -67,27 +65,6 @@ def generate_o3d_robot(
     )
     robot = O3DRobot(urdf=urdf, convex_hull=convex_hull)
     return robot
-
-
-def parse_camera_info(camera_info_file: str) -> Tuple[int, int, np.ndarray]:
-    r"""Parse camera info file.
-
-    Args:
-        camera_info_file (str): Absolute path to the camera info file.
-
-    Returns:
-        height (int): Height of the image.
-        width (int): Width of the image.
-        intrinsic_matrix (np.ndarray): Intrinsic matrix of shape 3x3.
-    """
-    with open(camera_info_file, "r") as f:
-        camera_info = yaml.load(f, Loader=yaml.FullLoader)
-    height = camera_info["height"]
-    width = camera_info["width"]
-    if len(camera_info["k"]) != 9:
-        raise ValueError("Camera matrix must be 3x3.")
-    intrinsic_matrix = np.array(camera_info["k"]).reshape(3, 3)
-    return height, width, intrinsic_matrix
 
 
 def overlay_mask(
