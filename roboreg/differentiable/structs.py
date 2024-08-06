@@ -162,6 +162,7 @@ class Camera:
     _intrinsics: torch.FloatTensor
     _extrinsics: torch.FloatTensor
     _resolution: List[int]
+    _ht_optical: torch.FloatTensor
     _device: torch.device
 
     def __init__(
@@ -174,11 +175,23 @@ class Camera:
         self._intrinsics = intrinsics
         self._extrinsics = extrinsics
         self._resolution = resolution
+        self._ht_optical = (
+            torch.tensor(  # in quaternions: [0.5, -0.5, 0.5, -0.5] (w, x, y, z)
+                [
+                    [0.0, 0.0, 1.0, 0.0],
+                    [-1.0, 0.0, 0.0, 0.0],
+                    [0.0, -1.0, 0.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ],
+                dtype=torch.float32,
+            )
+        )
         self.to(device=device)
 
     def to(self, device: torch.device) -> None:
         self._intrinsics = self._intrinsics.to(device=device)
         self._extrinsics = self._extrinsics.to(device=device)
+        self._ht_optical = self._ht_optical.to(device=device)
         self._device = device
 
     @property
@@ -206,5 +219,90 @@ class Camera:
         self._resolution = resolution
 
     @property
+    def ht_optical(self) -> torch.FloatTensor:
+        return self._ht_optical
+
+    @property
     def device(self) -> torch.device:
         return self._device
+
+
+class VirtualCamera(Camera):
+    r"""Simple extension of Camera that adds a perspective projection matrix.
+
+    The perspective projection matrix (with zero skew) is defined as:
+
+    [2*fx/w, 0      , 2*cx/w-1               , 0                            ]
+    [0     , 2*fy/h , 2*cy/h-1               , 0                            ]
+    [0     , 0      , (zmax+zmin)/(zmax-zmin), 2*(z_max*z_min)/(z_min-z_max)]
+    [0     , 0      , 1                      , 0                            ]
+
+    where:
+    - `fx`, `fy`: focal lengths in pixels
+    - `cx`, `cy`: principal point in pixels
+    - `w`, `h`: image width and height in pixels
+    - `zmin`, `zmax`: near and far clipping planes
+
+    Further reading:
+    - https://sightations.wordpress.com/2010/08/03/simulating-calibrated-cameras-in-opengl/
+    - http://www.songho.ca/opengl/gl_projectionmatrix.html
+    - http://ksimek.github.io/2013/06/03/calibrated_cameras_in_opengl/
+    - https://stackoverflow.com/questions/22064084/how-to-create-perspective-projection-matrix-given-focal-points-and-camera-princ
+    """
+    _perspective_projection: torch.FloatTensor
+    _zmin: float
+    _zmax: float
+
+    def __init__(
+        self,
+        intrinsics: torch.FloatTensor,
+        extrinsics: torch.FloatTensor,
+        resolution: List[int],
+        zmin: float = 0.1,
+        zmax: float = 100.0,
+        device: torch.device = "cuda",
+    ) -> None:
+        height, width = resolution
+        self._zmin = zmin
+        self._zmax = zmax
+        self._perspective_projection = torch.tensor(
+            [
+                [
+                    2.0 * intrinsics[0, 0] / width,
+                    0.0,
+                    2.0 * intrinsics[0, 2] / width - 1.0,
+                    0.0,
+                ],
+                [
+                    0.0,
+                    2.0 * intrinsics[1, 1] / height,
+                    2.0 * intrinsics[1, 2] / height - 1.0,
+                    0.0,
+                ],
+                [
+                    0.0,
+                    0.0,
+                    (zmax + zmin) / (zmax - zmin),
+                    2.0 * zmax * zmin / (zmin - zmax),
+                ],
+                [0.0, 0.0, 1.0, 0.0],
+            ],
+            dtype=torch.float32,
+        )
+        super().__init__(intrinsics, extrinsics, resolution, device)
+
+    def to(self, device: torch.device) -> None:
+        self._perspective_projection = self._perspective_projection.to(device=device)
+        super().to(device=device)
+
+    @property
+    def perspective_projection(self) -> torch.FloatTensor:
+        return self._perspective_projection
+
+    @property
+    def zmin(self) -> float:
+        return self._zmin
+
+    @property
+    def zmax(self) -> float:
+        return self._zmax
