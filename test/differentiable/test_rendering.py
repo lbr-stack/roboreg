@@ -21,7 +21,66 @@ from roboreg.io import URDFParser, find_files, parse_camera_info
 from roboreg.util import overlay_mask
 
 
-def test_unit() -> None:
+class TestRenderingFixture:
+    def __init__(self) -> None:
+        # setup
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.data_prefix = "test/data/lbr_med7"
+        self.recording_prefix = "zed2i/high_res"
+        self.root_link_name = "link_0"
+        self.end_link_name = "link_7"
+
+        # load data
+        prefix = os.path.join(self.data_prefix, self.recording_prefix)
+        self.images = [
+            cv2.imread(os.path.join(prefix, file))
+            for file in find_files(prefix, "image_*.png")
+        ]
+        self.masks = [
+            cv2.imread(os.path.join(prefix, file), cv2.IMREAD_GRAYSCALE)
+            for file in find_files(prefix, "mask_*.png")
+        ]
+        self.joint_states = [
+            np.load(os.path.join(prefix, file))
+            for file in find_files(
+                prefix,
+                "joint_states_*.npy",
+            )
+        ]
+
+        # instantiate URDF parser
+        self.urder_parser = URDFParser()
+        self.urder_parser.from_ros_xacro(
+            ros_package="lbr_description", xacro_path="urdf/med7/med7.xacro"
+        )
+
+        # instantiate meshes
+        self.meshes = TorchMeshContainer(
+            mesh_paths=self.urder_parser.ros_package_mesh_paths(
+                self.root_link_name, self.end_link_name
+            ),
+            device=self.device,
+        )
+
+        # instantiante kinematics
+        self.kinematics = TorchKinematics(
+            urdf=self.urder_parser.urdf,
+            root_link_name=self.root_link_name,
+            end_link_name=self.end_link_name,
+            device=self.device,
+        )
+
+        # load camera intrinsics and initial extrinsics
+        self.height, self.width, self.intrinsics = parse_camera_info(
+            os.path.join(prefix, "camera_info.yaml")
+        )
+
+        # instantiate camera and renderer
+        self.ht_base_cam = np.load(os.path.join(prefix, "HT_hydra_robust.npy"))
+        self.renderer = NVDiffRastRenderer(device=self.device)
+
+
+def test_nvdiffrast_unit() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     vertices = torch.tensor(
         [
@@ -44,108 +103,133 @@ def test_unit() -> None:
 
 
 def test_single_view_rendering() -> None:
-    urdf_parser = URDFParser()
-    urdf_parser.from_ros_xacro(
-        ros_package="lbr_description", xacro_path="urdf/med7/med7.xacro"
-    )
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    test_fixture = TestRenderingFixture()
+    data_idx = 2
 
-    # instantiate meshes
-    meshes = TorchMeshContainer(
-        mesh_paths=urdf_parser.ros_package_mesh_paths("link_0", "link_7"),
-        device=device,
-    )
-
-    # load camera intrinsics and initial extrinsics
-    data_prefix = "test/data/lbr_med7/zed2i/high_res"
-    height, width, intrinsics = parse_camera_info(
-        os.path.join(data_prefix, "camera_info.yaml")
+    # compute and apply kinematics
+    ht_lookup = test_fixture.kinematics.mesh_forward_kinematics(
+        torch.tensor(
+            test_fixture.joint_states[data_idx],
+            device=test_fixture.device,
+            dtype=torch.float32,
+        )
     )
 
-    # instantiate camera and renderer
-    ht_base_cam = np.load(os.path.join(data_prefix, "HT_hydra_robust.npy"))
+    for link_name, ht in ht_lookup.items():
+        test_fixture.meshes.set_mesh_vertices(
+            link_name,
+            torch.matmul(
+                test_fixture.meshes.get_mesh_vertices(link_name),
+                ht.transpose(-1, -2),
+            ),
+        )
+
     camera = VirtualCamera(
-        intrinsics=intrinsics,
-        extrinsics=ht_base_cam,
-        resolution=[height, width],
-        device=device,
+        intrinsics=test_fixture.intrinsics,
+        extrinsics=test_fixture.ht_base_cam,
+        resolution=[test_fixture.height, test_fixture.width],
+        device=test_fixture.device,
     )
-    renderer = NVDiffRastRenderer(device=device)
 
     # project points
-    meshes.vertices = torch.matmul(
-        meshes.vertices,
+    test_fixture.meshes.vertices = torch.matmul(
+        test_fixture.meshes.vertices,
         torch.linalg.inv(camera.extrinsics @ camera.ht_optical).T
         @ camera.perspective_projection.T,
     )  # perform projection to clip space
 
     # render
-    render = renderer.constant_color(
-        clip_vertices=meshes.vertices,
-        faces=meshes.faces,
+    render = test_fixture.renderer.constant_color(
+        clip_vertices=test_fixture.meshes.vertices,
+        faces=test_fixture.meshes.faces,
         resolution=[camera.width, camera.height],
     )
 
     render = render.detach().cpu().numpy().squeeze()
 
-    image = cv2.imread(os.path.join(data_prefix, "image_0.png"))
-    overlay = overlay_mask(image, (render * 255).astype(np.uint8), scale=1.0)
+    overlay = overlay_mask(
+        test_fixture.images[data_idx], (render * 255).astype(np.uint8), scale=1.0
+    )
 
     cv2.imshow("overlay", overlay)
     cv2.waitKey(0)
 
 
-def test_nvdiffrast_simple_pose_optimization() -> None:
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    mesh_paths: List[trimesh.Geometry] = {
-        f"link_{idx}": f"test/data/lbr_med7/mesh/link_{idx}.stl" for idx in range(8)
-    }
-    meshes = TorchMeshContainer(mesh_paths=mesh_paths, device=device)
-    renderer = NVDiffRastRenderer(device=device)
+def test_single_config_single_view_pose_optimization() -> None:
+    test_fixture = TestRenderingFixture()
+    data_idx = 2
 
-    # transform mesh to it becomes visible
-    HT_TARGET = torch.tensor(
-        tf.euler_matrix(np.pi / 2, 0.0, 0.0).astype("float32"),
-        device=device,
-        dtype=torch.float32,
-    )
-    meshes.vertices = torch.matmul(meshes.vertices, HT_TARGET.T)
-
-    # create a target render
-    resolution = [512, 512]
-    target_render = renderer.constant_color(meshes.vertices, meshes.faces, resolution)
-
-    # modify transform
-    HT = torch.tensor(
-        tf.euler_matrix(0.0, 0.0, np.pi / 16.0).astype("float32"),
-        device=device,
-        requires_grad=True,
-        dtype=torch.float32,
+    # compute and apply kinematics
+    ht_lookup = test_fixture.kinematics.mesh_forward_kinematics(
+        torch.tensor(
+            test_fixture.joint_states[data_idx],
+            device=test_fixture.device,
+            dtype=torch.float32,
+        )
     )
 
-    # create an optimizer an optimize HT -> HT_TARGET
-    optimizer = torch.optim.Adam([HT], lr=0.001)
-    metric = torch.nn.MSELoss()
+    for link_name, ht in ht_lookup.items():
+        test_fixture.meshes.set_mesh_vertices(
+            link_name,
+            torch.matmul(
+                test_fixture.meshes.get_mesh_vertices(link_name),
+                ht.transpose(-1, -2),
+            ),
+        )
+
+    # create differentiable camera and initialize extrinsics
+    camera = VirtualCamera(
+        intrinsics=test_fixture.intrinsics,
+        extrinsics=torch.tensor(
+            test_fixture.ht_base_cam,
+            device=test_fixture.device,
+            dtype=torch.float32,
+            requires_grad=True,
+        ),
+        resolution=[test_fixture.height, test_fixture.width],
+        device=test_fixture.device,
+    )
+
+    # create an optimizer and optimize intrinsics
+    optimizer = torch.optim.Adam([camera.extrinsics], lr=0.001)
+    metric = torch.nn.BCELoss()
+
+    # load target
+    target_mask = (
+        torch.tensor(
+            test_fixture.masks[data_idx],
+            device=test_fixture.device,
+            dtype=torch.float32,
+        )
+        .unsqueeze(0)
+        .unsqueeze(-1)
+        / 255.0
+    )
+
     try:
         for _ in tqdm(range(1000)):
-            vertices = torch.matmul(meshes.vertices, HT.T)
-            current_render = renderer.constant_color(vertices, meshes.faces, resolution)
-            loss = metric(current_render, target_render)
+            vertices = torch.matmul(
+                test_fixture.meshes.vertices,
+                torch.linalg.inv(camera.extrinsics @ camera.ht_optical).T
+                @ camera.perspective_projection.T,
+            )
+            current_mask = test_fixture.renderer.constant_color(
+                vertices, test_fixture.meshes.faces, camera.resolution
+            )
+            loss = metric(current_mask, target_mask)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
             # visualize
-            current_image = current_render.squeeze().cpu().detach().numpy()
-            target_image = target_render.squeeze().cpu().numpy()
-            difference_image = current_image - target_image
-            concatenated_image = np.concatenate(
-                [target_image, current_image, difference_image], axis=-1
+            current_mask = current_mask.squeeze().cpu().detach().numpy()
+            overlay = overlay_mask(
+                test_fixture.images[data_idx],
+                (current_mask * 255.0).astype(np.uint8),
+                scale=1.0,
             )
-            cv2.imshow(
-                "target render / current render / difference", concatenated_image
-            )
-            cv2.waitKey(1)
+            cv2.imshow("overlay", overlay)
+            cv2.waitKey(0)
     except KeyboardInterrupt:
         pass
 
@@ -340,8 +424,8 @@ def test_nvdiffrast_multi_config_single_view_pose_optimization() -> None:
 
 
 if __name__ == "__main__":
-    # test_unit()
-    test_single_view_rendering()
-    # test_nvdiffrast_simple_pose_optimization()
+    # test_nvdiffrast_unit()
+    # test_single_view_rendering()
+    test_single_config_single_view_pose_optimization()
     # test_multi_config_single_view_rendering()
     # test_nvdiffrast_multi_config_single_view_pose_optimization()
