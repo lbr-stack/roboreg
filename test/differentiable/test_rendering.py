@@ -56,9 +56,6 @@ def test_single_view_rendering() -> None:
         device=device,
     )
 
-    base_link_vertices = meshes.get_mesh_vertices(meshes.mesh_names[0]).clone()
-    print(base_link_vertices.mean(dim=1))
-
     # load camera intrinsics and initial extrinsics
     data_prefix = "test/data/lbr_med7/zed2i/high_res"
     height, width, intrinsics = parse_camera_info(
@@ -68,9 +65,9 @@ def test_single_view_rendering() -> None:
     # instantiate camera and renderer
     ht_base_cam = np.load(os.path.join(data_prefix, "HT_hydra_robust.npy"))
     camera = VirtualCamera(
-        intrinsics=torch.from_numpy(intrinsics),
-        extrinsics=torch.from_numpy(ht_base_cam),
-        resolution=[height + 4, width],  # +4 is a hack so it is divisible by 8
+        intrinsics=intrinsics,
+        extrinsics=ht_base_cam,
+        resolution=[height, width],
         device=device,
     )
     renderer = NVDiffRastRenderer(device=device)
@@ -84,22 +81,17 @@ def test_single_view_rendering() -> None:
 
     # render
     render = renderer.constant_color(
-        meshes.vertices,
-        meshes.faces,
-        resolution=camera.resolution,
+        clip_vertices=meshes.vertices,
+        faces=meshes.faces,
+        resolution=[camera.width, camera.height],
     )
 
     render = render.detach().cpu().numpy().squeeze()
-    render = render[2:-2, :]  # crop the entire solution but crop for now
 
     image = cv2.imread(os.path.join(data_prefix, "image_0.png"))
-    print(image.shape)
     overlay = overlay_mask(image, (render * 255).astype(np.uint8), scale=1.0)
 
-    cv2.imshow("image", image)
-    cv2.imshow("render", render)
     cv2.imshow("overlay", overlay)
-
     cv2.waitKey(0)
 
 

@@ -1,6 +1,7 @@
 from collections import OrderedDict
-from typing import Dict, List
+from typing import Dict, List, Union
 
+import numpy as np
 import torch
 import trimesh
 
@@ -167,24 +168,26 @@ class Camera:
 
     def __init__(
         self,
-        intrinsics: torch.FloatTensor,
-        extrinsics: torch.FloatTensor,
+        intrinsics: Union[torch.FloatTensor, np.ndarray],
+        extrinsics: Union[torch.FloatTensor, np.ndarray],
         resolution: List[int],
         device: torch.device = "cuda",
     ) -> None:
+        if isinstance(intrinsics, np.ndarray):
+            intrinsics = torch.from_numpy(intrinsics).float()
+        if isinstance(extrinsics, np.ndarray):
+            extrinsics = torch.from_numpy(extrinsics).float()
         self._intrinsics = intrinsics
         self._extrinsics = extrinsics
         self._resolution = resolution
-        self._ht_optical = (
-            torch.tensor(  # in quaternions: [0.5, -0.5, 0.5, -0.5] (w, x, y, z)
-                [
-                    [0.0, 0.0, 1.0, 0.0],
-                    [-1.0, 0.0, 0.0, 0.0],
-                    [0.0, -1.0, 0.0, 0.0],
-                    [0.0, 0.0, 0.0, 1.0],
-                ],
-                dtype=torch.float32,
-            )
+        self._ht_optical = torch.tensor(  # OpenCV-oriented optical frame, in quaternions: [0.5, -0.5, 0.5, -0.5] (w, x, y, z)
+            [
+                [0.0, 0.0, 1.0, 0.0],
+                [-1.0, 0.0, 0.0, 0.0],
+                [0.0, -1.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ],
+            dtype=torch.float32,
         )
         self.to(device=device)
 
@@ -219,6 +222,14 @@ class Camera:
         self._resolution = resolution
 
     @property
+    def width(self) -> int:
+        return self._resolution[0]
+    
+    @property
+    def height(self) -> int:
+        return self._resolution[1]
+
+    @property
     def ht_optical(self) -> torch.FloatTensor:
         return self._ht_optical
 
@@ -249,14 +260,15 @@ class VirtualCamera(Camera):
     - http://ksimek.github.io/2013/06/03/calibrated_cameras_in_opengl/
     - https://stackoverflow.com/questions/22064084/how-to-create-perspective-projection-matrix-given-focal-points-and-camera-princ
     """
+
     _perspective_projection: torch.FloatTensor
     _zmin: float
     _zmax: float
 
     def __init__(
         self,
-        intrinsics: torch.FloatTensor,
-        extrinsics: torch.FloatTensor,
+        intrinsics: Union[torch.FloatTensor, np.ndarray],
+        extrinsics: Union[torch.FloatTensor, np.ndarray],
         resolution: List[int],
         zmin: float = 0.1,
         zmax: float = 100.0,
