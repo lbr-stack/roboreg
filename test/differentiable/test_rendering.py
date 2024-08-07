@@ -11,9 +11,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from roboreg.differentiable.kinematics import TorchKinematics
-from roboreg.differentiable.rendering import NVDiffRastRenderer
-from roboreg.differentiable.structs import TorchMeshContainer, VirtualCamera
+from roboreg import differentiable as rrd
 from roboreg.io import URDFParser, find_files, parse_camera_info
 from roboreg.util import overlay_mask
 
@@ -68,7 +66,7 @@ class TestRendering:
         )
 
         # instantiate meshes
-        self.meshes = TorchMeshContainer(
+        self.meshes = rrd.TorchMeshContainer(
             mesh_paths=self.urder_parser.ros_package_mesh_paths(
                 self.root_link_name, self.end_link_name
             ),
@@ -77,7 +75,7 @@ class TestRendering:
         )
 
         # instantiante kinematics
-        self.kinematics = TorchKinematics(
+        self.kinematics = rrd.TorchKinematics(
             urdf=self.urder_parser.urdf,
             root_link_name=self.root_link_name,
             end_link_name=self.end_link_name,
@@ -91,7 +89,7 @@ class TestRendering:
 
         # instantiate camera and renderer
         self.ht_base_cam = np.load(os.path.join(prefix, "HT_hydra_robust.npy"))
-        self.renderer = NVDiffRastRenderer(device=self.device)
+        self.renderer = rrd.NVDiffRastRenderer(device=self.device)
 
 
 def test_nvdiffrast_unit() -> None:
@@ -109,7 +107,7 @@ def test_nvdiffrast_unit() -> None:
     )
     faces = torch.tensor([[0, 1, 2]], device=device, dtype=torch.int32)
 
-    renderer = NVDiffRastRenderer()
+    renderer = rrd.NVDiffRastRenderer()
     render = renderer.constant_color(vertices, faces, [256, 256])
 
     cv2.imshow("render", render.cpu().numpy().squeeze())
@@ -130,16 +128,10 @@ def test_single_view_rendering() -> None:
     )
 
     for link_name, ht in ht_lookup.items():
-        test_rendering.meshes.set_mesh_vertices(
-            link_name,
-            torch.matmul(
-                test_rendering.meshes.get_mesh_vertices(link_name),
-                ht.transpose(-1, -2),
-            ),
-        )
+        test_rendering.meshes.transform_mesh(ht, link_name)
 
     # create a virtual camera
-    camera = VirtualCamera(
+    camera = rrd.VirtualCamera(
         intrinsics=test_rendering.intrinsics,
         extrinsics=test_rendering.ht_base_cam,
         resolution=[test_rendering.height, test_rendering.width],
@@ -184,16 +176,10 @@ def test_single_config_single_view_pose_optimization() -> None:
     )
 
     for link_name, ht in ht_lookup.items():
-        test_rendering.meshes.set_mesh_vertices(
-            link_name,
-            torch.matmul(
-                test_rendering.meshes.get_mesh_vertices(link_name),
-                ht.transpose(-1, -2),
-            ),
-        )
+        test_rendering.meshes.transform_mesh(ht, link_name)
 
     # create differentiable camera and initialize extrinsics
-    camera = VirtualCamera(
+    camera = rrd.VirtualCamera(
         intrinsics=test_rendering.intrinsics,
         extrinsics=torch.tensor(
             test_rendering.ht_base_cam,
@@ -254,11 +240,13 @@ def test_multi_config_single_view_rendering() -> None:
 
     # create batched joint states
     q = torch.tensor(
-        test_rendering.joint_states, device=test_rendering.device, dtype=torch.float32
+        np.array(test_rendering.joint_states),
+        device=test_rendering.device,
+        dtype=torch.float32,
     )
 
     # overwrite meshes with batch size
-    test_rendering.meshes = TorchMeshContainer(
+    test_rendering.meshes = rrd.TorchMeshContainer(
         mesh_paths=test_rendering.urder_parser.ros_package_mesh_paths(
             test_rendering.root_link_name, test_rendering.end_link_name
         ),
@@ -271,16 +259,10 @@ def test_multi_config_single_view_rendering() -> None:
 
     # apply batched forward kinematics
     for link_name, ht in ht_lookup.items():
-        test_rendering.meshes.set_mesh_vertices(
-            link_name,
-            torch.matmul(
-                test_rendering.meshes.get_mesh_vertices(link_name),
-                ht.transpose(-1, -2),
-            ),
-        )
+        test_rendering.meshes.transform_mesh(ht, link_name)
 
     # create a virtual camera
-    camera = VirtualCamera(
+    camera = rrd.VirtualCamera(
         intrinsics=test_rendering.intrinsics,
         extrinsics=test_rendering.ht_base_cam,
         resolution=[test_rendering.height, test_rendering.width],
@@ -312,16 +294,20 @@ def test_multi_config_single_view_pose_optimization() -> None:
     # convert to tensors
     target_masks = (
         torch.tensor(
-            test_rendering.masks, device=test_rendering.device, dtype=torch.float32
+            np.array(test_rendering.masks),
+            device=test_rendering.device,
+            dtype=torch.float32,
         )
         / 255.0
     ).unsqueeze(-1)
     q = torch.tensor(
-        test_rendering.joint_states, device=test_rendering.device, dtype=torch.float32
+        np.array(test_rendering.joint_states),
+        device=test_rendering.device,
+        dtype=torch.float32,
     )
 
     # overwrite meshes with batch size
-    test_rendering.meshes = TorchMeshContainer(
+    test_rendering.meshes = rrd.TorchMeshContainer(
         mesh_paths=test_rendering.urder_parser.ros_package_mesh_paths(
             test_rendering.root_link_name, test_rendering.end_link_name
         ),
@@ -333,16 +319,10 @@ def test_multi_config_single_view_pose_optimization() -> None:
     ht_lookup = test_rendering.kinematics.mesh_forward_kinematics(q)
 
     for link_name, ht in ht_lookup.items():
-        test_rendering.meshes.set_mesh_vertices(
-            link_name,
-            torch.matmul(
-                test_rendering.meshes.get_mesh_vertices(link_name),
-                ht.transpose(-1, -2),
-            ),
-        )
+        test_rendering.meshes.transform_mesh(ht, link_name)
 
     # create differentiable camera and initialize extrinsics
-    camera = VirtualCamera(
+    camera = rrd.VirtualCamera(
         intrinsics=test_rendering.intrinsics,
         extrinsics=torch.tensor(
             test_rendering.ht_base_cam,
@@ -388,7 +368,7 @@ def test_multi_config_single_view_pose_optimization() -> None:
             )
             overlays.append(cv2.resize(overlay, [256, 256]))
 
-        overlays = torch.tensor(overlays).permute(0, 3, 1, 2)
+        overlays = torch.tensor(np.array(overlays)).permute(0, 3, 1, 2)
         overlays = make_grid(overlays, nrow=3)
 
         cv2.imshow("overlay", overlays.permute(1, 2, 0).numpy())

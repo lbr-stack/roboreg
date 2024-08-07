@@ -5,139 +5,140 @@ sys.path.append(
     os.path.dirname((os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 )
 
+import cv2
+import numpy as np
 import torch
 
 from roboreg import differentiable as rrd
-from roboreg.io import URDFParser
+from roboreg.io import URDFParser, find_files, parse_camera_info
+from roboreg.util import overlay_mask
 
 
-def test_pipeline() -> None:
-    urdf_parser = URDFParser()
-    urdf_parser.from_ros_xacro("lbr_description", "urdf/med7/med7.xacro")
-
+def test_single_config_stereo_view() -> None:
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     root_link_name = "link_0"
     end_link_name = "link_7"
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    data_prefix = "test/data/lbr_med7"
+    recording_prefix = "zed2i/zurich_calibration_data"
+    prefix = os.path.join(data_prefix, recording_prefix)
 
-    # instantiate scene objects
-    mesh = rrd.structs.TorchMeshContainer(
+    # initial transform
+    camera_names = ["left", "right"]
+    ht_base_left = np.load(os.path.join(prefix, "HT_hydra_robust.npy"))
+    ht_right_left = np.load(
+        os.path.join(
+            prefix, "HT_zed_bench_right_camera_frame_to_zed_bench_left_camera_frame.npy"
+        )
+    )
+    extrinsics = {
+        camera_names[0]: ht_base_left,
+        camera_names[1]: ht_base_left @ ht_right_left,
+    }
+
+    # instantiate cameras and load masks
+    cameras = {}
+    masks = {}
+    images = {}
+    for camera_name in camera_names:
+        height, width, intrinsics = parse_camera_info(
+            os.path.join(prefix, f"{camera_name}_camera_info.yaml")
+        )
+        cameras[camera_name] = rrd.VirtualCamera(
+            intrinsics=intrinsics,
+            extrinsics=extrinsics[camera_name],
+            resolution=[height, width],
+            device=device,
+        )
+
+        masks[camera_name] = [
+            cv2.imread(os.path.join(prefix, file), cv2.IMREAD_GRAYSCALE)
+            for file in find_files(prefix, f"{camera_name}_masked_*.png")
+        ]
+
+        images[camera_name] = [
+            cv2.imread(os.path.join(prefix, file))
+            for file in find_files(prefix, f"{camera_name}_img_*.png")
+        ]
+
+    # load joint states
+    joint_states = [
+        np.load(os.path.join(prefix, file))
+        for file in find_files(prefix, "joint_state_*.npy")
+    ]
+
+    # to tensors
+    for camera_name in camera_names:
+        masks[camera_name] = (
+            torch.tensor(
+                np.array(masks[camera_name]), device=device, dtype=torch.float32
+            )
+            / 255.0
+        )
+
+    joint_states = torch.tensor(
+        np.array(joint_states), device=device, dtype=torch.float32
+    )
+
+    # instantiate URDF parser
+    urdf_parser = URDFParser()
+    urdf_parser.from_ros_xacro(
+        ros_package="lbr_description", xacro_path="urdf/med7/med7.xacro"
+    )
+
+    # instantiate meshes
+    meshes = rrd.TorchMeshContainer(
         mesh_paths=urdf_parser.ros_package_mesh_paths(
             root_link_name=root_link_name, end_link_name=end_link_name
         ),
+        batch_size=joint_states.shape[0],
         device=device,
     )
-    kinematics = rrd.kinematics.TorchKinematics(
+
+    # instantiate kinematics
+    kinematics = rrd.TorchKinematics(
         urdf=urdf_parser.urdf,
         root_link_name=root_link_name,
         end_link_name=end_link_name,
         device=device,
     )
-    renderer = rrd.rendering.NVDiffRastRenderer(device=device)
-    cameras = {
-        "left": rrd.structs.Camera(
-            intrinsics=torch.eye(4),
-            extrinsics=torch.eye(4),
-            resolution=[512, 512],
-            device=device,
-        )
-    }
 
-    # generate scene
-    scene = rrd.scene.RobotScene(
-        meshes=mesh, kinematics=kinematics, renderer=renderer, cameras=cameras
+    # instantiate renderer
+    renderer = rrd.NVDiffRastRenderer(
+        device=device,
     )
 
-    # # parse mesh as torch robot mesh: read mesh paths from urdf
+    # instantiate scene
+    scene = rrd.RobotScene(
+        meshes=meshes,
+        kinematics=kinematics,
+        renderer=renderer,
+        cameras=cameras,
+    )
 
-    # # instantiate kinematics
-    # self._kinematics = TorchKinematics(
-    #     urdf=urdf,
-    #     root_link_name=root_link_name,
-    #     end_link_name=end_link_name,
-    #     device=device,
-    # )
+    scene.configure_robot_joint_states(q=joint_states)
 
-    # # instantiate renderer
-    # urdf_parser = URDFParser()
-    # urdf_parser.from_urdf(urdf=urdf)
+    for camera_name in camera_names:
+        # scene.configure_camera(camera_name)   ### TODO: configure camera pose
+        renders = scene.observe_from(camera_name)
 
-    # self._mesh_paths = []
-    # self._mesh = TorchMeshContainer(self._mesh_paths)
-    # # intrinsics: torch.Tensor,
+        # show first render and overlay
+        for render, image in zip(renders, images[camera_name]):
+            render = render.squeeze().cpu().numpy()
+            overlay = overlay_mask(
+                image,
+                (render * 255.0).astype(np.uint8),
+                scale=1.0,
+            )
 
-    # # intrinsics: torch.Tensor,
-    # # camera_pose: torch.Tensor,
-    # pass
+            cv2.imshow(camera_name, overlay)
+            cv2.waitKey(0)
 
-    # mesh_paths: List[trimesh.Geometry] = [
-    #     trimesh.load(f"test/data/lbr_med7/mesh/link_{idx}.stl") for idx in range(8)
-    # ]
 
-    # device = "cuda" if torch.cuda.is_available() else "cpu"
-    # torch_robot_mesh = TorchMeshContainer(mesh_paths=mesh_paths, device=device)
-
-    # try:
-    #     cnt = 0
-
-    #     #### init transforms !!!!!!!!!
-    #     fk = FK()
-    #     HTS = fk.initial_meshes_transform()
-    #     # for idx, ht in enumerate(HTS):
-    #     #     if idx < 7:
-    #     #         torch_robot_mesh.link_vertices = torch.matmul(
-    #     #             torch_robot_mesh.link_vertices(idx),
-    #     #             torch.from_numpy(ht).float().to(device).t(),
-    #     #         )
-    #     q = np.random.rand(7) * 2 - 1
-    #     print(q)
-    #     HTS = fk.compute(q)
-
-    #     # apply HTS to pos
-
-    #     # pos = torch.matmul(pos, DUMMY_HT.t())
-    #     for idx, ht in enumerate(HTS):
-    #         if idx < 7:
-    #             torch_robot_mesh.set_link_vertices(
-    #                 idx,
-    #                 torch.matmul(
-    #                     torch_robot_mesh.get_link_vertices(idx),
-    #                     torch.from_numpy(ht).float().to(device).t(),
-    #                 ),
-    #             )
-
-    #     DUMMY_HT = torch.from_numpy(
-    #         tf.euler_matrix(np.pi / 2, 0.0, 0.0).astype("float32")
-    #     ).to(device)
-    #     DUMMY_HT[3, 2] = 0.1
-    #     torch_robot_mesh.vertices = torch.matmul(
-    #         torch_robot_mesh.vertices, DUMMY_HT.t()
-    #     )
-
-    #     render = NVDiffRastRenderer(device=device)
-
-    #     while True:
-    #         cnt += 1
-    #         DUMMY_HT = torch.from_numpy(
-    #             tf.euler_matrix(0.0, 0.05, 0.0).astype("float32")
-    #         ).to(device)
-    #         torch_robot_mesh.vertices = torch.matmul(
-    #             torch_robot_mesh.vertices, DUMMY_HT.t()
-    #         )
-    #         color = render.constant_color(
-    #             torch_robot_mesh.vertices,
-    #             torch_robot_mesh.faces,
-    #             [512, 512],
-    #             [1.0, 1.0, 0.0],
-    #         )
-
-    #         # display render
-    #         color = color.detach().cpu().numpy()
-    #         cv2.imshow("render", color[0])
-    #         cv2.waitKey(1)
-    # except KeyboardInterrupt:
-    #     pass
+def test_single_config_stereo_view_pose_optimization() -> None:
+    pass
 
 
 if __name__ == "__main__":
-    test_pipeline()
+    test_single_config_stereo_view()
+    # test_single_config_stereo_view_pose_optimization()

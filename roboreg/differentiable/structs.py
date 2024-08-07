@@ -20,6 +20,7 @@ class TorchMeshContainer:
     _faces: torch.IntTensor  # tensor of shape (B, N, 3)
     _lower_index_lookup: Dict[str, int]
     _upper_index_lookup: Dict[str, int]
+    _batch_size: int
     _device: torch.device
 
     def __init__(
@@ -71,7 +72,8 @@ class TorchMeshContainer:
         self._faces = torch.cat(self._faces, dim=0)
 
         # add batch dim
-        self._vertices = self._vertices.unsqueeze(0).repeat(batch_size, 1, 1)
+        self._batch_size = batch_size
+        self._vertices = self._vertices.unsqueeze(0).repeat(self._batch_size, 1, 1)
 
         # create index lookup
         # crucial: self._per_mesh_vertex_count sorted same as self._vertices!
@@ -114,6 +116,10 @@ class TorchMeshContainer:
     @property
     def device(self) -> torch.device:
         return self._device
+
+    @property
+    def batch_size(self) -> int:
+        return self._batch_size
 
     def to(self, device: torch.device) -> None:
         self._vertices = self._vertices.to(device=device)
@@ -224,7 +230,7 @@ class Camera:
     @property
     def width(self) -> int:
         return self._resolution[0]
-    
+
     @property
     def height(self) -> int:
         return self._resolution[1]

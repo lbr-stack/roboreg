@@ -4,7 +4,7 @@ import torch
 
 from .kinematics import TorchKinematics
 from .rendering import NVDiffRastRenderer
-from .structs import Camera, TorchMeshContainer
+from .structs import TorchMeshContainer, VirtualCamera
 
 
 class RobotScene:
@@ -20,14 +20,14 @@ class RobotScene:
     _meshes: TorchMeshContainer
     _kinematics: TorchKinematics
     _renderer: NVDiffRastRenderer
-    _cameras: Dict[str, Camera]
+    _cameras: Dict[str, VirtualCamera]
 
     def __init__(
         self,
         meshes: TorchMeshContainer,
         kinematics: TorchKinematics,
         renderer: NVDiffRastRenderer,
-        cameras: Dict[str, Camera],
+        cameras: Dict[str, VirtualCamera],
     ) -> None:
         self._meshes = meshes
         self._kinematics = kinematics
@@ -53,11 +53,29 @@ class RobotScene:
     def configure_camera(self, camera_name: str, ht: torch.FloatTensor) -> None:
         pass
 
-    def configure_robot(self, q: torch.FloatTensor) -> None:
-        pass
+    def configure_robot_joint_states(self, q: torch.FloatTensor) -> None:
+        if self._kinematics.chain.n_joints != q.shape[-1]:
+            raise ValueError(
+                f"Expected joint configuration of shape {self._kinematics.chain.n_joints}, got {q.shape[-1]}."
+            )
+        if q.shape[0] != self._meshes.batch_size:
+            raise ValueError(
+                f"Batch size mismatch. Meshes: {self._meshes.batch_size}, joint states: {q.shape[0]}."
+            )
+        ht_lookup = self._kinematics.mesh_forward_kinematics(q)
+        for link_name, ht in ht_lookup.items():
+            self._meshes.transform_mesh(ht, link_name)
 
     def observe_from(self, camera_name: str) -> torch.Tensor:
-        pass
+        observed_vertices = torch.matmul(
+            self._meshes.vertices,
+            self._cameras[camera_name].extrinsics.transpose(-1, -2),
+        )
+        return self._renderer.constant_color(
+            observed_vertices,
+            self._meshes.faces,
+            self._cameras[camera_name].resolution,
+        )
 
     def observe(self) -> Dict[str, torch.Tensor]:
         return {
@@ -77,13 +95,30 @@ class RobotScene:
     def renderer(self) -> NVDiffRastRenderer:
         return self._renderer
 
+    @property
+    def cameras(self) -> Dict[str, VirtualCamera]:
+        return self._cameras
+
 
 class RobotSceneModule(torch.nn.Module):
     f"""Differentiable robot scene as module."""
 
-    def __init__(self, urdf: str) -> None:
+    def __init__(
+        self,
+        meshes: TorchMeshContainer,
+        kinematics: TorchKinematics,
+        renderer: NVDiffRastRenderer,
+        cameras: Dict[str, VirtualCamera],
+    ) -> None:
         super().__init__()
-        self._robot_scene = RobotScene()
+        self._robot_scene = RobotScene(
+            meshes=meshes,
+            kinematics=kinematics,
+            renderer=renderer,
+            cameras=cameras,
+        )
 
-    # def forward(self, intrinsics: FloatTensor, pose: FloatTensor, q: FloatTensor) -> FloatTensor:
-    #     pass
+    def forward(
+        self, pose: torch.FloatTensor, q: torch.FloatTensor
+    ) -> torch.FloatTensor:
+        raise NotImplementedError

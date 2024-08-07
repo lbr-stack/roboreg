@@ -8,7 +8,7 @@ sys.path.append(
 from roboreg.differentiable.structs import TorchMeshContainer
 
 
-def test_torch_robot_mesh() -> None:
+def test_torch_mesh_container() -> None:
     torch_robot_mesh = TorchMeshContainer(
         mesh_paths={
             "link_0": "test/data/lbr_med7/mesh/link_0.stl",
@@ -23,4 +23,4 @@ def test_torch_robot_mesh() -> None:
 
 
 if __name__ == "__main__":
-    test_torch_robot_mesh()
+    test_torch_mesh_container()
