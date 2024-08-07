@@ -50,9 +50,6 @@ class RobotScene:
                     f"Camera '{camera_name}' on: {self._cameras[camera_name].device}"
                 )
 
-    def configure_camera(self, camera_name: str, ht: torch.FloatTensor) -> None:
-        pass
-
     def configure_robot_joint_states(self, q: torch.FloatTensor) -> None:
         if self._kinematics.chain.n_joints != q.shape[-1]:
             raise ValueError(
@@ -69,7 +66,11 @@ class RobotScene:
     def observe_from(self, camera_name: str) -> torch.Tensor:
         observed_vertices = torch.matmul(
             self._meshes.vertices,
-            self._cameras[camera_name].extrinsics.transpose(-1, -2),
+            torch.linalg.inv(
+                self._cameras[camera_name].extrinsics
+                @ self._cameras[camera_name].ht_optical
+            ).T
+            @ self._cameras[camera_name].perspective_projection.T,
         )
         return self._renderer.constant_color(
             observed_vertices,
