@@ -102,10 +102,10 @@ def test_nvdiffrast_unit() -> None:
                 [0.0, -1.0, 0.0, 1.0],
             ],  # x-y plane
         ],
-        device=device,
         dtype=torch.float32,
+        device=device,
     )
-    faces = torch.tensor([[0, 1, 2]], device=device, dtype=torch.int32)
+    faces = torch.tensor([[0, 1, 2]], dtype=torch.int32, device=device)
 
     renderer = rrd.NVDiffRastRenderer()
     render = renderer.constant_color(vertices, faces, [256, 256])
@@ -122,8 +122,8 @@ def test_single_view_rendering() -> None:
     ht_lookup = test_rendering.kinematics.mesh_forward_kinematics(
         torch.tensor(
             test_rendering.joint_states[data_idx],
-            device=test_rendering.device,
             dtype=torch.float32,
+            device=test_rendering.device,
         )
     )
 
@@ -170,8 +170,8 @@ def test_single_config_single_view_pose_optimization() -> None:
     ht_lookup = test_rendering.kinematics.mesh_forward_kinematics(
         torch.tensor(
             test_rendering.joint_states[data_idx],
-            device=test_rendering.device,
             dtype=torch.float32,
+            device=test_rendering.device,
         )
     )
 
@@ -183,8 +183,8 @@ def test_single_config_single_view_pose_optimization() -> None:
         intrinsics=test_rendering.intrinsics,
         extrinsics=torch.tensor(
             test_rendering.ht_base_cam,
-            device=test_rendering.device,
             dtype=torch.float32,
+            device=test_rendering.device,
             requires_grad=True,
         ),
         resolution=[test_rendering.height, test_rendering.width],
@@ -199,8 +199,8 @@ def test_single_config_single_view_pose_optimization() -> None:
     target_mask = (
         torch.tensor(
             test_rendering.masks[data_idx],
-            device=test_rendering.device,
             dtype=torch.float32,
+            device=test_rendering.device,
         )
         .unsqueeze(0)
         .unsqueeze(-1)
@@ -241,8 +241,8 @@ def test_multi_config_single_view_rendering() -> None:
     # create batched joint states
     q = torch.tensor(
         np.array(test_rendering.joint_states),
-        device=test_rendering.device,
         dtype=torch.float32,
+        device=test_rendering.device,
     )
 
     # overwrite meshes with batch size
@@ -295,15 +295,15 @@ def test_multi_config_single_view_pose_optimization() -> None:
     target_masks = (
         torch.tensor(
             np.array(test_rendering.masks),
-            device=test_rendering.device,
             dtype=torch.float32,
+            device=test_rendering.device,
         )
         / 255.0
     ).unsqueeze(-1)
     q = torch.tensor(
         np.array(test_rendering.joint_states),
-        device=test_rendering.device,
         dtype=torch.float32,
+        device=test_rendering.device,
     )
 
     # overwrite meshes with batch size
@@ -326,8 +326,8 @@ def test_multi_config_single_view_pose_optimization() -> None:
         intrinsics=test_rendering.intrinsics,
         extrinsics=torch.tensor(
             test_rendering.ht_base_cam,
-            device=test_rendering.device,
             dtype=torch.float32,
+            device=test_rendering.device,
             requires_grad=True,
         ),
         resolution=[test_rendering.height, test_rendering.width],

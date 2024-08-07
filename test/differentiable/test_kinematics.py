@@ -64,8 +64,8 @@ def test_torch_kinematics_on_mesh() -> None:
     # transform view
     ht_view = torch.tensor(
         tf.euler_matrix(np.pi / 2, 0.0, 0.0).astype("float32"),
-        device=device,
         dtype=torch.float32,
+        device=device,
     )
     meshes.vertices = torch.matmul(meshes.vertices, ht_view.T)
 
@@ -123,8 +123,8 @@ def test_diff_kinematics() -> None:
     # render for visualization
     ht_view = torch.tensor(
         tf.euler_matrix(np.pi / 2, 0.0, 0.0).astype("float32"),
-        device=device,
         dtype=torch.float32,
+        device=device,
     )
 
     resolution = [512, 512]

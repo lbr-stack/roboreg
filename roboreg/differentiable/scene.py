@@ -69,8 +69,8 @@ class RobotScene:
         if reference_transform is None:
             reference_transform = torch.eye(
                 4,
-                device=self._cameras[camera_name].extrinsics.device,
                 dtype=self._cameras[camera_name].extrinsics.dtype,
+                device=self._cameras[camera_name].extrinsics.device,
             )
         observed_vertices = torch.matmul(
             self._meshes.vertices,

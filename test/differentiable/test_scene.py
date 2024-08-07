@@ -53,8 +53,8 @@ class TestScene:
                 intrinsics=intrinsics,
                 extrinsics=torch.tensor(
                     extrinsics[camera_name],
-                    device=device,
                     dtype=torch.float32,
+                    device=device,
                 ),
                 resolution=[height, width],
                 device=device,
@@ -93,14 +93,14 @@ class TestScene:
             self.masks[camera_name] = (
                 torch.tensor(
                     np.array(self.masks[camera_name]),
-                    device=device,
                     dtype=torch.float32,
+                    device=device,
                 )
                 / 255.0
             ).unsqueeze(-1)
 
         self.joint_states = torch.tensor(
-            np.array(self.joint_states), device=device, dtype=torch.float32
+            np.array(self.joint_states), dtype=torch.float32, device=device
         )
 
         # instantiate URDF parser

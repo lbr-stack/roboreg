@@ -27,7 +27,7 @@ class TorchKinematics:
         # populate global joint offset
         self._global_joint_offset = {}
         ht_joint_global = torch.eye(
-            4, device=self._chain.device, dtype=self._chain.dtype
+            4, dtype=self._chain.dtype, device=self._chain.device
         )
         for link_name in self._chain.get_link_names():
             ht_joint_global = (
