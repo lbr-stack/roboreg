@@ -63,11 +63,20 @@ class RobotScene:
         for link_name, ht in ht_lookup.items():
             self._meshes.transform_mesh(ht, link_name)
 
-    def observe_from(self, camera_name: str) -> torch.Tensor:
+    def observe_from(
+        self, camera_name: str, reference_transform: torch.FloatTensor = None
+    ) -> torch.Tensor:
+        if reference_transform is None:
+            reference_transform = torch.eye(
+                4,
+                device=self._cameras[camera_name].extrinsics.device,
+                dtype=self._cameras[camera_name].extrinsics.dtype,
+            )
         observed_vertices = torch.matmul(
             self._meshes.vertices,
             torch.linalg.inv(
-                self._cameras[camera_name].extrinsics
+                reference_transform
+                @ self._cameras[camera_name].extrinsics
                 @ self._cameras[camera_name].ht_optical
             ).T
             @ self._cameras[camera_name].perspective_projection.T,
@@ -77,12 +86,6 @@ class RobotScene:
             self._meshes.faces,
             self._cameras[camera_name].resolution,
         )
-
-    def observe(self) -> Dict[str, torch.Tensor]:
-        return {
-            camera_name: self.observe_from(camera_name)
-            for camera_name in self._cameras.keys()
-        }
 
     @property
     def meshes(self) -> TorchMeshContainer:

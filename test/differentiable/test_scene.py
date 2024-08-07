@@ -38,7 +38,7 @@ class TestScene:
         )
         extrinsics = {
             self.camera_names[0]: ht_base_left,
-            self.camera_names[1]: ht_base_left @ ht_right_left,
+            self.camera_names[1]: ht_right_left,
         }
 
         # instantiate cameras and load masks
@@ -55,7 +55,6 @@ class TestScene:
                     extrinsics[camera_name],
                     device=device,
                     dtype=torch.float32,
-                    requires_grad=camera_requires_grad,
                 ),
                 resolution=[height, width],
                 device=device,
@@ -70,6 +69,9 @@ class TestScene:
                 cv2.imread(os.path.join(prefix, file))
                 for file in find_files(prefix, f"{camera_name}_img_*.png")
             ]
+
+        # enable gradient tracking
+        self.cameras["left"].extrinsics.requires_grad = camera_requires_grad
 
         # load joint states
         self.joint_states = [
@@ -176,36 +178,54 @@ def test_multi_config_stereo_view_pose_optimization() -> None:
     scene.configure_robot_joint_states(q=test_scene.joint_states)
 
     # instantiante optimizer
-    optimizer = torch.optim.SGD(
-        [scene.cameras[test_scene.camera_names[0]].extrinsics], lr=0.001
-    )
+    optimizer = torch.optim.SGD([scene.cameras["left"].extrinsics], lr=0.0001)
     metric = torch.nn.BCELoss()
 
-    # TODO: parameterize right camera through left camera!!!!
-    for _ in tqdm(range(100)):
+    best_loss = float("inf")
+    best_extrinsics = scene.cameras["left"].extrinsics.clone()
+    for _ in tqdm(range(200)):
         # render all camera views
-        all_renders = scene.observe()
+        all_renders = {
+            "left": scene.observe_from("left"),
+            "right": scene.observe_from(
+                "right", reference_transform=scene.cameras["left"].extrinsics
+            ),
+        }
 
         # compute loss
         loss = 0.0
         for camera_name in all_renders.keys():
             loss += metric(all_renders[camera_name], test_scene.masks[camera_name])
+
+        if loss < best_loss:
+            best_loss = loss
+            best_extrinsics = scene.cameras["left"].extrinsics.clone()
+
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
         # show an overlay for a camera
-        render = (
-            all_renders[test_scene.camera_names[0]][0].squeeze().detach().cpu().numpy()
-        )
-        image = test_scene.images[test_scene.camera_names[0]][0]
+        render = all_renders["left"][0].squeeze().detach().cpu().numpy()
+        image = test_scene.images["left"][0]
         overlay = overlay_mask(
             image,
             (render * 255.0).astype(np.uint8),
             scale=1.0,
         )
-        cv2.imshow(test_scene.camera_names[0], overlay)
+        cv2.imshow("left", overlay)
         cv2.waitKey(1)
+
+    # reset to best extrinsics and re-render
+    scene.cameras["left"].extrinsics = best_extrinsics
+
+    with torch.no_grad():
+        all_renders = {
+            "left": scene.observe_from("left"),
+            "right": scene.observe_from(
+                "right", reference_transform=scene.cameras["left"].extrinsics
+            ),
+        }
 
     # show overlays
     for camera_name, renders in all_renders.items():
