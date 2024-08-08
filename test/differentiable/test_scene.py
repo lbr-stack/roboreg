@@ -83,7 +83,7 @@ class TestScene:
             "left": os.path.join(prefix, "HT_hydra_robust.npy"),
             "right": os.path.join(
                 prefix,
-                "HT_zed_bench_right_camera_frame_to_zed_bench_left_camera_frame.npy",
+                "HT_right_to_left.npy",
             ),
         }
 

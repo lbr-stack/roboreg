@@ -25,6 +25,7 @@ pip3 install git+https://github.com/lbr-stack/roboreg.git
 
 ## Command Line Interface
 ### Segment
+This is a required step to generate robot masks.
 ```shell
 rr-segment \
     --path <path_to_images> \
@@ -33,10 +34,16 @@ rr-segment \
 ```
 
 ### Hydra Robust ICP
-Note, this registration only works for registered point clouds!
+This registration only works for registered point clouds!
 ```shell
 rr-hydra \
     --path <path_to_data>
+```
+
+### Stereo Differentiable Rendering
+This rendering refinement requires a good initial estimate, as e.g. obtained from [Hydra Robust ICP](#hydra-robust-icp).
+```shell
+rr-stereo-dr --help
 ```
 
 ### Render Results

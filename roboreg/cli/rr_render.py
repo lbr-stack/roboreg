@@ -37,28 +37,34 @@ def args_factory() -> argparse.Namespace:
         help="Package where the URDF is located.",
     )
     parser.add_argument(
-        "--root_link_name", type=str, default="link_0", help="Root link name."
-    )
-    parser.add_argument(
-        "--end_link_name", type=str, default="link_7", help="End link name."
-    )
-    parser.add_argument(
         "--xacro_path",
         type=str,
         default="urdf/med7/med7.xacro",
         help="Path to the xacro file, relative to --ros_package.",
     )
     parser.add_argument(
-        "--images_path", type=str, required=True, help="Path to the images."
+        "--root_link_name", type=str, default="link_0", help="Root link name."
     )
     parser.add_argument(
-        "--joint_states_path", type=str, required=True, help="Path to the joint states."
+        "--end_link_name", type=str, default="link_7", help="End link name."
     )
     parser.add_argument(
         "--camera_info_file",
         type=str,
         required=True,
         help="Path to the camera parameters, <path_to>/camera_info.yaml.",
+    )
+    parser.add_argument(
+        "--extrinsics_file",
+        type=str,
+        required=True,
+        help="Homogeneous transform from base to camera frame, <path_to>/HT_hydra_robust.npy.",
+    )
+    parser.add_argument(
+        "--images_path", type=str, required=True, help="Path to the images."
+    )
+    parser.add_argument(
+        "--joint_states_path", type=str, required=True, help="Path to the joint states."
     )
     parser.add_argument(
         "--image_pattern",
@@ -71,12 +77,6 @@ def args_factory() -> argparse.Namespace:
         type=str,
         default="joint_states_*.npy",
         help="Joint state file pattern.",
-    )
-    parser.add_argument(
-        "--extrinsics_file",
-        type=str,
-        required=True,
-        help="Homogeneous transform from base to camera frame, <path_to>/HT_hydra_robust.npy.",
     )
     parser.add_argument(
         "--output_path",
