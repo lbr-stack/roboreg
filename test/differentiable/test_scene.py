@@ -11,7 +11,7 @@ import torch
 from tqdm import tqdm
 
 from roboreg import differentiable as rrd
-from roboreg.io import URDFParser, find_files, parse_camera_info
+from roboreg.io import find_files
 from roboreg.util import overlay_mask
 
 
@@ -27,39 +27,13 @@ class TestScene:
     ) -> None:
         prefix = os.path.join(data_prefix, recording_prefix)
 
-        # initial transform
+        # set camera names
         self.camera_names = ["left", "right"]
-        ht_base_left = np.load(os.path.join(prefix, "HT_hydra_robust.npy"))
-        ht_right_left = np.load(
-            os.path.join(
-                prefix,
-                "HT_zed_bench_right_camera_frame_to_zed_bench_left_camera_frame.npy",
-            )
-        )
-        extrinsics = {
-            self.camera_names[0]: ht_base_left,
-            self.camera_names[1]: ht_right_left,
-        }
 
         # instantiate cameras and load masks
-        self.cameras = {}
         self.masks = {}
         self.images = {}
         for camera_name in self.camera_names:
-            height, width, intrinsics = parse_camera_info(
-                os.path.join(prefix, f"{camera_name}_camera_info.yaml")
-            )
-            self.cameras[camera_name] = rrd.VirtualCamera(
-                intrinsics=intrinsics,
-                extrinsics=torch.tensor(
-                    extrinsics[camera_name],
-                    dtype=torch.float32,
-                    device=device,
-                ),
-                resolution=[height, width],
-                device=device,
-            )
-
             self.masks[camera_name] = [
                 cv2.imread(os.path.join(prefix, file), cv2.IMREAD_GRAYSCALE)
                 for file in find_files(prefix, f"{camera_name}_mask_*.png")
@@ -69,9 +43,6 @@ class TestScene:
                 cv2.imread(os.path.join(prefix, file))
                 for file in find_files(prefix, f"{camera_name}_img_*.png")
             ]
-
-        # enable gradient tracking
-        self.cameras["left"].extrinsics.requires_grad = camera_requires_grad
 
         # load joint states
         self.joint_states = [
@@ -103,51 +74,48 @@ class TestScene:
             np.array(self.joint_states), dtype=torch.float32, device=device
         )
 
-        # instantiate URDF parser
-        urdf_parser = URDFParser()
-        urdf_parser.from_ros_xacro(
-            ros_package="lbr_description", xacro_path="urdf/med7/med7.xacro"
-        )
-
-        # instantiate meshes
-        self.meshes = rrd.TorchMeshContainer(
-            mesh_paths=urdf_parser.ros_package_mesh_paths(
-                root_link_name=root_link_name, end_link_name=end_link_name
+        # instantiates camera info and extrinsics files
+        camera_info_files = {
+            camera_name: os.path.join(prefix, f"{camera_name}_camera_info.yaml")
+            for camera_name in self.camera_names
+        }
+        extrinsics_files = {
+            "left": os.path.join(prefix, "HT_hydra_robust.npy"),
+            "right": os.path.join(
+                prefix,
+                "HT_zed_bench_right_camera_frame_to_zed_bench_left_camera_frame.npy",
             ),
-            batch_size=self.joint_states.shape[0],
-            device=device,
-        )
+        }
 
-        # instantiate kinematics
-        self.kinematics = rrd.TorchKinematics(
-            urdf=urdf_parser.urdf,
+        # instantiate scene
+        self.scene = rrd.robot_scene_factory(
+            device=device,
+            batch_size=self.joint_states.shape[0],
+            ros_package="lbr_description",
+            xacro_path="urdf/med7/med7.xacro",
             root_link_name=root_link_name,
             end_link_name=end_link_name,
-            device=device,
+            camera_info_files=camera_info_files,
+            extrinsics_files=extrinsics_files,
         )
 
-        # instantiate renderer
-        self.renderer = rrd.NVDiffRastRenderer(
-            device=device,
-        )
+        # enable gradient tracking
+        self.scene.cameras["left"].extrinsics.requires_grad = camera_requires_grad
 
 
 def test_multi_config_stereo_view() -> None:
     test_scene = TestScene(camera_requires_grad=False)
 
-    # instantiate scene
-    scene = rrd.RobotScene(
-        meshes=test_scene.meshes,
-        kinematics=test_scene.kinematics,
-        renderer=test_scene.renderer,
-        cameras=test_scene.cameras,
-    )
-
     # configure robot joint states
-    scene.configure_robot_joint_states(q=test_scene.joint_states)
+    test_scene.scene.configure_robot_joint_states(q=test_scene.joint_states)
 
     # render all camera views
-    all_renders = scene.observe()
+    all_renders = {
+        "left": test_scene.scene.observe_from("left"),
+        "right": test_scene.scene.observe_from(
+            "right", reference_transform=test_scene.scene.cameras["left"].extrinsics
+        ),
+    }
 
     # show overlays
     for camera_name, renders in all_renders.items():
@@ -166,31 +134,23 @@ def test_multi_config_stereo_view() -> None:
 def test_multi_config_stereo_view_pose_optimization() -> None:
     test_scene = TestScene(camera_requires_grad=True)
 
-    # instantiate scene
-    scene = rrd.RobotScene(
-        meshes=test_scene.meshes,
-        kinematics=test_scene.kinematics,
-        renderer=test_scene.renderer,
-        cameras=test_scene.cameras,
-    )
-
     # configure robot joint states
-    scene.configure_robot_joint_states(q=test_scene.joint_states)
+    test_scene.scene.configure_robot_joint_states(q=test_scene.joint_states)
 
     # instantiante optimizer
-    optimizer = torch.optim.SGD([scene.cameras["left"].extrinsics], lr=0.0001)
+    optimizer = torch.optim.SGD([test_scene.scene.cameras["left"].extrinsics], lr=0.001)
     metric = torch.nn.BCELoss()
 
-    initial_right_extrinsics = scene.cameras["right"].extrinsics.clone()
+    initial_right_extrinsics = test_scene.scene.cameras["right"].extrinsics.clone()
 
     best_loss = float("inf")
-    best_extrinsics = scene.cameras["left"].extrinsics.clone()
+    best_extrinsics = test_scene.scene.cameras["left"].extrinsics.clone()
     for _ in tqdm(range(200)):
         # render all camera views
         all_renders = {
-            "left": scene.observe_from("left"),
-            "right": scene.observe_from(
-                "right", reference_transform=scene.cameras["left"].extrinsics
+            "left": test_scene.scene.observe_from("left"),
+            "right": test_scene.scene.observe_from(
+                "right", reference_transform=test_scene.scene.cameras["left"].extrinsics
             ),
         }
 
@@ -201,7 +161,7 @@ def test_multi_config_stereo_view_pose_optimization() -> None:
 
         if loss < best_loss:
             best_loss = loss
-            best_extrinsics = scene.cameras["left"].extrinsics.clone()
+            best_extrinsics = test_scene.scene.cameras["left"].extrinsics.clone()
 
         optimizer.zero_grad()
         loss.backward()
@@ -209,7 +169,7 @@ def test_multi_config_stereo_view_pose_optimization() -> None:
 
         # show an overlay for a camera
         overlays = []
-        for camera_name in scene.cameras.keys():
+        for camera_name in test_scene.scene.cameras.keys():
             render = all_renders[camera_name][0].squeeze().detach().cpu().numpy()
             image = test_scene.images[camera_name][0]
             overlays.append(
@@ -224,18 +184,20 @@ def test_multi_config_stereo_view_pose_optimization() -> None:
 
     # expect right intrinsics to be un-changed
     if not torch.allclose(
-        initial_right_extrinsics, scene.cameras["right"].extrinsics, atol=1e-4
+        initial_right_extrinsics,
+        test_scene.scene.cameras["right"].extrinsics,
+        atol=1e-4,
     ):
         raise ValueError("Right extrinsics changed during optimization.")
 
     # reset to best extrinsics and re-render
-    scene.cameras["left"].extrinsics = best_extrinsics
+    test_scene.scene.cameras["left"].extrinsics = best_extrinsics
 
     with torch.no_grad():
         all_renders = {
-            "left": scene.observe_from("left"),
-            "right": scene.observe_from(
-                "right", reference_transform=scene.cameras["left"].extrinsics
+            "left": test_scene.scene.observe_from("left"),
+            "right": test_scene.scene.observe_from(
+                "right", reference_transform=test_scene.scene.cameras["left"].extrinsics
             ),
         }
 

@@ -9,7 +9,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from roboreg import differentiable as rrd
-from roboreg.io import URDFParser, find_files, parse_camera_info
+from roboreg.io import find_files
 from roboreg.util import overlay_mask
 
 
@@ -87,59 +87,6 @@ def args_factory() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def robot_scene_factory(
-    device: str,
-    batch_size: int,
-    ros_package: str,
-    xacro_path: str,
-    root_link_name: str,
-    end_link_name: str,
-    camera_info_file: str,
-    extrinsics_file: str,
-) -> rrd.RobotScene:
-    # create URDF parser
-    urdf_parser = URDFParser()
-    urdf_parser.from_ros_xacro(ros_package=ros_package, xacro_path=xacro_path)
-
-    # instantiate kinematics
-    kinematics = rrd.TorchKinematics(
-        urdf=urdf_parser.urdf,
-        root_link_name=root_link_name,
-        end_link_name=end_link_name,
-        device=device,
-    )
-
-    # instantiate meshes
-    meshes = rrd.TorchMeshContainer(
-        mesh_paths=urdf_parser.ros_package_mesh_paths(
-            root_link_name=root_link_name, end_link_name=end_link_name
-        ),
-        batch_size=batch_size,
-        device=device,
-    )
-
-    # instantiate renderer
-    renderer = rrd.NVDiffRastRenderer(device=device)
-
-    # instantiate camera
-    height, width, intrinsics = parse_camera_info(camera_info_file=camera_info_file)
-    extrinsics = np.load(extrinsics_file)
-    camera = rrd.VirtualCamera(
-        intrinsics=intrinsics,
-        extrinsics=extrinsics,
-        resolution=[height, width],
-        device=device,
-    )
-
-    # instantiate and return scene
-    return rrd.RobotScene(
-        meshes=meshes,
-        kinematics=kinematics,
-        renderer=renderer,
-        cameras={camera.name: camera},
-    )
-
-
 class SceneDataset(Dataset):
     def __init__(
         self,
@@ -170,15 +117,15 @@ class SceneDataset(Dataset):
 
 def main():
     args = args_factory()
-    scene = robot_scene_factory(
+    scene = rrd.robot_scene_factory(
         device=args.device,
         batch_size=args.batch_size,
         ros_package=args.ros_package,
         xacro_path=args.xacro_path,
         root_link_name=args.root_link_name,
         end_link_name=args.end_link_name,
-        camera_info_file=args.camera_info_file,
-        extrinsics_file=args.extrinsics_file,
+        camera_info_files={"camera": args.camera_info_file},
+        extrinsics_files={"camera": args.extrinsics_file},
     )
     scene_dataset = SceneDataset(
         images_path=args.images_path,

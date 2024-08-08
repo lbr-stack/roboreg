@@ -1,6 +1,9 @@
 from typing import Dict
 
+import numpy as np
 import torch
+
+from roboreg.io import URDFParser, parse_camera_info
 
 from .kinematics import TorchKinematics
 from .rendering import NVDiffRastRenderer
@@ -113,6 +116,68 @@ class RobotScene:
     @property
     def cameras(self) -> Dict[str, VirtualCamera]:
         return self._cameras
+
+
+def robot_scene_factory(
+    device: str,
+    batch_size: int,
+    ros_package: str,
+    xacro_path: str,
+    root_link_name: str,
+    end_link_name: str,
+    camera_info_files: Dict[str, str],
+    extrinsics_files: Dict[str, str],
+) -> RobotScene:
+    # create URDF parser
+    urdf_parser = URDFParser()
+    urdf_parser.from_ros_xacro(ros_package=ros_package, xacro_path=xacro_path)
+
+    # instantiate kinematics
+    kinematics = TorchKinematics(
+        urdf=urdf_parser.urdf,
+        root_link_name=root_link_name,
+        end_link_name=end_link_name,
+        device=device,
+    )
+
+    # instantiate meshes
+    meshes = TorchMeshContainer(
+        mesh_paths=urdf_parser.ros_package_mesh_paths(
+            root_link_name=root_link_name, end_link_name=end_link_name
+        ),
+        batch_size=batch_size,
+        device=device,
+    )
+
+    # instantiate renderer
+    renderer = NVDiffRastRenderer(device=device)
+
+    # instantiate camera
+    if list(camera_info_files.keys()) != list(extrinsics_files.keys()):
+        raise ValueError(
+            "Camera names for camera_info_files and extrinsics_files do not match."
+        )
+
+    cameras = {}
+    for camera_name in camera_info_files.keys():
+        height, width, intrinsics = parse_camera_info(
+            camera_info_file=camera_info_files[camera_name]
+        )
+        extrinsics = np.load(extrinsics_files[camera_name])
+        cameras[camera_name] = VirtualCamera(
+            intrinsics=intrinsics,
+            extrinsics=extrinsics,
+            resolution=[height, width],
+            device=device,
+        )
+
+    # instantiate and return scene
+    return RobotScene(
+        meshes=meshes,
+        kinematics=kinematics,
+        renderer=renderer,
+        cameras=cameras,
+    )
 
 
 class RobotSceneModule(torch.nn.Module):
