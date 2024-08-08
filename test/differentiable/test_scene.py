@@ -181,6 +181,8 @@ def test_multi_config_stereo_view_pose_optimization() -> None:
     optimizer = torch.optim.SGD([scene.cameras["left"].extrinsics], lr=0.0001)
     metric = torch.nn.BCELoss()
 
+    initial_right_extrinsics = scene.cameras["right"].extrinsics.clone()
+
     best_loss = float("inf")
     best_extrinsics = scene.cameras["left"].extrinsics.clone()
     for _ in tqdm(range(200)):
@@ -206,15 +208,25 @@ def test_multi_config_stereo_view_pose_optimization() -> None:
         optimizer.step()
 
         # show an overlay for a camera
-        render = all_renders["left"][0].squeeze().detach().cpu().numpy()
-        image = test_scene.images["left"][0]
-        overlay = overlay_mask(
-            image,
-            (render * 255.0).astype(np.uint8),
-            scale=1.0,
-        )
-        cv2.imshow("left", overlay)
+        overlays = []
+        for camera_name in scene.cameras.keys():
+            render = all_renders[camera_name][0].squeeze().detach().cpu().numpy()
+            image = test_scene.images[camera_name][0]
+            overlays.append(
+                overlay_mask(
+                    image,
+                    (render * 255.0).astype(np.uint8),
+                    scale=1.0,
+                )
+            )
+        cv2.imshow("overlays", cv2.resize(np.hstack(overlays), (0, 0), fx=0.5, fy=0.5))
         cv2.waitKey(1)
+
+    # expect right intrinsics to be un-changed
+    if not torch.allclose(
+        initial_right_extrinsics, scene.cameras["right"].extrinsics, atol=1e-4
+    ):
+        raise ValueError("Right extrinsics changed during optimization.")
 
     # reset to best extrinsics and re-render
     scene.cameras["left"].extrinsics = best_extrinsics
