@@ -23,7 +23,7 @@ class TestScene:
         end_link_name: str = "link_7",
         camera_requires_grad: bool = False,
         data_prefix: str = "test/data/lbr_med7",
-        recording_prefix: str = "zed2i/zurich_calibration_data",
+        recording_prefix: str = "zed2i/stereo_data",
     ) -> None:
         prefix = os.path.join(data_prefix, recording_prefix)
 

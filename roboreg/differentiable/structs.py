@@ -171,6 +171,7 @@ class Camera:
     _resolution: List[int]
     _ht_optical: torch.FloatTensor
     _device: torch.device
+    _name: str
 
     def __init__(
         self,
@@ -178,6 +179,7 @@ class Camera:
         extrinsics: Union[torch.FloatTensor, np.ndarray],
         resolution: List[int],
         device: torch.device = "cuda",
+        name: str = "camera",
     ) -> None:
         if isinstance(intrinsics, np.ndarray):
             intrinsics = torch.from_numpy(intrinsics).float()
@@ -196,6 +198,7 @@ class Camera:
             dtype=torch.float32,
         )
         self.to(device=device)
+        self._name = name
 
     def to(self, device: torch.device) -> None:
         self._intrinsics = self._intrinsics.to(device=device)
@@ -242,6 +245,10 @@ class Camera:
     @property
     def device(self) -> torch.device:
         return self._device
+
+    @property
+    def name(self) -> str:
+        return self._name
 
 
 class VirtualCamera(Camera):
