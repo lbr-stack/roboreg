@@ -1,13 +1,11 @@
 import os
-import pathlib
-import re
-from typing import List, Tuple
 
 import cv2
 import numpy as np
+import torch
 import xacro
-import yaml
 from ament_index_python import get_package_share_directory
+from rich import print
 from scipy.signal import convolve2d
 
 from roboreg.o3d_robot import O3DRobot
@@ -69,27 +67,6 @@ def generate_o3d_robot(
     return robot
 
 
-def parse_camera_info(camera_info_file: str) -> Tuple[int, int, np.ndarray]:
-    r"""Parse camera info file.
-
-    Args:
-        camera_info_file (str): Absolute path to the camera info file.
-
-    Returns:
-        height (int): Height of the image.
-        width (int): Width of the image.
-        intrinsic_matrix (np.ndarray): Intrinsic matrix of shape 3x3.
-    """
-    with open(camera_info_file, "r") as f:
-        camera_info = yaml.load(f, Loader=yaml.FullLoader)
-    height = camera_info["height"]
-    width = camera_info["width"]
-    if len(camera_info["k"]) != 9:
-        raise ValueError("Camera matrix must be 3x3.")
-    intrinsic_matrix = np.array(camera_info["k"]).reshape(3, 3)
-    return height, width, intrinsic_matrix
-
-
 def overlay_mask(
     img: np.ndarray,
     mask: np.ndarray,
@@ -134,22 +111,15 @@ def overlay_mask(
     return overlay_img_mask
 
 
-def find_files(path: str, pattern: str = "image_*.png") -> List[str]:
-    r"""Find files in a directory.
+def to_homogeneous(x: torch.Tensor) -> torch.Tensor:
+    """Converts a tensor of shape (..., N) to (..., N+1) by appending ones."""
+    return torch.nn.functional.pad(x, (0, 1), "constant", 1.0)
 
-    Args:
-        path: Path to the directory.
-        pattern: Pattern to match.
 
-    Returns:
-        List of file names.
-    """
+def from_homogeneous(x: torch.Tensor) -> torch.Tensor:
+    """Converts a tensor of shape (..., N+1) to (..., N)."""
+    return x[..., :-1]
 
-    def natural_sort(l):
-        convert = lambda text: int(text) if text.isdigit() else text.lower()
-        alphanum_key = lambda key: [convert(c) for c in re.split("([0-9]+)", key)]
-        return sorted(l, key=alphanum_key)
 
-    path = pathlib.Path(path)
-    image_paths = list(path.glob(pattern))
-    return sorted([image_path.name for image_path in image_paths], key=natural_sort)
+def print_line():
+    print("--------------------------------------------------")

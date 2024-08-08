@@ -6,15 +6,7 @@ import torch
 from rich import print
 from rich.progress import track
 
-
-def to_homogeneous(x: torch.Tensor) -> torch.Tensor:
-    """Converts a tensor of shape (..., N) to (..., N+1) by appending ones."""
-    return torch.nn.functional.pad(x, (0, 1), "constant", 1.0)
-
-
-def from_homogeneous(x: torch.Tensor) -> torch.Tensor:
-    """Converts a tensor of shape (..., N+1) to (..., N)."""
-    return x[..., :-1]
+from .util import print_line
 
 
 def kabsh_register(
@@ -54,10 +46,6 @@ def kabsh_register(
     # compute translation
     t = target_centroid - input_centroid @ R
     return R, t
-
-
-def print_line():
-    print("--------------------------------------------------")
 
 
 def hydra_closest_correspondence_indices(

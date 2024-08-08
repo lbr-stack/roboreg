@@ -1,11 +1,185 @@
 import os
-from typing import List, Tuple
+import pathlib
+import re
+from typing import Dict, List, Tuple
 
 import cv2
 import numpy as np
 import open3d as o3d
+import yaml
+from pytorch_kinematics import urdf_parser_py
 
 from roboreg.util import clean_xyz, generate_o3d_robot, mask_boundary
+
+
+class URDFParser:
+    _urdf: str
+    _robot: urdf_parser_py.urdf.Robot
+
+    def __init__(self) -> None:
+        self._urdf = None
+        self._robot = None
+
+    def from_urdf(self, urdf: str) -> None:
+        self._urdf = urdf
+        self._robot = urdf_parser_py.urdf.Robot.from_xml_string(urdf)
+
+    def from_ros_xacro(self, ros_package: str, xacro_path: str) -> None:
+        self.from_urdf(
+            urdf=self.urdf_from_ros_xacro(
+                ros_package=ros_package, xacro_path=xacro_path
+            )
+        )
+
+    def urdf_from_ros_xacro(self, ros_package: str, xacro_path: str) -> str:
+        import xacro
+        from ament_index_python import get_package_share_directory
+
+        self._urdf = xacro.process(
+            os.path.join(get_package_share_directory(ros_package), xacro_path)
+        )
+        return self._urdf
+
+    def chain_link_names(self, root_link_name: str, end_link_name: str) -> List[str]:
+        self._verify_links_in_chain(
+            root_link_name=root_link_name, end_link_name=end_link_name
+        )
+        link_names = [root_link_name]
+        while link_names[-1] != end_link_name:
+            children = self._robot.child_map[link_names[-1]]
+            if len(children) != 1:
+                raise RuntimeError(f"Expected 1 child, got {len(children)}.")
+            _, child_link_name = children[0]
+            if link_names[-1] == child_link_name:
+                raise RuntimeError(f"End of chain without {end_link_name}.")
+            link_names.append(child_link_name)
+        return link_names
+
+    def raw_mesh_paths(
+        self, root_link_name: str, end_link_name: str, visual: bool = False
+    ) -> Dict[str, str]:
+        link_names = self.chain_link_names(
+            root_link_name=root_link_name, end_link_name=end_link_name
+        )
+        raw_mesh_paths = {}
+        # lookup paths
+        for link_name in link_names:
+            link: urdf_parser_py.urdf.Link = self._robot.link_map[link_name]
+            if visual:
+                if link.visual is None:
+                    continue
+                raw_mesh_paths[link_name] = link.visual.geometry.filename
+            else:
+                if link.collision is None:
+                    continue
+                raw_mesh_paths[link_name] = link.collision.geometry.filename
+        return raw_mesh_paths
+
+    def ros_package_mesh_paths(
+        self, root_link_name: str, end_link_name: str, visual: bool = False
+    ) -> Dict[str, str]:
+        raw_mesh_paths = self.raw_mesh_paths(
+            root_link_name=root_link_name, end_link_name=end_link_name, visual=visual
+        )
+        from ament_index_python import get_package_share_directory
+
+        ros_package_mesh_paths = {}
+        for link_name in raw_mesh_paths.keys():
+            raw_mesh_path = raw_mesh_paths[link_name]
+            if raw_mesh_path.startswith("package://"):
+                raw_mesh_path = raw_mesh_path.replace("package://", "")
+                package, relative_mesh_path = raw_mesh_path.split("/", 1)
+                ros_package_mesh_paths[link_name] = os.path.join(
+                    get_package_share_directory(package), relative_mesh_path
+                )
+            else:
+                raise ValueError("Case unhandled.")
+        return ros_package_mesh_paths
+
+    def link_origins(
+        self, root_link_name: str, end_link_name: str, visual: bool = False
+    ) -> Dict[str, np.ndarray]:
+        import transformations
+
+        link_names = self.chain_link_names(
+            root_link_name=root_link_name, end_link_name=end_link_name
+        )
+        link_origins = {}
+        for link_name in link_names:
+            link: urdf_parser_py.urdf.Link = self._robot.link_map[link_name]
+            if visual:
+                if link.visual is None:
+                    continue
+                link_origin = link.visual.origin
+            else:
+                if link.collision is None:
+                    continue
+                link_origin = link.collision.origin
+            origin = transformations.euler_matrix(
+                link_origin.rpy[0], link_origin.rpy[1], link_origin.rpy[2], "sxyz"
+            )
+            origin[:3, 3] = link_origin.xyz
+            link_origins[link_name] = origin
+        return link_origins
+
+    def _verify_links_in_chain(self, root_link_name: str, end_link_name: str) -> None:
+        if not self._robot:
+            raise RuntimeError("Robot not initialized.")
+        link_names = [link.name for link in self._robot.links]
+        if not end_link_name in link_names:
+            raise ValueError(f"Link {end_link_name} not in robot.")
+        if not root_link_name in link_names:
+            raise ValueError(f"Link {root_link_name} not in robot.")
+
+    @property
+    def urdf(self) -> str:
+        return self._urdf
+
+    @property
+    def robot(self) -> urdf_parser_py.urdf.Robot:
+        return self._robot
+
+
+def find_files(path: str, pattern: str = "image_*.png") -> List[str]:
+    r"""Find files in a directory.
+
+    Args:
+        path: Path to the directory.
+        pattern: Pattern to match.
+
+    Returns:
+        List of file names.
+    """
+
+    def natural_sort(l):
+        convert = lambda text: int(text) if text.isdigit() else text.lower()
+        alphanum_key = lambda key: [convert(c) for c in re.split("([0-9]+)", key)]
+        return sorted(l, key=alphanum_key)
+
+    path = pathlib.Path(path)
+    image_paths = list(path.glob(pattern))
+    return sorted([image_path.name for image_path in image_paths], key=natural_sort)
+
+
+def parse_camera_info(camera_info_file: str) -> Tuple[int, int, np.ndarray]:
+    r"""Parse camera info file.
+
+    Args:
+        camera_info_file (str): Absolute path to the camera info file.
+
+    Returns:
+        height (int): Height of the image.
+        width (int): Width of the image.
+        intrinsic_matrix (np.ndarray): Intrinsic matrix of shape 3x3.
+    """
+    with open(camera_info_file, "r") as f:
+        camera_info = yaml.load(f, Loader=yaml.FullLoader)
+    height = camera_info["height"]
+    width = camera_info["width"]
+    if len(camera_info["k"]) != 9:
+        raise ValueError("Camera matrix must be 3x3.")
+    intrinsic_matrix = np.array(camera_info["k"]).reshape(3, 3)
+    return height, width, intrinsic_matrix
 
 
 def load_data(
