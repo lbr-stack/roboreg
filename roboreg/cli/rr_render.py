@@ -159,9 +159,7 @@ def main():
 
         # save
         images = images.numpy()
-        renders = (
-            (renders * 255.0).squeeze().permute(0, 1, 2).cpu().numpy().astype(np.uint8)
-        )
+        renders = (renders * 255.0).squeeze(-1).cpu().numpy().astype(np.uint8)
         for render, image, image_file in zip(renders, images, image_files):
             prefix = image_file.split(".")[0]
             suffix = image_file.split(".")[1]
