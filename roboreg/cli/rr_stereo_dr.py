@@ -34,6 +34,18 @@ def args_factory() -> argparse.Namespace:
         help="Number of epochs to optimize for.",
     )
     parser.add_argument(
+        "--step_size",
+        type=int,
+        default=100,
+        help="Step size for the learning rate scheduler.",
+    )
+    parser.add_argument(
+        "--gamma",
+        type=float,
+        default=0.5,
+        help="Gamma for the learning rate scheduler.",
+    )
+    parser.add_argument(
         "--display_progress",
         action="store_true",
         help="Display optimization progress.",
@@ -223,7 +235,10 @@ def main() -> None:
 
     # enable gradient tracking and instantiate optimizer
     scene.cameras["left"].extrinsics.requires_grad = True
-    optimizer = torch.optim.SGD([scene.cameras["left"].extrinsics], lr=args.lr)
+    optimizer = torch.optim.Adam([scene.cameras["left"].extrinsics], lr=args.lr)
+    scheduler = torch.optim.lr_scheduler.StepLR(
+        optimizer, step_size=args.step_size, gamma=args.gamma
+    )
     metric = torch.nn.BCELoss()
     best_extrinsics = scene.cameras["left"].extrinsics.detach().clone()
     best_loss = float("inf")
@@ -239,11 +254,14 @@ def main() -> None:
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        scheduler.step()
 
-        rich.print(f"Loss: {loss.item()}")
+        rich.print(
+            f"Loss: {np.round(loss.item(), 3)}, best loss: {np.round(best_loss, 3)}, lr: {scheduler.get_last_lr().pop()}"
+        )
 
-        if loss < best_loss:
-            best_loss = loss
+        if loss.item() < best_loss:
+            best_loss = loss.item()
             best_extrinsics = scene.cameras["left"].extrinsics.detach().clone()
 
         # display optimization progress
