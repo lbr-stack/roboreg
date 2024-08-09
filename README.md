@@ -25,12 +25,12 @@ pip3 install git+https://github.com/lbr-stack/roboreg.git
 
 ## Command Line Interface
 ### Segment
-This is a required step to generate robot masks.
+This is a required step to generate robot masks (also support SAM 2: `rr-sam2`).
 ```shell
-rr-segment \
+rr-sam \
     --path <path_to_images> \
     --pattern "*_image_*.png" \
-    --sam_checkpoint <full_path_to_checkpoint>/*.pth
+    --checkpoint <full_path_to_checkpoint>/*.pth
 ```
 
 ### Hydra Robust ICP
