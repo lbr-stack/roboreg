@@ -145,20 +145,17 @@ def find_files(path: str, pattern: str = "image_*.png") -> List[str]:
 
     Args:
         path: Path to the directory.
-        pattern: Pattern to match.
+        pattern: Pattern to match. Warn: The sorting key strictly assumes that pattern includes '_{number}.ext'.
 
     Returns:
         List of file names.
     """
-
-    def natural_sort(l):
-        convert = lambda text: int(text) if text.isdigit() else text.lower()
-        alphanum_key = lambda key: [convert(c) for c in re.split("([0-9]+)", key)]
-        return sorted(l, key=alphanum_key)
-
     path = pathlib.Path(path)
     image_paths = list(path.glob(pattern))
-    return sorted([image_path.name for image_path in image_paths], key=natural_sort)
+    return sorted(
+        [image_path.name for image_path in image_paths],
+        key=lambda x: int(x.split("_")[-1].split(".")[0]),
+    )
 
 
 def parse_camera_info(camera_info_file: str) -> Tuple[int, int, np.ndarray]:

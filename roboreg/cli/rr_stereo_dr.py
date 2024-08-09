@@ -141,6 +141,13 @@ def parse_data(
     left_mask_files = find_files(path, left_mask_pattern)
     right_mask_files = find_files(path, right_mask_pattern)
 
+    rich.print("Found the following files:")
+    rich.print(f"Left images: {left_image_files}")
+    rich.print(f"Right images: {right_image_files}")
+    rich.print(f"Joint states: {joint_states_files}")
+    rich.print(f"Left masks: {left_mask_files}")
+    rich.print(f"Right masks: {right_mask_files}")
+
     if (
         len(left_image_files) != len(right_image_files)
         or len(left_image_files) != len(joint_states_files)
@@ -258,8 +265,34 @@ def main() -> None:
                     scale=1.0,
                 )
             )
+            # difference left / right render / mask
+            differences = []
+            differences.append(
+                (
+                    cv2.cvtColor(
+                        np.abs(left_render - left_masks[0].squeeze().cpu().numpy()),
+                        cv2.COLOR_GRAY2BGR,
+                    )
+                    * 255.0
+                ).astype(np.uint8)
+            )
+            differences.append(
+                (
+                    cv2.cvtColor(
+                        np.abs(right_render - right_masks[0].squeeze().cpu().numpy()),
+                        cv2.COLOR_GRAY2BGR,
+                    )
+                    * 255.0
+                ).astype(np.uint8)
+            )
             cv2.imshow(
-                "overlays", cv2.resize(np.hstack(overlays), (0, 0), fx=0.5, fy=0.5)
+                "top: overlays, bottom: differences, left: left view, right: right view",
+                cv2.resize(
+                    np.vstack([np.hstack(overlays), np.hstack(differences)]),
+                    (0, 0),
+                    fx=0.5,
+                    fy=0.5,
+                ),
             )
             cv2.waitKey(1)
 
@@ -281,9 +314,19 @@ def main() -> None:
         right_overlay = overlay_mask(
             right_images[i], (right_render * 255.0).astype(np.uint8), scale=1.0
         )
+        left_difference = np.abs(left_render - left_masks[i].squeeze().cpu().numpy())
+        right_difference = np.abs(right_render - right_masks[i].squeeze().cpu().numpy())
 
         cv2.imwrite(os.path.join(args.path, f"left_dr_overlay_{i}.png"), left_overlay)
         cv2.imwrite(os.path.join(args.path, f"right_dr_overlay_{i}.png"), right_overlay)
+        cv2.imwrite(
+            os.path.join(args.path, f"left_dr_difference_{i}.png"),
+            (left_difference * 255.0).astype(np.uint8),
+        )
+        cv2.imwrite(
+            os.path.join(args.path, f"right_dr_difference_{i}.png"),
+            (right_difference * 255.0).astype(np.uint8),
+        )
 
     np.save(
         os.path.join(args.path, args.left_output_file),
