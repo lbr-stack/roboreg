@@ -1,4 +1,5 @@
 import argparse
+import importlib
 import os
 from typing import Tuple
 
@@ -20,6 +21,12 @@ def args_factory() -> argparse.Namespace:
         type=str,
         default="cuda",
         help="Device to use, e.g. 'cuda' or 'cpu'.",
+    )
+    parser.add_argument(
+        "--optimizer",
+        type=str,
+        default="SGD",
+        help="Optimizer to use, e.g. 'Adam' or 'SGD'. Imported from torch.optim.",
     )
     parser.add_argument(
         "--lr",
@@ -235,7 +242,9 @@ def main() -> None:
 
     # enable gradient tracking and instantiate optimizer
     scene.cameras["left"].extrinsics.requires_grad = True
-    optimizer = torch.optim.SGD([scene.cameras["left"].extrinsics], lr=args.lr)
+    optimizer = getattr(importlib.import_module("torch.optim"), args.optimizer)(
+        [scene.cameras["left"].extrinsics], lr=args.lr
+    )
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, step_size=args.step_size, gamma=args.gamma
     )
