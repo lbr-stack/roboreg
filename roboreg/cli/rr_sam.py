@@ -18,10 +18,13 @@ def args_factory() -> argparse.Namespace:
         "--pattern", type=str, default="image_*.png", help="Image file pattern."
     )
     parser.add_argument(
-        "--buffer_size", type=int, default=5, help="Number of detected points."
+        "--n_positive_samples", type=int, default=5, help="Number of positive samples."
     )
     parser.add_argument(
-        "--sam_checkpoint",
+        "--n_negative_samples", type=int, default=5, help="Number of negative samples."
+    )
+    parser.add_argument(
+        "--checkpoint",
         type=str,
         required=True,
         help="Full path to SAM checkpoint. Should be named ~sam_vit_h_4b8939.pth",
@@ -38,7 +41,11 @@ def args_factory() -> argparse.Namespace:
         default="vit_h",
         help="Type of the model. Default: vit_h",
     )
-
+    parser.add_argument(
+        "--pre_annotated",
+        action="store_true",
+        help="Try to read annotations.",
+    )
     return parser.parse_args()
 
 
@@ -48,25 +55,43 @@ def main():
     image_names = find_files(path.absolute(), args.pattern)
 
     # detect
-    detector = OpenCVDetector(buffer_size=args.buffer_size)  # number of detected points
+    detector = OpenCVDetector(
+        n_positive_samples=args.n_positive_samples,
+        n_negative_samples=args.n_negative_samples,
+    )
 
     # segment
-    sam_checkpoint = os.path.join(args.sam_checkpoint)
-
     segmentor = SamSegmentor(
-        sam_checkpoint=sam_checkpoint, model_type=args.model_type, device=args.device
+        checkpoint=args.checkpoint, model_type=args.model_type, device=args.device
     )
 
     for image_name in progress.track(image_names, description="Generating masks..."):
+        image_prefix = image_name.split(".")[0]
+        image_suffix = image_name.split(".")[1]
         img = cv2.imread(os.path.join(path.absolute(), image_name))
-        points, labels = detector.detect(img)
+        annotations = False
+        if args.pre_annotated:
+            try:
+                samples, labels = detector.read(
+                    path=os.path.join(path.absolute(), f"{image_prefix}_samples.csv")
+                )
+                annotations = True
+            except FileNotFoundError:
+                pass
+        if not annotations:
+            samples, labels = detector.detect(img)
+            detector.write(
+                path=os.path.join(path.absolute(), f"{image_prefix}_samples.csv"),
+                samples=samples,
+                labels=labels,
+            )
         detector.clear()
-        mask = segmentor(img, np.array(points), np.array(labels))
+        mask = segmentor(img, np.array(samples), np.array(labels))
 
         # write mask
-        prefix = image_name.split(".")[0]
-        suffix = image_name.split(".")[1]
-        mask_path = os.path.join(path.absolute(), f"{prefix}_mask.{suffix}")
+        mask_path = os.path.join(
+            path.absolute(), f"mask_sam_{image_prefix}.{image_suffix}"
+        )
         cv2.imwrite(mask_path, mask.astype(np.uint8) * 255)
 
 
