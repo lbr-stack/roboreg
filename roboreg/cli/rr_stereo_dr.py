@@ -42,7 +42,7 @@ def args_factory() -> argparse.Namespace:
     parser.add_argument(
         "--gamma",
         type=float,
-        default=0.5,
+        default=1.0,
         help="Gamma for the learning rate scheduler.",
     )
     parser.add_argument(
