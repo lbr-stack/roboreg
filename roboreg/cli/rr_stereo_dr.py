@@ -235,7 +235,7 @@ def main() -> None:
 
     # enable gradient tracking and instantiate optimizer
     scene.cameras["left"].extrinsics.requires_grad = True
-    optimizer = torch.optim.Adam([scene.cameras["left"].extrinsics], lr=args.lr)
+    optimizer = torch.optim.SGD([scene.cameras["left"].extrinsics], lr=args.lr)
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, step_size=args.step_size, gamma=args.gamma
     )
