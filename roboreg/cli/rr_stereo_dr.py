@@ -240,6 +240,8 @@ def main() -> None:
         loss.backward()
         optimizer.step()
 
+        rich.print(f"Loss: {loss.item()}")
+
         if loss < best_loss:
             best_loss = loss
             best_extrinsics = scene.cameras["left"].extrinsics.detach().clone()
