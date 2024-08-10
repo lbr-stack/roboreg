@@ -11,7 +11,7 @@ class Segmentor(object):
     _pth: float  # probability threshold
     _device: str
 
-    def __init__(self, pth: float = 0.2, device: str = "cuda") -> None:
+    def __init__(self, pth: float = 0.5, device: str = "cuda") -> None:
         self._pth = pth
         self._device = device
 
@@ -30,7 +30,7 @@ class Sam2Segmentor(Segmentor):
     def __init__(
         self,
         model_id: str = "facebook/sam2-hiera-large",
-        pth: float = 0.2,
+        pth: float = 0.5,
         device: str = "cuda",
     ) -> None:
         super().__init__(pth=pth, device=device)
@@ -52,7 +52,7 @@ class Sam2Segmentor(Segmentor):
 
 class SamSegmentor(Segmentor):
     def __init__(
-        self, checkpoint: str, model_type: str, pth: float = 0.2, device: str = "cuda"
+        self, checkpoint: str, model_type: str, pth: float = 0.5, device: str = "cuda"
     ) -> None:
         super().__init__(pth=pth, device=device)
         self._sam = sam_model_registry[model_type](checkpoint=checkpoint)
