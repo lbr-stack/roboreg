@@ -2,6 +2,7 @@ import argparse
 import os
 
 import numpy as np
+import rich
 import torch
 
 from roboreg.hydra_icp import hydra_centroid_alignment, hydra_robust_icp
@@ -65,7 +66,7 @@ def args_factory() -> argparse.Namespace:
         "--erosion_kernel_size",
         type=int,
         default=10,
-        help="Erosion kernel size for mask boundary.",
+        help="Erosion kernel size for mask boundary. Larger value will result in larger boundary. The closer the robot, the larger the recommended kernel size.",
     )
     return parser.parse_args()
 
@@ -77,6 +78,12 @@ def main():
     mask_files = find_files(path, args.mask_pattern)
     xyz_files = find_files(path, args.xyz_pattern)
     joint_state_files = find_files(path, args.joint_states_pattern)
+
+    rich.print("Found the following files:")
+    rich.print(mask_files)
+    rich.print(xyz_files)
+    rich.print(joint_state_files)
+
     number_of_points = args.number_of_points
 
     observed_xyzs, mesh_xyzs, mesh_xyzs_normals = load_data(
