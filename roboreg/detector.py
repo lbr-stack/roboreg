@@ -4,6 +4,7 @@ from typing import List, Tuple
 
 import cv2
 import numpy as np
+import rich
 
 
 class SampleParserMixin:
@@ -90,27 +91,25 @@ class OpenCVDetector(Detector):
         if (
             event == cv2.EVENT_LBUTTONDOWN and flags & cv2.EVENT_FLAG_CTRLKEY
         ):  # bitwise and for flags: https://stackoverflow.com/questions/32210066/mouse-callback-event-flags-in-python-opencv-osx
-            print(f"event: {event}, flags: {flags}, CTRL: {cv2.EVENT_FLAG_CTRLKEY}")
             if len(self._negative_samples) >= self._n_negative_samples:
-                print(
+                rich.print(
                     f"Already added {len(self._negative_samples)} of {self._n_negative_samples}  negative samples."
                 )
                 return
             self._negative_samples.append([x, y])
-            print(
-                f"Added negative sample {x}, {y}. Total: {len(self._negative_samples)} of {self._n_negative_samples}."
+            rich.print(
+                f"Negative samples: {len(self._negative_samples)} of {self._n_negative_samples}. Coordinates {x}, {y}."
             )
             return
         if event == cv2.EVENT_LBUTTONDOWN:
-            print(f"event: {event}, flags: {flags}, CTRL: {cv2.EVENT_FLAG_CTRLKEY}")
             if len(self._positive_samples) >= self._n_positive_samples:
-                print(
+                rich.print(
                     f"Already added {len(self._positive_samples)} of {self._n_positive_samples} positive samples. Use CTRL + Left Click to add negative samples."
                 )
                 return
             self._positive_samples.append([x, y])
-            print(
-                f"Added positive sample {x}, {y}. Total: {len(self._positive_samples)} of {self._n_positive_samples}."
+            rich.print(
+                f"Positive samples: {len(self._positive_samples)} of {self._n_positive_samples}. Coordinates: {x}, {y}."
             )
             return
 

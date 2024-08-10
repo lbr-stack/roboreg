@@ -19,11 +19,15 @@ def test_sam2_segmentor() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     segmentor = Sam2Segmentor(device=device)
-    mask = segmentor(img, np.array(samples), np.array(labels))
+    p = segmentor(img, np.array(samples), np.array(labels))
 
     # visualize
-    cv2.imshow("masked_img", np.where(np.expand_dims(mask, -1), img, 0))
-    cv2.waitKey()
+    cv2.imshow(
+        "masked_img",
+        np.where(np.expand_dims(p > segmentor.pth, -1), img, 0),
+    )
+    cv2.imshow("probability", p)
+    cv2.waitKey(0)
 
 
 def test_sam_segmentor() -> None:
@@ -44,11 +48,12 @@ def test_sam_segmentor() -> None:
     segmentor = SamSegmentor(
         checkpoint=checkpoint, model_type=model_type, device=device
     )
-    mask = segmentor(img, np.array(samples), np.array(labels))
+    p = segmentor(img, np.array(samples), np.array(labels))
 
     # visualize
-    cv2.imshow("masked_img", np.where(np.expand_dims(mask, -1), img, 0))
-    cv2.waitKey()
+    cv2.imshow("masked_img", np.where(np.expand_dims(p > segmentor.pth, -1), img, 0))
+    cv2.imshow("probability", p)
+    cv2.waitKey(0)
 
 
 if __name__ == "__main__":

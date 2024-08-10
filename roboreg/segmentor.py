@@ -8,50 +8,66 @@ from segment_anything import SamPredictor, sam_model_registry
 
 class Segmentor(object):
     _model: Any
+    _pth: float  # probability threshold
     _device: str
 
-    def __init__(self, device: str) -> None:
+    def __init__(self, pth: float = 0.2, device: str = "cuda") -> None:
+        self._pth = pth
         self._device = device
+
+    @property
+    def pth(self) -> float:
+        return self._pth
 
     def __call__(self, img: np.ndarray) -> Any:
         raise NotImplementedError
 
+    def _sigmoid(self, logits: np.ndarray) -> np.ndarray:
+        return 1 / (1 + np.exp(-logits))
+
 
 class Sam2Segmentor(Segmentor):
     def __init__(
-        self, model_id: str = "facebook/sam2-hiera-large", device: str = "cuda"
+        self,
+        model_id: str = "facebook/sam2-hiera-large",
+        pth: float = 0.2,
+        device: str = "cuda",
     ) -> None:
-        super().__init__(device=device)
-        self._model = SAM2ImagePredictor.from_pretrained(model_id)
+        super().__init__(pth=pth, device=device)
+        self._model: SAM2ImagePredictor = SAM2ImagePredictor.from_pretrained(model_id)
 
     def __call__(
         self, img: np.ndarray, input_points: np.ndarray, input_labels: np.ndarray
-    ) -> Any:
+    ) -> np.ndarray:
         self._model.set_image(img)
         with torch.inference_mode(), torch.autocast(self._device, dtype=torch.bfloat16):
-            masks, _, _ = self._model.predict(
+            mask_logits, _, _ = self._model.predict(
                 point_coords=input_points,
                 point_labels=input_labels,
                 multimask_output=False,
+                return_logits=True,
             )
-        return masks[0]
+        return self._sigmoid(mask_logits[0])
 
 
 class SamSegmentor(Segmentor):
-    def __init__(self, checkpoint: str, model_type: str, device: str = "cuda") -> None:
-        super().__init__(device=device)
+    def __init__(
+        self, checkpoint: str, model_type: str, pth: float = 0.2, device: str = "cuda"
+    ) -> None:
+        super().__init__(pth=pth, device=device)
         self._sam = sam_model_registry[model_type](checkpoint=checkpoint)
         self._sam.to(device=device)
-        self._model = SamPredictor(self._sam)
+        self._model: SamPredictor = SamPredictor(self._sam)
 
     def __call__(
         self, img: np.ndarray, input_points: np.ndarray, input_labels: np.ndarray
     ) -> np.ndarray:
         self._model.set_image(img)
         with torch.no_grad():
-            masks, _, _ = self._model.predict(
+            mask_logits, _, _ = self._model.predict(
                 point_coords=input_points,
                 point_labels=input_labels,
                 multimask_output=False,
+                return_logits=True,
             )
-        return masks[0]
+        return self._sigmoid(mask_logits[0])
