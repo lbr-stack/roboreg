@@ -86,13 +86,19 @@ def main():
                 labels=labels,
             )
         detector.clear()
-        mask = segmentor(img, np.array(samples), np.array(labels))
+        probability = segmentor(img, np.array(samples), np.array(labels))
 
-        # write mask
+        # write probability and mask
+        probability_path = os.path.join(
+            path.absolute(), f"probability_sam_{image_prefix}.{image_suffix}"
+        )
         mask_path = os.path.join(
             path.absolute(), f"mask_sam_{image_prefix}.{image_suffix}"
         )
-        cv2.imwrite(mask_path, mask.astype(np.uint8) * 255)
+        cv2.imwrite(probability_path, (probability * 255.0).astype(np.uint8))
+        cv2.imwrite(
+            mask_path, np.where(probability > segmentor.pth, 255, 0).astype(np.uint8)
+        )
 
 
 if __name__ == "__main__":
