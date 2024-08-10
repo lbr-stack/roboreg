@@ -275,10 +275,10 @@ def main() -> None:
 
         # display optimization progress
         if args.display_progress:
-            overlays = []
+            render_overlays = []
             left_render = renders["left"][0].squeeze().detach().cpu().numpy()
             left_image = left_images[0]
-            overlays.append(
+            render_overlays.append(
                 overlay_mask(
                     left_image,
                     (left_render * 255.0).astype(np.uint8),
@@ -287,7 +287,7 @@ def main() -> None:
             )
             right_render = renders["right"][0].squeeze().detach().cpu().numpy()
             right_image = right_images[0]
-            overlays.append(
+            render_overlays.append(
                 overlay_mask(
                     right_image,
                     (right_render * 255.0).astype(np.uint8),
@@ -314,10 +314,34 @@ def main() -> None:
                     * 255.0
                 ).astype(np.uint8)
             )
+            # overlay segmentation mask
+            segmentation_overlays = []
+            segmentation_overlays.append(
+                overlay_mask(
+                    left_image,
+                    (left_masks[0].squeeze().cpu().numpy() * 255.0).astype(np.uint8),
+                    mode="b",
+                    scale=1.0,
+                )
+            )
+            segmentation_overlays.append(
+                overlay_mask(
+                    right_image,
+                    (right_masks[0].squeeze().cpu().numpy() * 255.0).astype(np.uint8),
+                    mode="b",
+                    scale=1.0,
+                )
+            )
             cv2.imshow(
-                "top: overlays, bottom: differences, left: left view, right: right view",
+                "top to bottom: render overlays, differences, segmentation overlays | left: left view, right: right view",
                 cv2.resize(
-                    np.vstack([np.hstack(overlays), np.hstack(differences)]),
+                    np.vstack(
+                        [
+                            np.hstack(render_overlays),
+                            np.hstack(differences),
+                            np.hstack(segmentation_overlays),
+                        ]
+                    ),
                     (0, 0),
                     fx=0.5,
                     fy=0.5,

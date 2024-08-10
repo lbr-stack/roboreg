@@ -72,6 +72,8 @@ def overlay_mask(
     mask: np.ndarray,
     mode: str = "r",
     alpha: float = 0.5,
+    beta: float = 0.5,
+    gamma: float = 0.0,
     scale: float = 2.0,
 ) -> np.ndarray:
     r"""Overlay mask on image.
@@ -102,7 +104,7 @@ def overlay_mask(
     else:
         raise ValueError("Mode must be r, g, or b.")
 
-    overlay_img_mask = cv2.addWeighted(img, alpha, colored_mask, 1.0, 0)
+    overlay_img_mask = cv2.addWeighted(img, alpha, colored_mask, beta, gamma)
     # resize by scale
     overlay_img_mask = cv2.resize(
         overlay_img_mask,

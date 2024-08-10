@@ -9,6 +9,7 @@ from rich import progress
 from roboreg.detector import OpenCVDetector
 from roboreg.io import find_files
 from roboreg.segmentor import Sam2Segmentor
+from roboreg.util import overlay_mask
 
 
 def args_factory() -> argparse.Namespace:
@@ -79,6 +80,8 @@ def main():
             )
         detector.clear()
         probability = segmentor(img, np.array(samples), np.array(labels))
+        mask = np.where(probability > segmentor.pth, 255, 0).astype(np.uint8)
+        overlay = overlay_mask(img, mask, mode="g", scale=1.0)
 
         # write probability and mask
         probability_path = os.path.join(
@@ -87,8 +90,12 @@ def main():
         mask_path = os.path.join(
             path.absolute(), f"mask_sam2_{image_prefix}.{image_suffix}"
         )
+        overlay_path = os.path.join(
+            path.absolute(), f"mask_overlay_sam2_{image_prefix}.{image_suffix}"
+        )
         cv2.imwrite(probability_path, (probability * 255.0).astype(np.uint8))
-        cv2.imwrite(mask_path, np.where(probability > segmentor.pth, 255, 0).astype(np.uint8))
+        cv2.imwrite(mask_path, mask)
+        cv2.imwrite(overlay_path, overlay)
 
 
 if __name__ == "__main__":
