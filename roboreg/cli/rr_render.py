@@ -121,9 +121,7 @@ def main():
         joint_states = joint_states.to(dtype=torch.float32, device=args.device)
 
         # configure robot
-        scene.configure_robot_joint_states(
-            joint_states
-        )  ##### applying this multiple times fucks with the meshes!
+        scene.configure_robot_joint_states(joint_states)
 
         # render
         renders = scene.observe_from(list(scene.cameras.keys())[0])
