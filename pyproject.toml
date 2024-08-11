@@ -13,13 +13,17 @@ readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
   "faiss-gpu",
+  "huggingface_hub",
   "kinpy",
   "matplotlib",
+  "ninja",
   "numpy",
   "open3d",
   "opencv-python",
+  "pytorch_kinematics",
   "rich",
   "torch",
+  "trimesh",
   "xacro",
 ]
 classifiers = [
