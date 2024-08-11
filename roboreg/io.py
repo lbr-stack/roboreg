@@ -171,7 +171,15 @@ class MonocularDataset(Dataset):
         self._joint_states_files = find_files(joint_states_path, joint_states_pattern)
 
         if len(self._image_files) != len(self._joint_states_files):
-            raise ValueError("Number of images and joint states do not match.")
+            raise ValueError(
+                f"Number of images '{len(self._image_files)}' and joint states '{len(self._joint_states_files)}' do not match."
+            )
+
+        if len(self._image_files) == 0:
+            raise ValueError("No images found.")
+
+        if len(self._joint_states_files) == 0:
+            raise ValueError("No joint states found.")
 
     def __len__(self):
         return len(self._image_files)
