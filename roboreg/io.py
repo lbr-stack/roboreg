@@ -181,15 +181,25 @@ class MonocularDataset(Dataset):
         if len(self._joint_states_files) == 0:
             raise ValueError("No joint states found.")
 
+        for image_file, joint_states_file in zip(
+            self._image_files, self._joint_states_files
+        ):
+            if (
+                image_file.split("_")[-1].split(".")[0]
+                != joint_states_file.split("_")[-1].split(".")[0]
+            ):
+                raise ValueError(
+                    f"Image file index '{image_file}' and joint states file index '{joint_states_file}' do not match."
+                )
+
     def __len__(self):
         return len(self._image_files)
 
     def __getitem__(self, idx: int) -> Tuple[np.ndarray, np.ndarray, str]:
         image_file = self._image_files[idx]
+        joint_states_file = self._joint_states_files[idx]
         image = cv2.imread(os.path.join(self._images_path, image_file))
-        joint_states = np.load(
-            os.path.join(self._joint_states_path, self._joint_states_files[idx])
-        )
+        joint_states = np.load(os.path.join(self._joint_states_path, joint_states_file))
         return image, joint_states, image_file
 
 
