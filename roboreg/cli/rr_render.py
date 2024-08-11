@@ -1,15 +1,14 @@
 import argparse
 import os
 import pathlib
-from typing import Tuple
 
 import cv2
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 
 from roboreg import differentiable as rrd
-from roboreg.io import find_files
+from roboreg.io import MonocularDataset
 from roboreg.util import overlay_mask
 
 
@@ -87,34 +86,6 @@ def args_factory() -> argparse.Namespace:
     return parser.parse_args()
 
 
-class SceneDataset(Dataset):
-    def __init__(
-        self,
-        images_path: str,
-        image_pattern: str,
-        joint_states_path: str,
-        joint_states_pattern: str,
-    ):
-        self._images_path = images_path
-        self._image_files = find_files(images_path, image_pattern)
-        self._joint_states_path = joint_states_path
-        self._joint_states_files = find_files(joint_states_path, joint_states_pattern)
-
-        if len(self._image_files) != len(self._joint_states_files):
-            raise ValueError("Number of images and joint states do not match.")
-
-    def __len__(self):
-        return len(self._image_files)
-
-    def __getitem__(self, idx: int) -> Tuple[np.ndarray, np.ndarray, str]:
-        image_file = self._image_files[idx]
-        image = cv2.imread(os.path.join(self._images_path, image_file))
-        joint_states = np.load(
-            os.path.join(self._joint_states_path, self._joint_states_files[idx])
-        )
-        return image, joint_states, image_file
-
-
 def main():
     args = args_factory()
     scene = rrd.robot_scene_factory(
@@ -127,7 +98,7 @@ def main():
         camera_info_files={"camera": args.camera_info_file},
         extrinsics_files={"camera": args.extrinsics_file},
     )
-    scene_dataset = SceneDataset(
+    scene_dataset = MonocularDataset(
         images_path=args.images_path,
         image_pattern=args.image_pattern,
         joint_states_path=args.joint_states_path,

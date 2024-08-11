@@ -7,7 +7,8 @@ import numpy as np
 import torch
 
 from roboreg.hydra_icp import hydra_centroid_alignment, hydra_robust_icp
-from roboreg.io import load_data, visualize_registration
+from roboreg.io import load_data
+from roboreg.util import visualize_registration
 
 
 def test_hydra_robust_icp():

@@ -1,13 +1,12 @@
 import os
 import pathlib
-import re
 from typing import Dict, List, Tuple
 
 import cv2
 import numpy as np
-import open3d as o3d
 import yaml
 from pytorch_kinematics import urdf_parser_py
+from torch.utils.data import Dataset
 
 from roboreg.util import clean_xyz, generate_o3d_robot, mask_boundary
 
@@ -158,6 +157,34 @@ def find_files(path: str, pattern: str = "image_*.png") -> List[str]:
     )
 
 
+class MonocularDataset(Dataset):
+    def __init__(
+        self,
+        images_path: str,
+        image_pattern: str,
+        joint_states_path: str,
+        joint_states_pattern: str,
+    ):
+        self._images_path = images_path
+        self._image_files = find_files(images_path, image_pattern)
+        self._joint_states_path = joint_states_path
+        self._joint_states_files = find_files(joint_states_path, joint_states_pattern)
+
+        if len(self._image_files) != len(self._joint_states_files):
+            raise ValueError("Number of images and joint states do not match.")
+
+    def __len__(self):
+        return len(self._image_files)
+
+    def __getitem__(self, idx: int) -> Tuple[np.ndarray, np.ndarray, str]:
+        image_file = self._image_files[idx]
+        image = cv2.imread(os.path.join(self._images_path, image_file))
+        joint_states = np.load(
+            os.path.join(self._joint_states_path, self._joint_states_files[idx])
+        )
+        return image, joint_states, image_file
+
+
 def parse_camera_info(camera_info_file: str) -> Tuple[int, int, np.ndarray]:
     r"""Parse camera info file.
 
@@ -223,68 +250,3 @@ def load_data(
         mesh_xyzs_normals.append(mesh_xyz_normals)
 
     return clean_observed_xyzs, mesh_xyzs, mesh_xyzs_normals
-
-
-def visualize_registration(
-    observed_xyzs: List[np.ndarray], mesh_xyzs: List[np.ndarray], HT: np.ndarray
-) -> None:
-    # visualize
-    observed_xyzs_pcds = [
-        o3d.geometry.PointCloud(o3d.utility.Vector3dVector(observed_xyz))
-        for observed_xyz in observed_xyzs
-    ]
-    mesh_xyzs_pcds = [
-        o3d.geometry.PointCloud(o3d.utility.Vector3dVector(mesh_xyz))
-        for mesh_xyz in mesh_xyzs
-    ]
-
-    # array of colors
-    [
-        observed_xyzs_pcd.paint_uniform_color(
-            [
-                0.5,
-                0.8,
-                0.5
-                + (len(observed_xyzs_pcds) - idx - 1) / len(observed_xyzs_pcds) / 2.0,
-            ]
-        )
-        for idx, observed_xyzs_pcd in enumerate(observed_xyzs_pcds)
-    ]
-    [
-        mesh_xyzs_pcd.paint_uniform_color(
-            [
-                0.5 + (len(mesh_xyzs_pcds) - idx - 1) / len(mesh_xyzs_pcds) / 2.0,
-                0.5,
-                0.8,
-            ]
-        )
-        for idx, mesh_xyzs_pcd in enumerate(mesh_xyzs_pcds)
-    ]
-
-    # visualize
-    visualizer = o3d.visualization.Visualizer()
-    visualizer.create_window()
-
-    visualizer.get_render_option().background_color = np.asarray([0, 0, 0])
-    for observed_xyzs_pcd in observed_xyzs_pcds:
-        visualizer.add_geometry(observed_xyzs_pcd)
-    for mesh_xyzs_pcd in mesh_xyzs_pcds:
-        visualizer.add_geometry(mesh_xyzs_pcd)
-    visualizer.run()
-    visualizer.close()
-
-    # transform mesh
-    for i in range(len(mesh_xyzs_pcds)):
-        mesh_xyzs_pcds[i] = mesh_xyzs_pcds[i].transform(HT)
-
-    # visualize
-    visualizer = o3d.visualization.Visualizer()
-    visualizer.create_window()
-
-    visualizer.get_render_option().background_color = np.asarray([0, 0, 0])
-    for observed_xyzs_pcd in observed_xyzs_pcds:
-        visualizer.add_geometry(observed_xyzs_pcd)
-    for mesh_xyzs_pcd in mesh_xyzs_pcds:
-        visualizer.add_geometry(mesh_xyzs_pcd)
-    visualizer.run()
-    visualizer.close()
