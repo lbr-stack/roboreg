@@ -98,14 +98,14 @@ def main():
         camera_info_files={"camera": args.camera_info_file},
         extrinsics_files={"camera": args.extrinsics_file},
     )
-    scene_dataset = MonocularDataset(
+    dataset = MonocularDataset(
         images_path=args.images_path,
         image_pattern=args.image_pattern,
         joint_states_path=args.joint_states_path,
         joint_states_pattern=args.joint_states_pattern,
     )
-    scene_dataloader = DataLoader(
-        scene_dataset,
+    dataloader = DataLoader(
+        dataset,
         batch_size=args.batch_size,
         shuffle=False,
         drop_last=True,
@@ -116,7 +116,7 @@ def main():
     if not output_path.exists():
         output_path.mkdir(parents=True)
 
-    for images, joint_states, image_files in scene_dataloader:
+    for images, joint_states, image_files in dataloader:
         # pre-process
         joint_states = joint_states.to(dtype=torch.float32, device=args.device)
 
