@@ -249,10 +249,13 @@ def main() -> None:
         optimizer, step_size=args.step_size, gamma=args.gamma
     )
     metric = torch.nn.BCELoss()
-    best_extrinsics = scene.cameras["left"].extrinsics.detach().clone()
+    best_extrinsics = scene.cameras["left"].extrinsics
     best_loss = float("inf")
 
-    for _ in rich.progress.track(range(args.epochs), "Optimizing..."):
+    for epoch in rich.progress.track(range(args.epochs), "Optimizing..."):
+        # on update lr, set extrinsics to previously best extrinsics
+        if epoch % args.step_size == 0:
+            scene.cameras["left"].extrinsics = best_extrinsics
         renders = {
             "left": scene.observe_from("left"),
             "right": scene.observe_from("right", scene.cameras["left"].extrinsics),
@@ -271,7 +274,7 @@ def main() -> None:
 
         if loss.item() < best_loss:
             best_loss = loss.item()
-            best_extrinsics = scene.cameras["left"].extrinsics.detach().clone()
+            best_extrinsics = scene.cameras["left"].extrinsics
 
         # display optimization progress
         if args.display_progress:
@@ -349,12 +352,13 @@ def main() -> None:
             )
             cv2.waitKey(1)
 
-    # render final results and save extrinsics
-    scene.cameras["left"].extrinsics = best_extrinsics
-    renders = {
-        "left": scene.observe_from("left"),
-        "right": scene.observe_from("right", scene.cameras["left"].extrinsics),
-    }
+    with torch.no_grad():
+        # render final results and save extrinsics
+        scene.cameras["left"].extrinsics = best_extrinsics
+        renders = {
+            "left": scene.observe_from("left"),
+            "right": scene.observe_from("right", scene.cameras["left"].extrinsics),
+        }
 
     for i, (left_render, right_render) in enumerate(
         zip(renders["left"], renders["right"])
