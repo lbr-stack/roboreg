@@ -26,6 +26,7 @@ pip3 install git+https://github.com/lbr-stack/roboreg.git
 ## Command Line Interface
 ### Segment
 This is a required step to generate robot masks (also support SAM 2: `rr-sam2`).
+
 ```shell
 rr-sam \
     --path <path_to_images> \
@@ -35,20 +36,65 @@ rr-sam \
 
 ### Hydra Robust ICP
 This registration only works for registered point clouds!
+
 ```shell
 rr-hydra \
-    --path <path_to_data>
+    --path test/data/lbr_med7/zed2i/high_res \
+    --mask-pattern mask_*.png \
+    --xyz-pattern xyz_*.npy \
+    --joint-states-pattern joint_states_*.npy \
+    --number-of-points 5000 \
+    --convex-hull \
+    --output-file HT_hydra_robust.npy
 ```
 
 ### Stereo Differentiable Rendering
 This rendering refinement requires a good initial estimate, as e.g. obtained from [Hydra Robust ICP](#hydra-robust-icp).
+
 ```shell
-rr-stereo-dr --help
+rr-stereo-dr \
+    --device cuda \
+    --optimizer SGD \
+    --lr 0.001 \
+    --epochs 100 \
+    --display-progress \
+    --ros-package lbr_description \
+    --xacro-path urdf/med7/med7.xacro \
+    --root-link-name link_0 \
+    --end-link-name link_7 \
+    --left-camera-info-file test/data/lbr_med7/zed2i/stereo_data/left_camera_info.yaml \
+    --right-camera-info-file test/data/lbr_med7/zed2i/stereo_data/right_camera_info.yaml \
+    --left-extrinsics-file test/data/lbr_med7/zed2i/stereo_data/HT_hydra_robust.npy \
+    --right-extrinsics-file test/data/lbr_med7/zed2i/stereo_data/HT_right_to_left.npy \
+    --path test/data/lbr_med7/zed2i/stereo_data \
+    --left-image-pattern left_img_*.png \
+    --right-image-pattern right_img_*.png \
+    --joint-states-pattern joint_state_*.npy \
+    --left-mask-pattern left_mask_*.png \
+    --right-mask-pattern right_mask_*.png \
+    --left-output-file HT_left_dr.npy \
+    --right-output-file HT_right_dr.npy
 ```
 
 ### Render Results
+Generate renders using the obtained extrinsics:
+
 ```shell
-rr-render --help
+rr-render \
+    --device cuda \
+    --batch-size 1 \
+    --num-workers 0 \
+    --ros-package lbr_description \
+    --xacro-path urdf/med7/med7.xacro \
+    --root-link-name link_0 \
+    --end-link-name link_7 \
+    --camera-info-file test/data/lbr_med7/zed2i/stereo_data/left_camera_info.yaml \
+    --extrinsics-file test/data/lbr_med7/zed2i/stereo_data/HT_left_dr.npy \
+    --images-path test/data/lbr_med7/zed2i/stereo_data \
+    --joint-states-path test/data/lbr_med7/zed2i/stereo_data \
+    --image-pattern left_img_*.png \
+    --joint-states-pattern joint_state_*.npy \
+    --output-path test/data/lbr_med7/zed2i/stereo_data
 ```
 
 ## Acknowledgements

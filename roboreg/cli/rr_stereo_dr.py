@@ -79,25 +79,25 @@ def args_factory() -> argparse.Namespace:
         "--left-camera-info-file",
         type=str,
         required=True,
-        help="Path to the left camera parameters, <path_to>/left_camera_info.yaml.",
+        help="Full path to left camera parameters, <path_to>/left_camera_info.yaml.",
     )
     parser.add_argument(
         "--right-camera-info-file",
         type=str,
         required=True,
-        help="Path to the left camera parameters, <path_to>/right_camera_info.yaml.",
+        help="Full path to right camera parameters, <path_to>/right_camera_info.yaml.",
     )
     parser.add_argument(
         "--left-extrinsics-file",
         type=str,
         required=True,
-        help="Homogeneous transforms from base to left camera frame, <path_to>/HT_hydra_robust.npy.",
+        help="Full path to homogeneous transforms from base to left camera frame, <path_to>/HT_hydra_robust.npy.",
     )
     parser.add_argument(
         "--right-extrinsics-file",
         type=str,
         required=True,
-        help="Homogeneous transforms from base to right camera frame, <path_to>/HT_right_to_left.npy.",
+        help="Full path to homogeneous transforms from base to right camera frame, <path_to>/HT_right_to_left.npy.",
     )
     parser.add_argument("--path", type=str, required=True, help="Path to the data.")
     parser.add_argument(
@@ -134,13 +134,13 @@ def args_factory() -> argparse.Namespace:
         "--left-output-file",
         type=str,
         default="HT_left_dr.npy",
-        help="Left output file name. Relative to the path.",
+        help="Left output file name. Relative to --path.",
     )
     parser.add_argument(
         "--right-output-file",
         type=str,
         default="HT_right_dr.npy",
-        help="Right output file name. Relative to the path.",
+        help="Right output file name. Relative to --path.",
     )
     return parser.parse_args()
 
