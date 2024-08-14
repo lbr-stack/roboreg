@@ -55,7 +55,7 @@ This rendering refinement requires a good initial estimate, as e.g. obtained fro
 rr-stereo-dr \
     --device cuda \
     --optimizer SGD \
-    --lr 0.001 \
+    --lr 0.0001 \
     --epochs 100 \
     --display-progress \
     --ros-package lbr_description \
