@@ -21,64 +21,64 @@ def args_factory() -> argparse.Namespace:
         help="Device to use, e.g. 'cuda' or 'cpu'.",
     )
     parser.add_argument(
-        "--batch_size",
+        "--batch-size",
         type=int,
         default=1,
         help="Batch size for rendering. For batch_size > 1, the last batch may be dropped.",
     )
     parser.add_argument(
-        "--num_workers", type=int, default=0, help="Number of workers for data loading."
+        "--num-workers", type=int, default=0, help="Number of workers for data loading."
     )
     parser.add_argument(
-        "--ros_package",
+        "--ros-package",
         type=str,
         default="lbr_description",
         help="Package where the URDF is located.",
     )
     parser.add_argument(
-        "--xacro_path",
+        "--xacro-path",
         type=str,
         default="urdf/med7/med7.xacro",
-        help="Path to the xacro file, relative to --ros_package.",
+        help="Path to the xacro file, relative to --ros-package.",
     )
     parser.add_argument(
-        "--root_link_name", type=str, default="link_0", help="Root link name."
+        "--root-link-name", type=str, default="link_0", help="Root link name."
     )
     parser.add_argument(
-        "--end_link_name", type=str, default="link_7", help="End link name."
+        "--end-link-name", type=str, default="link_7", help="End link name."
     )
     parser.add_argument(
-        "--camera_info_file",
+        "--camera-info-file",
         type=str,
         required=True,
         help="Path to the camera parameters, <path_to>/camera_info.yaml.",
     )
     parser.add_argument(
-        "--extrinsics_file",
+        "--extrinsics-file",
         type=str,
         required=True,
         help="Homogeneous transform from base to camera frame, <path_to>/HT_hydra_robust.npy.",
     )
     parser.add_argument(
-        "--images_path", type=str, required=True, help="Path to the images."
+        "--images-path", type=str, required=True, help="Path to the images."
     )
     parser.add_argument(
-        "--joint_states_path", type=str, required=True, help="Path to the joint states."
+        "--joint-states-path", type=str, required=True, help="Path to the joint states."
     )
     parser.add_argument(
-        "--image_pattern",
+        "--image-pattern",
         type=str,
         default="image_*.png",
         help="Image file pattern.",
     )
     parser.add_argument(
-        "--joint_states_pattern",
+        "--joint-states-pattern",
         type=str,
         default="joint_states_*.npy",
         help="Joint state file pattern.",
     )
     parser.add_argument(
-        "--output_path",
+        "--output-path",
         type=str,
         required=True,
         help="Output path.",

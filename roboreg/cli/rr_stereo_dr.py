@@ -41,7 +41,7 @@ def args_factory() -> argparse.Namespace:
         help="Number of epochs to optimize for.",
     )
     parser.add_argument(
-        "--step_size",
+        "--step-size",
         type=int,
         default=100,
         help="Step size for the learning rate scheduler.",
@@ -53,91 +53,91 @@ def args_factory() -> argparse.Namespace:
         help="Gamma for the learning rate scheduler.",
     )
     parser.add_argument(
-        "--display_progress",
+        "--display-progress",
         action="store_true",
         help="Display optimization progress.",
     )
     parser.add_argument(
-        "--ros_package",
+        "--ros-package",
         type=str,
         default="lbr_description",
         help="Package where the URDF is located.",
     )
     parser.add_argument(
-        "--xacro_path",
+        "--xacro-path",
         type=str,
         default="urdf/med7/med7.xacro",
-        help="Path to the xacro file, relative to --ros_package.",
+        help="Path to the xacro file, relative to --ros-package.",
     )
     parser.add_argument(
-        "--root_link_name", type=str, default="link_0", help="Root link name."
+        "--root-link-name", type=str, default="link_0", help="Root link name."
     )
     parser.add_argument(
-        "--end_link_name", type=str, default="link_7", help="End link name."
+        "--end-link-name", type=str, default="link_7", help="End link name."
     )
     parser.add_argument(
-        "--left_camera_info_file",
+        "--left-camera-info-file",
         type=str,
         required=True,
         help="Path to the left camera parameters, <path_to>/left_camera_info.yaml.",
     )
     parser.add_argument(
-        "--right_camera_info_file",
+        "--right-camera-info-file",
         type=str,
         required=True,
         help="Path to the left camera parameters, <path_to>/right_camera_info.yaml.",
     )
     parser.add_argument(
-        "--left_extrinsics_file",
+        "--left-extrinsics-file",
         type=str,
         required=True,
         help="Homogeneous transforms from base to left camera frame, <path_to>/HT_hydra_robust.npy.",
     )
     parser.add_argument(
-        "--right_extrinsics_file",
+        "--right-extrinsics-file",
         type=str,
         required=True,
         help="Homogeneous transforms from base to right camera frame, <path_to>/HT_right_to_left.npy.",
     )
     parser.add_argument("--path", type=str, required=True, help="Path to the data.")
     parser.add_argument(
-        "--left_image_pattern",
+        "--left-image-pattern",
         type=str,
         default="left_image_*.png",
         help="Left image file pattern.",
     )
     parser.add_argument(
-        "--right_image_pattern",
+        "--right-image-pattern",
         type=str,
         default="right_image_*.png",
         help="Right image file pattern.",
     )
     parser.add_argument(
-        "--joint_states_pattern",
+        "--joint-states-pattern",
         type=str,
         default="joint_states_*.npy",
         help="Joint state file pattern.",
     )
     parser.add_argument(
-        "--left_mask_pattern",
+        "--left-mask-pattern",
         type=str,
         default="left_mask_*.png",
         help="Left mask file pattern.",
     )
     parser.add_argument(
-        "--right_mask_pattern",
+        "--right-mask-pattern",
         type=str,
         default="right_mask_*.png",
         help="Right mask file pattern.",
     )
     parser.add_argument(
-        "--left_output_file",
+        "--left-output-file",
         type=str,
         default="HT_left_dr.npy",
         help="Left output file name. Relative to the path.",
     )
     parser.add_argument(
-        "--right_output_file",
+        "--right-output-file",
         type=str,
         default="HT_right_dr.npy",
         help="Right output file name. Relative to the path.",

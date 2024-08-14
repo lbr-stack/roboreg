@@ -19,10 +19,10 @@ def args_factory() -> argparse.Namespace:
         "--pattern", type=str, default="image_*.png", help="Image file pattern."
     )
     parser.add_argument(
-        "--n_positive_samples", type=int, default=5, help="Number of positive samples."
+        "--n-positive-samples", type=int, default=5, help="Number of positive samples."
     )
     parser.add_argument(
-        "--n_negative_samples", type=int, default=5, help="Number of negative samples."
+        "--n-negative-samples", type=int, default=5, help="Number of negative samples."
     )
     parser.add_argument(
         "--checkpoint",
@@ -37,13 +37,13 @@ def args_factory() -> argparse.Namespace:
         help="Device to run the model. Default: cuda",
     )
     parser.add_argument(
-        "--model_type",
+        "--model-type",
         type=str,
         default="vit_h",
         help="Type of the model. Default: vit_h",
     )
     parser.add_argument(
-        "--pre_annotated",
+        "--pre-annotated",
         action="store_true",
         help="Try to read annotations.",
     )

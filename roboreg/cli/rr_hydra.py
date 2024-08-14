@@ -14,57 +14,57 @@ def args_factory() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--path", type=str, required=True, help="Path to the data.")
     parser.add_argument(
-        "--mask_pattern",
+        "--mask-pattern",
         type=str,
         default="image_*_mask.png",
         help="Mask file pattern.",
     )
     parser.add_argument(
-        "--xyz_pattern", type=str, default="xyz_*.npy", help="XYZ file pattern."
+        "--xyz-pattern", type=str, default="xyz_*.npy", help="XYZ file pattern."
     )
     parser.add_argument(
-        "--joint_states_pattern",
+        "--joint-states-pattern",
         type=str,
         default="joint_states_*.npy",
         help="Joint state file pattern.",
     )
     parser.add_argument(
-        "--number_of_points",
+        "--number-of-points",
         type=int,
         default=5000,
         help="Number of points to sample from robot mesh.",
     )
     parser.add_argument(
-        "--max_distance",
+        "--max-distance",
         type=float,
         default=0.01,
         help="Maximum distance between two points to be considered as a correspondence.",
     )
     parser.add_argument(
-        "--outer_max_iter",
+        "--outer-max-iter",
         type=int,
         default=50,
         help="Maximum number of outer iterations.",
     )
     parser.add_argument(
-        "--inner_max_iter",
+        "--inner-max-iter",
         type=int,
         default=10,
         help="Maximum number of inner iterations.",
     )
     parser.add_argument(
-        "--output_file",
+        "--output-file",
         type=str,
         default="HT_hydra_robust.npy",
         help="Output file name. Relative to the path.",
     )
     parser.add_argument(
-        "--convex_hull",
+        "--convex-hull",
         action="store_true",
         help="Use convex hull for collision mesh.",
     )
     parser.add_argument(
-        "--erosion_kernel_size",
+        "--erosion-kernel-size",
         type=int,
         default=10,
         help="Erosion kernel size for mask boundary. Larger value will result in larger boundary. The closer the robot, the larger the recommended kernel size.",
