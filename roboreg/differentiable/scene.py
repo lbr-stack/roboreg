@@ -33,16 +33,22 @@ class RobotScene:
         cameras: Dict[str, VirtualCamera],
     ) -> None:
         self._meshes = meshes
+        self._observed_vertices = self._meshes.vertices.clone()
         self._kinematics = kinematics
         self._renderer = renderer
         self._cameras = cameras
-        self._ht_current_lookup = self._kinematics.mesh_forward_kinematics(
+        self._ht_zero_lookup = self._kinematics.mesh_forward_kinematics(
             torch.zeros(
                 [self._meshes.batch_size, self._kinematics.chain.n_joints],
                 dtype=torch.float32,
                 device=self._meshes.device,
             )
         )  # track current transforms
+
+        for link_name in self._ht_zero_lookup.keys():
+            self._ht_zero_lookup[link_name] = torch.linalg.inv(
+                self._ht_zero_lookup[link_name]
+            )
 
         for camera_name in self._cameras.keys():
             if not all(
@@ -70,12 +76,22 @@ class RobotScene:
                 f"Batch size mismatch. Meshes: {self._meshes.batch_size}, joint states: {q.shape[0]}."
             )
         ht_target_lookup = self._kinematics.mesh_forward_kinematics(q)
+        self._observed_vertices = self._meshes.vertices.clone()
         for link_name, ht in ht_target_lookup.items():
-            self._meshes.transform_mesh(
-                ht @ torch.linalg.inv(self._ht_current_lookup[link_name]),
-                link_name,  # apply inverse current transform, then target transform
+            self._observed_vertices[
+                :,
+                self._meshes.lower_index_lookup[
+                    link_name
+                ] : self._meshes.upper_index_lookup[link_name],
+            ] = torch.matmul(
+                self._observed_vertices[
+                    :,
+                    self._meshes.lower_index_lookup[
+                        link_name
+                    ] : self._meshes.upper_index_lookup[link_name],
+                ],
+                (ht @ self._ht_zero_lookup[link_name]).transpose(-1, -2),
             )
-        self._ht_current_lookup = ht_target_lookup  # update current transforms
 
     def observe_from(
         self, camera_name: str, reference_transform: torch.FloatTensor = None
@@ -87,7 +103,7 @@ class RobotScene:
                 device=self._cameras[camera_name].extrinsics.device,
             )
         observed_vertices = torch.matmul(
-            self._meshes.vertices,
+            self._observed_vertices,
             torch.linalg.inv(
                 reference_transform
                 @ self._cameras[camera_name].extrinsics

@@ -102,14 +102,20 @@ def test_diff_kinematics() -> None:
     q_target[:, 5] = torch.pi / 4.0
 
     ht_lookup = kinematics.mesh_forward_kinematics(q_target)
-    for link_name, ht in ht_lookup.items():
-        meshes.transform_mesh(ht, link_name)
-
     target_vertices = meshes.vertices.clone()
-
-    # revert transforms
     for link_name, ht in ht_lookup.items():
-        meshes.transform_mesh(torch.linalg.inv(ht), link_name)
+        target_vertices[
+            :,
+            meshes.lower_index_lookup[link_name] : meshes.upper_index_lookup[link_name],
+        ] = torch.matmul(
+            target_vertices[
+                :,
+                meshes.lower_index_lookup[link_name] : meshes.upper_index_lookup[
+                    link_name
+                ],
+            ],
+            ht.transpose(-1, -2),
+        )
 
     metric = torch.nn.MSELoss()
     q_current = torch.full(

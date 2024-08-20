@@ -18,8 +18,6 @@ def test_torch_mesh_container() -> None:
     print(torch_robot_mesh.per_mesh_vertex_count)
     print(torch_robot_mesh.lower_index_lookup)
     print(torch_robot_mesh.upper_index_lookup)
-    print(torch_robot_mesh.get_mesh_vertices("link_0").shape)
-    print(torch_robot_mesh.get_mesh_vertices("link_1").shape)
 
 
 if __name__ == "__main__":

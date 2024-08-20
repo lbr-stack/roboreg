@@ -89,10 +89,6 @@ class TorchMeshContainer:
     def vertices(self) -> torch.FloatTensor:
         return self._vertices
 
-    @vertices.setter
-    def vertices(self, vertices: torch.FloatTensor) -> None:
-        self._vertices = vertices
-
     @property
     def faces(self) -> torch.IntTensor:
         return self._faces
@@ -125,42 +121,6 @@ class TorchMeshContainer:
         self._vertices = self._vertices.to(device=device)
         self._faces = self._faces.to(device=device)
         self._device = device
-
-    def set_mesh_vertices(self, mesh_name: str, vertices: torch.FloatTensor) -> None:
-        r"""Utility setter for easier access to vertices by mesh."""
-        if vertices.dim() != 3:
-            raise ValueError(
-                f"Expected vertices of shape (B, N, 4), got {vertices.shape}."
-            )
-        if vertices.shape[0] != self._vertices.shape[0]:
-            raise ValueError(
-                f"Expected same batch size {self._vertices.shape[0]} as vertices, got {vertices.shape[0]}."
-            )
-        if vertices.shape[-2] != self._per_mesh_vertex_count[mesh_name]:
-            raise ValueError(
-                f"Expected vertices of shape {self._per_mesh_vertex_count[mesh_name]}, got {vertices.shape[-2]}."
-            )
-        self._vertices[
-            :,
-            self._lower_index_lookup[mesh_name] : self._upper_index_lookup[mesh_name],
-        ] = vertices
-
-    def get_mesh_vertices(self, mesh_name: str) -> torch.FloatTensor:
-        r"""Utility getter for easier access to vertices by mesh."""
-        return self._vertices[
-            :,
-            self._lower_index_lookup[mesh_name] : self._upper_index_lookup[mesh_name],
-        ]
-
-    def transform_mesh(self, ht: torch.FloatTensor, mesh_name: str) -> None:
-        if mesh_name not in self._mesh_names:
-            raise ValueError(f"Mesh name {mesh_name} not found in mesh container.")
-        self.set_mesh_vertices(
-            mesh_name=mesh_name,
-            vertices=torch.matmul(
-                self.get_mesh_vertices(mesh_name=mesh_name), ht.transpose(-1, -2)
-            ),
-        )
 
 
 class Camera:
