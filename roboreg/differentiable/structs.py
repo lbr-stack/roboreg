@@ -1,3 +1,4 @@
+import abc
 from collections import OrderedDict
 from typing import Dict, List, Union
 
@@ -48,7 +49,7 @@ class TorchMeshContainer:
             self._mesh_names.append(mesh_name)
 
             # load mesh
-            m = trimesh.load(mesh_path)
+            m = self._load_mesh(mesh_path)
 
             # populate mesh vertex count
             self._per_mesh_vertex_count[mesh_name] = len(m.vertices)
@@ -100,6 +101,10 @@ class TorchMeshContainer:
             self._upper_face_index_lookup[mesh_name] = running_face_index
 
         self._device = device
+
+    @abc.abstractmethod
+    def _load_mesh(self, mesh_path: str) -> trimesh.Trimesh:
+        return trimesh.load(mesh_path)
 
     @property
     def vertices(self) -> torch.FloatTensor:
@@ -184,6 +189,7 @@ class Camera:
         self.to(device=device)
         self._name = name
 
+    @abc.abstractmethod
     def to(self, device: torch.device) -> None:
         self._intrinsics = self._intrinsics.to(device=device)
         self._extrinsics = self._extrinsics.to(device=device)
