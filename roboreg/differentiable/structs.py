@@ -16,10 +16,13 @@ class TorchMeshContainer:
 
     _mesh_names: List[str]
     _vertices: torch.FloatTensor  # tensor of shape (B, N, 4) -> homogeneous coordinates
-    _per_mesh_vertex_count: OrderedDict[str, int]
     _faces: torch.IntTensor  # tensor of shape (B, N, 3)
-    _lower_index_lookup: Dict[str, int]
-    _upper_index_lookup: Dict[str, int]
+    _per_mesh_vertex_count: OrderedDict[str, int]
+    _per_mesh_face_count: OrderedDict[str, int]
+    _lower_vertex_index_lookup: Dict[str, int]
+    _upper_vertex_index_lookup: Dict[str, int]
+    _lower_face_index_lookup: Dict[str, int]
+    _upper_face_index_lookup: Dict[str, int]
     _batch_size: int
     _device: torch.device
 
@@ -31,10 +34,13 @@ class TorchMeshContainer:
     ) -> None:
         self._mesh_names = []
         self._vertices = []
-        self._per_mesh_vertex_count = OrderedDict()
         self._faces = []
-        self._lower_index_lookup = {}
-        self._upper_index_lookup = {}
+        self._per_mesh_vertex_count = OrderedDict()
+        self._per_mesh_face_count = OrderedDict()
+        self._lower_vertex_index_lookup = {}
+        self._upper_vertex_index_lookup = {}
+        self._lower_face_index_lookup = {}
+        self._upper_face_index_lookup = {}
 
         offset = 0
         for mesh_name, mesh_path in mesh_paths.items():
@@ -59,6 +65,9 @@ class TorchMeshContainer:
                 dim=1,
             )  # (x,y,z) -> (x,y,z,1): homogeneous coordinates
 
+            # populate mesh face count
+            self._per_mesh_face_count[mesh_name] = len(m.faces)
+
             # populate faces (also add an offset to the point ids)
             self._faces.append(
                 torch.add(
@@ -77,11 +86,18 @@ class TorchMeshContainer:
 
         # create index lookup
         # crucial: self._per_mesh_vertex_count sorted same as self._vertices!
-        index = 0
-        for mesh_name, vertex_count in self._per_mesh_vertex_count.items():
-            self._lower_index_lookup[mesh_name] = index
-            index += vertex_count
-            self._upper_index_lookup[mesh_name] = index
+        running_vertex_index = 0
+        running_face_index = 0
+        for mesh_name in self._mesh_names:
+            # vertex index lookup
+            self._lower_vertex_index_lookup[mesh_name] = running_vertex_index
+            running_vertex_index += self._per_mesh_vertex_count[mesh_name]
+            self._upper_vertex_index_lookup[mesh_name] = running_vertex_index
+
+            # face index lookup
+            self._lower_face_index_lookup[mesh_name] = running_face_index
+            running_face_index += self._per_mesh_face_count[mesh_name]
+            self._upper_face_index_lookup[mesh_name] = running_face_index
 
         self._device = device
 
@@ -98,12 +114,20 @@ class TorchMeshContainer:
         return self._per_mesh_vertex_count
 
     @property
-    def lower_index_lookup(self) -> Dict[str, int]:
-        return self._lower_index_lookup
+    def lower_vertex_index_lookup(self) -> Dict[str, int]:
+        return self._lower_vertex_index_lookup
 
     @property
-    def upper_index_lookup(self) -> Dict[str, int]:
-        return self._upper_index_lookup
+    def upper_vertex_index_lookup(self) -> Dict[str, int]:
+        return self._upper_vertex_index_lookup
+
+    @property
+    def lower_face_index_lookup(self) -> Dict[str, int]:
+        return self._lower_face_index_lookup
+
+    @property
+    def upper_face_index_lookup(self) -> Dict[str, int]:
+        return self._upper_face_index_lookup
 
     @property
     def mesh_names(self) -> List[str]:

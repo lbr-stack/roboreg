@@ -16,8 +16,10 @@ def test_torch_mesh_container() -> None:
         }
     )
     print(torch_robot_mesh.per_mesh_vertex_count)
-    print(torch_robot_mesh.lower_index_lookup)
-    print(torch_robot_mesh.upper_index_lookup)
+    print(torch_robot_mesh.lower_vertex_index_lookup)
+    print(torch_robot_mesh.upper_vertex_index_lookup)
+    print(torch_robot_mesh.lower_face_index_lookup)
+    print(torch_robot_mesh.upper_face_index_lookup)
 
 
 if __name__ == "__main__":
