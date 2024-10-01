@@ -43,6 +43,26 @@ class TorchMeshContainer:
         self._lower_face_index_lookup = {}
         self._upper_face_index_lookup = {}
 
+        # load meshes
+        self._populate_meshes(mesh_paths, batch_size, device)
+
+        # add batch dim
+        self._batch_size = batch_size
+        self._vertices = self._vertices.unsqueeze(0).repeat(self._batch_size, 1, 1)
+
+        # populate index lookups
+        self._populate_index_lookups()
+
+        self._device = device
+
+    @abc.abstractmethod
+    def _load_mesh(self, mesh_path: str) -> trimesh.Trimesh:
+        return trimesh.load(mesh_path)
+
+    @abc.abstractmethod
+    def _populate_meshes(
+        self, mesh_paths: Dict[str, str], device: torch.device = "cuda"
+    ) -> None:
         offset = 0
         for mesh_name, mesh_path in mesh_paths.items():
             # populate mesh names
@@ -81,12 +101,15 @@ class TorchMeshContainer:
         self._vertices = torch.cat(self._vertices, dim=0)
         self._faces = torch.cat(self._faces, dim=0)
 
-        # add batch dim
-        self._batch_size = batch_size
-        self._vertices = self._vertices.unsqueeze(0).repeat(self._batch_size, 1, 1)
-
+    def _populate_index_lookups(self) -> None:
+        if len(self._mesh_names) == 0:
+            raise ValueError("No meshes loaded.")
+        if len(self._per_mesh_vertex_count) == 0:
+            raise ValueError("No vertex counts populated.")
+        if len(self._per_mesh_face_count) == 0:
+            raise ValueError("No face counts populated.")
         # create index lookup
-        # crucial: self._per_mesh_vertex_count sorted same as self._vertices!
+        # crucial: self._per_mesh_vertex_count sorted same as self._vertices! Same for faces.
         running_vertex_index = 0
         running_face_index = 0
         for mesh_name in self._mesh_names:
@@ -99,12 +122,6 @@ class TorchMeshContainer:
             self._lower_face_index_lookup[mesh_name] = running_face_index
             running_face_index += self._per_mesh_face_count[mesh_name]
             self._upper_face_index_lookup[mesh_name] = running_face_index
-
-        self._device = device
-
-    @abc.abstractmethod
-    def _load_mesh(self, mesh_path: str) -> trimesh.Trimesh:
-        return trimesh.load(mesh_path)
 
     @property
     def vertices(self) -> torch.FloatTensor:
