@@ -44,7 +44,7 @@ class TorchMeshContainer:
         self._upper_face_index_lookup = {}
 
         # load meshes
-        self._populate_meshes(mesh_paths, batch_size, device)
+        self._populate_meshes(mesh_paths, device)
 
         # add batch dim
         self._batch_size = batch_size
