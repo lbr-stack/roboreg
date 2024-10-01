@@ -127,8 +127,25 @@ def test_single_view_rendering() -> None:
         )
     )
 
+    # create copy of vertices and keep container intact
+    cloned_vertices = test_rendering.meshes.vertices.clone()
+
+    # apply homogeneous transforms
     for link_name, ht in ht_lookup.items():
-        test_rendering.meshes.transform_mesh(ht, link_name)
+        cloned_vertices[
+            :,
+            test_rendering.meshes.lower_vertex_index_lookup[
+                link_name
+            ] : test_rendering.meshes.upper_vertex_index_lookup[link_name],
+        ] = torch.matmul(
+            cloned_vertices[
+                :,
+                test_rendering.meshes.lower_vertex_index_lookup[
+                    link_name
+                ] : test_rendering.meshes.upper_vertex_index_lookup[link_name],
+            ],
+            ht.transpose(-1, -2),
+        )
 
     # create a virtual camera
     camera = rrd.VirtualCamera(
@@ -139,15 +156,15 @@ def test_single_view_rendering() -> None:
     )
 
     # project points
-    test_rendering.meshes.vertices = torch.matmul(
-        test_rendering.meshes.vertices,
+    cloned_vertices = torch.matmul(
+        cloned_vertices,
         torch.linalg.inv(camera.extrinsics @ camera.ht_optical).T
         @ camera.perspective_projection.T,
     )  # perform projection to clip space
 
     # render
     render = test_rendering.renderer.constant_color(
-        clip_vertices=test_rendering.meshes.vertices,
+        clip_vertices=cloned_vertices,
         faces=test_rendering.meshes.faces,
         resolution=camera.resolution,
     )
