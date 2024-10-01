@@ -7,7 +7,6 @@ import numpy as np
 import open3d as o3d
 import open3d.visualization.rendering as rendering
 import transformations as tf
-from ament_index_python import get_package_share_directory
 from kinpy.chain import Chain
 from rich import print
 
@@ -161,6 +160,8 @@ class O3DRobot:
         origins = []
 
         def handle_package_path(package: str, filename: str):
+            from ament_index_python import get_package_share_directory
+
             package_path = get_package_share_directory(package)
             return os.path.join(package_path, filename)
 

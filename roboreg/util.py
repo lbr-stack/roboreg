@@ -6,7 +6,6 @@ import numpy as np
 import open3d as o3d
 import torch
 import xacro
-from ament_index_python import get_package_share_directory
 from rich import print
 from scipy.signal import convolve2d
 
@@ -58,6 +57,8 @@ def generate_o3d_robot(
     relative_xacro_path: str = "urdf/med7/med7.xacro",
     convex_hull: bool = False,
 ) -> O3DRobot:
+    from ament_index_python import get_package_share_directory
+
     # load robot
     urdf = xacro.process(
         os.path.join(
