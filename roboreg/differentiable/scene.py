@@ -84,15 +84,15 @@ class RobotScene:
         for link_name, ht in ht_target_lookup.items():
             self._observed_vertices[
                 :,
-                self._meshes.lower_index_lookup[
+                self._meshes.lower_vertex_index_lookup[
                     link_name
-                ] : self._meshes.upper_index_lookup[link_name],
+                ] : self._meshes.upper_vertex_index_lookup[link_name],
             ] = torch.matmul(
                 self._observed_vertices[
                     :,
-                    self._meshes.lower_index_lookup[
+                    self._meshes.lower_vertex_index_lookup[
                         link_name
-                    ] : self._meshes.upper_index_lookup[link_name],
+                    ] : self._meshes.upper_vertex_index_lookup[link_name],
                 ],
                 (ht @ self._ht_zero_lookup[link_name]).transpose(-1, -2),
             )

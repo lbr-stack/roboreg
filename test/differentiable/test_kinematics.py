@@ -106,13 +106,15 @@ def test_diff_kinematics() -> None:
     for link_name, ht in ht_lookup.items():
         target_vertices[
             :,
-            meshes.lower_index_lookup[link_name] : meshes.upper_index_lookup[link_name],
+            meshes.lower_vertex_index_lookup[
+                link_name
+            ] : meshes.upper_vertex_index_lookup[link_name],
         ] = torch.matmul(
             target_vertices[
                 :,
-                meshes.lower_index_lookup[link_name] : meshes.upper_index_lookup[
+                meshes.lower_vertex_index_lookup[
                     link_name
-                ],
+                ] : meshes.upper_vertex_index_lookup[link_name],
             ],
             ht.transpose(-1, -2),
         )
@@ -152,15 +154,15 @@ def test_diff_kinematics() -> None:
             for link_name, ht in ht_lookup.items():
                 current_vertices[
                     :,
-                    meshes.lower_index_lookup[link_name] : meshes.upper_index_lookup[
+                    meshes.lower_vertex_index_lookup[
                         link_name
-                    ],
+                    ] : meshes.upper_vertex_index_lookup[link_name],
                 ] = torch.matmul(
                     current_vertices[
                         :,
-                        meshes.lower_index_lookup[
+                        meshes.lower_vertex_index_lookup[
                             link_name
-                        ] : meshes.upper_index_lookup[link_name],
+                        ] : meshes.upper_vertex_index_lookup[link_name],
                     ].clone(),
                     ht.transpose(-1, -2),
                 )
