@@ -5,11 +5,13 @@ import torch
 
 
 class TorchKinematics:
-    _root_link_name: str
-    _end_link_name: str
-    _chain: pk.SerialChain
-    _global_joint_offset: Dict[str, torch.Tensor]
-    _device: torch.device
+    __slots__ = [
+        "_root_link_name",
+        "_end_link_name",
+        "_chain",
+        "_global_joint_offset",
+        "_device",
+    ]
 
     def __init__(
         self,

@@ -12,8 +12,7 @@ from roboreg.util import clean_xyz, generate_o3d_robot, mask_boundary
 
 
 class URDFParser:
-    _urdf: str
-    _robot: urdf_parser_py.urdf.Robot
+    __slots__ = ["_urdf", "_robot"]
 
     def __init__(self) -> None:
         self._urdf = None

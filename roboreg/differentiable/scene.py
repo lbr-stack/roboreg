@@ -20,10 +20,14 @@ class RobotScene:
     - Supports multi-camera, e.g. stereo
     """
 
-    _meshes: TorchMeshContainer
-    _kinematics: TorchKinematics
-    _renderer: NVDiffRastRenderer
-    _cameras: Dict[str, VirtualCamera]
+    __slots__ = [
+        "_meshes",
+        "_kinematics",
+        "_renderer",
+        "_cameras",
+        "_ht_zero_lookup",
+        "_observed_vertices",
+    ]
 
     def __init__(
         self,

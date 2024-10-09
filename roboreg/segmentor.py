@@ -7,9 +7,7 @@ from segment_anything import SamPredictor, sam_model_registry
 
 
 class Segmentor(object):
-    _model: Any
-    _pth: float  # probability threshold
-    _device: str
+    __slots__ = ["_model", "_pth", "_device"]
 
     def __init__(self, pth: float = 0.5, device: str = "cuda") -> None:
         self._pth = pth

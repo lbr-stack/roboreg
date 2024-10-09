@@ -13,12 +13,19 @@ from rich import print
 
 
 class O3DRobot:
-    chain: Chain
-    joint_names: List[str]
-    dof: int
-    paths: List[str]
-    link_names: List[str]
-    meshes: List[o3d.t.geometry.TriangleMesh]
+    __slots__ = [
+        "chain",
+        "joint_names",
+        "dof",
+        "paths",
+        "link_names",
+        "meshes",
+        "collision_origins",
+        "q",
+        "_render",
+        "_mtl",
+        "_render_setup",
+    ]
 
     def __init__(self, urdf: str, convex_hull: bool = False) -> None:
         self.chain = self._load_chain(urdf)

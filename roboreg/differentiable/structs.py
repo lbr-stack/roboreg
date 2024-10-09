@@ -14,14 +14,16 @@ class TorchMeshContainer:
     this tensor are stored in a lookup dictionary.
     """
 
-    _mesh_names: List[str]
-    _vertices: torch.FloatTensor  # tensor of shape (B, N, 4) -> homogeneous coordinates
-    _per_mesh_vertex_count: OrderedDict[str, int]
-    _faces: torch.IntTensor  # tensor of shape (B, N, 3)
-    _lower_index_lookup: Dict[str, int]
-    _upper_index_lookup: Dict[str, int]
-    _batch_size: int
-    _device: torch.device
+    __slots__ = [
+        "_mesh_names",
+        "_vertices",  # tensor of shape (B, N, 4) -> homogeneous coordinates
+        "_per_mesh_vertex_count",
+        "_faces",  # tensor of shape (B, N, 3)
+        "_lower_index_lookup",
+        "_upper_index_lookup",
+        "_batch_size",
+        "_device",
+    ]
 
     def __init__(
         self,
@@ -126,12 +128,14 @@ class TorchMeshContainer:
 class Camera:
     r"""Simple structure for camera parameters."""
 
-    _intrinsics: torch.FloatTensor
-    _extrinsics: torch.FloatTensor
-    _resolution: List[int]
-    _ht_optical: torch.FloatTensor
-    _device: torch.device
-    _name: str
+    __slots__ = [
+        "_intrinsics",
+        "_extrinsics",
+        "_resolution",
+        "_ht_optical",
+        "_device",
+        "_name",
+    ]
 
     def __init__(
         self,
@@ -234,9 +238,7 @@ class VirtualCamera(Camera):
     - https://stackoverflow.com/questions/22064084/how-to-create-perspective-projection-matrix-given-focal-points-and-camera-princ
     """
 
-    _perspective_projection: torch.FloatTensor
-    _zmin: float
-    _zmax: float
+    __slots__ = ["_perspective_projection", "_zmin", "_zmax"]
 
     def __init__(
         self,

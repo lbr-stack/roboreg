@@ -11,8 +11,7 @@ class NVDiffRastRenderer:
     refer https://github.com/NVlabs/nvdiffrast/issues/193#issuecomment-2250239862.
     """
 
-    _device: torch.device
-    _ctx: dr.RasterizeCudaContext
+    __slots__ = ["_device", "_ctx"]
 
     def __init__(self, device: torch.device = "cuda") -> None:
         super().__init__()

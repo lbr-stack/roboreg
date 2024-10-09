@@ -5,6 +5,7 @@ import pathlib
 import cv2
 import numpy as np
 import torch
+from rich import progress
 from torch.utils.data import DataLoader
 
 from roboreg import differentiable as rrd
@@ -116,7 +117,9 @@ def main():
     if not output_path.exists():
         output_path.mkdir(parents=True)
 
-    for images, joint_states, image_files in dataloader:
+    for images, joint_states, image_files in progress.track(
+        dataloader, description="Rendering..."
+    ):
         # pre-process
         joint_states = joint_states.to(dtype=torch.float32, device=args.device)
 
