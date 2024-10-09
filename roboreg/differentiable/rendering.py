@@ -23,7 +23,7 @@ class NVDiffRastRenderer:
     def scale_clip_vertices(
         self,
         clip_vertices: torch.Tensor,
-        resolution: List[int],
+        resolution: Tuple[int, int],
     ) -> Tuple[torch.Tensor, List[int]]:
         # find scaled resolution that is divisible by 8
         scaled_resolution = [(r + 7) // 8 * 8 for r in resolution]
@@ -45,7 +45,7 @@ class NVDiffRastRenderer:
         self,
         clip_vertices: torch.Tensor,
         faces: torch.Tensor,
-        resolution: List[int],
+        resolution: Tuple[int, int],
         color: List[float] = [1.0],
     ) -> torch.Tensor:
         # scale clip vertices

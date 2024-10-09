@@ -1,6 +1,6 @@
 import abc
 from collections import OrderedDict
-from typing import Dict, List, Union
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import torch
@@ -185,7 +185,7 @@ class Camera:
 
     def __init__(
         self,
-        resolution: List[int],
+        resolution: Tuple[int, int],
         intrinsics: Union[torch.FloatTensor, np.ndarray] = torch.eye(
             3, dtype=torch.float32
         ),
@@ -238,11 +238,11 @@ class Camera:
         self._extrinsics = extrinsics
 
     @property
-    def resolution(self) -> List[int]:
+    def resolution(self) -> Tuple[int, int]:
         return self._resolution
 
     @resolution.setter
-    def resolution(self, resolution: List[int]) -> None:
+    def resolution(self, resolution: Tuple[int, int]) -> None:
         self._resolution = resolution
 
     @property
@@ -293,7 +293,7 @@ class VirtualCamera(Camera):
 
     def __init__(
         self,
-        resolution: List[int],
+        resolution: Tuple[int, int],
         intrinsics: Union[torch.FloatTensor, np.ndarray] = torch.eye(
             3, dtype=torch.float32
         ),
