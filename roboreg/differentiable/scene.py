@@ -185,9 +185,9 @@ def robot_scene_factory(
         )
         extrinsics = np.load(extrinsics_files[camera_name])
         cameras[camera_name] = VirtualCamera(
+            resolution=[height, width],
             intrinsics=intrinsics,
             extrinsics=extrinsics,
-            resolution=[height, width],
             device=device,
         )
 

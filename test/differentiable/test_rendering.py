@@ -149,9 +149,9 @@ def test_single_view_rendering() -> None:
 
     # create a virtual camera
     camera = rrd.VirtualCamera(
+        resolution=[test_rendering.height, test_rendering.width],
         intrinsics=test_rendering.intrinsics,
         extrinsics=test_rendering.ht_base_cam,
-        resolution=[test_rendering.height, test_rendering.width],
         device=test_rendering.device,
     )
 
@@ -197,6 +197,7 @@ def test_single_config_single_view_pose_optimization() -> None:
 
     # create differentiable camera and initialize extrinsics
     camera = rrd.VirtualCamera(
+        resolution=[test_rendering.height, test_rendering.width],
         intrinsics=test_rendering.intrinsics,
         extrinsics=torch.tensor(
             test_rendering.ht_base_cam,
@@ -204,7 +205,6 @@ def test_single_config_single_view_pose_optimization() -> None:
             device=test_rendering.device,
             requires_grad=True,
         ),
-        resolution=[test_rendering.height, test_rendering.width],
         device=test_rendering.device,
     )
 
@@ -280,9 +280,9 @@ def test_multi_config_single_view_rendering() -> None:
 
     # create a virtual camera
     camera = rrd.VirtualCamera(
+        resolution=[test_rendering.height, test_rendering.width],
         intrinsics=test_rendering.intrinsics,
         extrinsics=test_rendering.ht_base_cam,
-        resolution=[test_rendering.height, test_rendering.width],
         device=test_rendering.device,
     )
 
@@ -340,6 +340,7 @@ def test_multi_config_single_view_pose_optimization() -> None:
 
     # create differentiable camera and initialize extrinsics
     camera = rrd.VirtualCamera(
+        resolution=[test_rendering.height, test_rendering.width],
         intrinsics=test_rendering.intrinsics,
         extrinsics=torch.tensor(
             test_rendering.ht_base_cam,
@@ -347,7 +348,6 @@ def test_multi_config_single_view_pose_optimization() -> None:
             device=test_rendering.device,
             requires_grad=True,
         ),
-        resolution=[test_rendering.height, test_rendering.width],
         device=test_rendering.device,
     )
 

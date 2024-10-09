@@ -185,9 +185,13 @@ class Camera:
 
     def __init__(
         self,
-        intrinsics: Union[torch.FloatTensor, np.ndarray],
-        extrinsics: Union[torch.FloatTensor, np.ndarray],
         resolution: List[int],
+        intrinsics: Union[torch.FloatTensor, np.ndarray] = torch.eye(
+            3, dtype=torch.float32
+        ),
+        extrinsics: Union[torch.FloatTensor, np.ndarray] = torch.eye(
+            4, dtype=torch.float32
+        ),
         device: torch.device = "cuda",
         name: str = "camera",
     ) -> None:
@@ -289,9 +293,13 @@ class VirtualCamera(Camera):
 
     def __init__(
         self,
-        intrinsics: Union[torch.FloatTensor, np.ndarray],
-        extrinsics: Union[torch.FloatTensor, np.ndarray],
         resolution: List[int],
+        intrinsics: Union[torch.FloatTensor, np.ndarray] = torch.eye(
+            3, dtype=torch.float32
+        ),
+        extrinsics: Union[torch.FloatTensor, np.ndarray] = torch.eye(
+            4, dtype=torch.float32
+        ),
         zmin: float = 0.1,
         zmax: float = 100.0,
         device: torch.device = "cuda",
@@ -323,7 +331,7 @@ class VirtualCamera(Camera):
             ],
             dtype=torch.float32,
         )
-        super().__init__(intrinsics, extrinsics, resolution, device)
+        super().__init__(resolution, intrinsics, extrinsics, device)
 
     def to(self, device: torch.device) -> None:
         self._perspective_projection = self._perspective_projection.to(device=device)
