@@ -253,6 +253,10 @@ def main() -> None:
     best_loss = float("inf")
 
     for _ in rich.progress.track(range(args.epochs), "Optimizing..."):
+        if not scene.cameras["left"].extrinsics.requires_grad:
+            raise ValueError("Extrinsics require gradients.")
+        if not torch.is_grad_enabled():
+            raise ValueError("Gradients must be enabled.")
         renders = {
             "left": scene.observe_from("left"),
             "right": scene.observe_from("right", scene.cameras["left"].extrinsics),
