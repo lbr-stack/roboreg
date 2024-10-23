@@ -67,6 +67,11 @@ rr-hydra \
 ```
 
 ### Stereo Differentiable Rendering
+> [!WARNING]
+> On first run, `nvdiffrast` compiles PyTorch extensions. This might use too many resources on some systems (< 16 GB RAM). 
+> You can create an environment variable `export MAX_JOBS=1` before the first run to limit concurrent compilation.
+> Also refer to this [Issue](https://github.com/NVlabs/nvdiffrast/issues/201).
+
 This rendering refinement requires a good initial estimate, as e.g. obtained from [Hydra Robust ICP](#hydra-robust-icp).
 
 ```shell
@@ -95,6 +100,11 @@ rr-stereo-dr \
 ```
 
 ### Render Results
+> [!WARNING]
+> On first run, `nvdiffrast` compiles PyTorch extensions. This might use too many resources on some systems (< 16 GB RAM). 
+> You can create an environment variable `export MAX_JOBS=1` before the first run to limit concurrent compilation.
+> Also refer to this [Issue](https://github.com/NVlabs/nvdiffrast/issues/201).
+
 Generate renders using the obtained extrinsics:
 
 ```shell
