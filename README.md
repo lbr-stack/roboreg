@@ -19,9 +19,27 @@ Unified eye-in-hand / eye-to-hand calibration from RGB-D images using robot mesh
 </body>
 
 ## Installation
-```shell
-pip3 install git+https://github.com/lbr-stack/roboreg.git
-```
+The `nvdiffrast` dependency is not distributed on PyPI, we thus provide install instructions within an [Anaconda](https://www.anaconda.com/) environment (ideally use [Miniconda](https://docs.anaconda.com/miniconda/), or even better, [Mamba](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html)).
+
+1. Create an environment
+
+    ```shell
+    conda create -n rr-0.3.0 python=3.10
+    ```
+
+2. Clone this repository and install dependencies
+
+    ```shell
+    git clone git@github.com:lbr-stack/roboreg.git
+    mamba env update -f roboreg/env.yaml # if Anaconda or Miniconda was used, do 'conda env update -f env.yaml'
+    ```
+
+3. Install `roboreg`
+
+    ```shell
+    mamba activate rr-0.3.0 # can also use 'conda activate rr-0.3.0' in either case
+    pip3 install roboreg/
+    ```
 
 ## Command Line Interface
 ### Segment
