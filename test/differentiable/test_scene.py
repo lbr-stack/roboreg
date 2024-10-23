@@ -19,8 +19,8 @@ class TestScene:
     def __init__(
         self,
         device: str = "cuda" if torch.cuda.is_available() else "cpu",
-        root_link_name: str = "link_0",
-        end_link_name: str = "link_7",
+        root_link_name: str = "lbr_link_0",
+        end_link_name: str = "lbr_link_7",
         camera_requires_grad: bool = False,
         data_prefix: str = "test/data/lbr_med7",
         recording_prefix: str = "zed2i/stereo_data",

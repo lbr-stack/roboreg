@@ -24,7 +24,7 @@ The `nvdiffrast` dependency is not distributed on PyPI, we thus provide install 
 1. Create an environment
 
     ```shell
-    conda create -n rr-0.3.0 python=3.10
+    conda create -n rr-0.3.1 python=3.10
     ```
 
 2. Clone this repository and install dependencies
@@ -37,7 +37,7 @@ The `nvdiffrast` dependency is not distributed on PyPI, we thus provide install 
 3. Install `roboreg`
 
     ```shell
-    mamba activate rr-0.3.0 # can also use 'conda activate rr-0.3.0' in either case
+    mamba activate rr-0.3.1 # can also use 'conda activate rr-0.3.1' in either case
     pip3 install roboreg/
     ```
 
@@ -78,8 +78,8 @@ rr-stereo-dr \
     --display-progress \
     --ros-package lbr_description \
     --xacro-path urdf/med7/med7.xacro \
-    --root-link-name link_0 \
-    --end-link-name link_7 \
+    --root-link-name lbr_link_0 \
+    --end-link-name lbr_link_7 \
     --left-camera-info-file test/data/lbr_med7/zed2i/stereo_data/left_camera_info.yaml \
     --right-camera-info-file test/data/lbr_med7/zed2i/stereo_data/right_camera_info.yaml \
     --left-extrinsics-file test/data/lbr_med7/zed2i/stereo_data/HT_hydra_robust.npy \
@@ -104,8 +104,8 @@ rr-render \
     --num-workers 0 \
     --ros-package lbr_description \
     --xacro-path urdf/med7/med7.xacro \
-    --root-link-name link_0 \
-    --end-link-name link_7 \
+    --root-link-name lbr_link_0 \
+    --end-link-name lbr_link_7 \
     --camera-info-file test/data/lbr_med7/zed2i/stereo_data/left_camera_info.yaml \
     --extrinsics-file test/data/lbr_med7/zed2i/stereo_data/HT_left_dr.npy \
     --images-path test/data/lbr_med7/zed2i/stereo_data \

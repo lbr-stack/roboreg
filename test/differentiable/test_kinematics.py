@@ -24,7 +24,7 @@ def test_torch_kinematics() -> None:
     )
     device = "cuda" if torch.cuda.is_available() else "cpu"
     kinematics = TorchKinematics(
-        urdf=urdf, root_link_name="link_0", end_link_name="link_ee", device=device
+        urdf=urdf, root_link_name="lbr_link_0", end_link_name="link_ee", device=device
     )
     q = torch.zeros([1, 7], device=device)
 
@@ -42,12 +42,12 @@ def test_torch_kinematics_on_mesh() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     kinematics = TorchKinematics(
         urdf=urdf_parser.urdf,
-        root_link_name="link_0",
-        end_link_name="link_7",
+        root_link_name="lbr_link_0",
+        end_link_name="lbr_link_7",
         device=device,
     )
     meshes = TorchMeshContainer(
-        urdf_parser.ros_package_mesh_paths("link_0", "link_7"), device=device
+        urdf_parser.ros_package_mesh_paths("lbr_link_0", "lbr_link_7"), device=device
     )
 
     # compute forward kinematics and apply transforms to the meshes
@@ -84,12 +84,12 @@ def test_diff_kinematics() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     kinematics = TorchKinematics(
         urdf=urdf_parser.urdf,
-        root_link_name="link_0",
-        end_link_name="link_7",
+        root_link_name="lbr_link_0",
+        end_link_name="lbr_link_7",
         device=device,
     )
     meshes = TorchMeshContainer(
-        urdf_parser.ros_package_mesh_paths("link_0", "link_7"), device=device
+        urdf_parser.ros_package_mesh_paths("lbr_link_0", "lbr_link_7"), device=device
     )
 
     # compute forward kinematics and apply transforms to the meshes
@@ -204,8 +204,8 @@ def test_joint_offset() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     kinematics = TorchKinematics(
         urdf=urdf,
-        root_link_name="link_0",
-        end_link_name="link_7",
+        root_link_name="lbr_link_0",
+        end_link_name="lbr_link_7",
         device=device,
     )
 

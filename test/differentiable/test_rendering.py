@@ -22,8 +22,8 @@ class TestRendering:
         device: str = "cuda" if torch.cuda.is_available() else "cpu",
         data_prefix: str = "test/data/lbr_med7",
         recording_prefix: str = "zed2i/high_res",
-        root_link_name: str = "link_0",
-        end_link_name: str = "link_7",
+        root_link_name: str = "lbr_link_0",
+        end_link_name: str = "lbr_link_7",
         batch_size: int = 1,
     ) -> None:
         # setup

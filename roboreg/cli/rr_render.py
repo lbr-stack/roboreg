@@ -43,10 +43,10 @@ def args_factory() -> argparse.Namespace:
         help="Path to the xacro file, relative to --ros-package.",
     )
     parser.add_argument(
-        "--root-link-name", type=str, default="link_0", help="Root link name."
+        "--root-link-name", type=str, default="lbr_link_0", help="Root link name."
     )
     parser.add_argument(
-        "--end-link-name", type=str, default="link_7", help="End link name."
+        "--end-link-name", type=str, default="lbr_link_7", help="End link name."
     )
     parser.add_argument(
         "--camera-info-file",
