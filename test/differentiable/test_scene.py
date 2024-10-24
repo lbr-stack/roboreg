@@ -215,6 +215,65 @@ def test_multi_config_stereo_view_pose_optimization() -> None:
             cv2.waitKey(0)
 
 
+def test_single_camera_multiple_poses() -> None:
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    batch_size = 4
+    camera_name = "camera"
+    scene = rrd.robot_scene_factory(
+        device=device,
+        batch_size=batch_size,
+        ros_package="lbr_description",
+        xacro_path="urdf/med7/med7.xacro",
+        root_link_name="lbr_link_0",
+        end_link_name="lbr_link_7",
+        camera_info_files={
+            camera_name: "test/data/lbr_med7/zed2i/stereo_data/left_camera_info.yaml"
+        },
+        extrinsics_files={
+            camera_name: "test/data/lbr_med7/zed2i/stereo_data/HT_hydra_robust.npy"
+        },
+    )
+
+    # for each batch element, configure a unique camera pose...
+    scene.cameras[camera_name].extrinsics = scene.cameras[
+        camera_name
+    ].extrinsics.unsqueeze(0)
+    scene.cameras[camera_name].extrinsics = scene.cameras[
+        camera_name
+    ].extrinsics.repeat(batch_size, 1, 1)
+    for i in range(batch_size):
+        scene.cameras[camera_name].extrinsics[i, 0, 3] += 0.2 * i  # shift 20 cm each
+
+    # random joint states (same for all batch elements)
+    q_min, q_max = scene.kinematics.chain.get_joint_limits()
+    torch.random.manual_seed(42)
+    q_min = torch.tensor(q_min, dtype=torch.float32, device=device)
+    q_max = torch.tensor(q_max, dtype=torch.float32, device=device)
+    q = (
+        torch.rand(
+            scene.kinematics.chain.n_joints,
+            dtype=torch.float32,
+            device=device,
+        )
+        * (q_max - q_min)
+        + q_min
+    ).unsqueeze(0)
+    q = q.repeat(batch_size, 1)
+
+    # configure scene
+    scene.configure_robot_joint_states(q=q)
+
+    # observe
+    renders = scene.observe_from(camera_name)
+
+    # show renders
+    for idx, render in enumerate(renders):
+        render = render.squeeze().detach().cpu().numpy()
+        cv2.imshow(f"render_{idx}", (render * 255.0).astype(np.uint8))
+    cv2.waitKey(0)
+
+
 if __name__ == "__main__":
     # test_multi_config_stereo_view()
-    test_multi_config_stereo_view_pose_optimization()
+    # test_multi_config_stereo_view_pose_optimization()
+    test_single_camera_multiple_poses()

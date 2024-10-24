@@ -9,6 +9,7 @@ sys.path.append(
 import cv2
 import numpy as np
 import torch
+import transformations as tf
 from tqdm import tqdm
 
 from roboreg import differentiable as rrd
@@ -394,9 +395,80 @@ def test_multi_config_single_view_pose_optimization() -> None:
         pass
 
 
+def test_multi_camera_pose_rendering() -> None:
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    batch_size = 2  # render 2 cameras at once
+
+    # load a sample mesh
+    meshes = rrd.TorchMeshContainer(
+        {"link_0": "test/data/lbr_med7/mesh/link_0.stl"},
+        batch_size=batch_size,
+        device=device,
+    )
+
+    # create a virtual camera
+    resolution = (256, 256)
+    intrinsics = torch.tensor(
+        [
+            [resolution[0], 0, resolution[0] / 2 - 1],
+            [0, resolution[1], resolution[1] / 2 - 1],
+            [0, 0, 1],
+        ],
+        device=device,
+        dtype=torch.float32,
+    )  # on purpose: intrinsics 1x3x3, extrinsics Bx4x4
+    extrinsics = torch.zeros(batch_size, 4, 4, device=device, dtype=torch.float32)
+
+    # create 2 unique views
+    extrinsics[0] = torch.tensor(
+        tf.euler_matrix(0.0, 0.0, 0.0).astype("float32"),
+    )
+    extrinsics[0, 2, 3] = -1
+    extrinsics[1] = torch.tensor(
+        tf.euler_matrix(0.0, 0.0, -np.pi / 4).astype("float32"),
+    )
+    extrinsics[1, 2, 3] = -1
+
+    print(extrinsics[0])
+
+    batched_camera = rrd.VirtualCamera(
+        resolution=resolution, intrinsics=intrinsics, extrinsics=extrinsics
+    )
+
+    # renderer
+    renderer = rrd.NVDiffRastRenderer(device=device)
+
+    # project meshes (knowing that intrinsics are identity)
+    vertices = meshes.vertices.clone()
+    vertices = torch.matmul(
+        torch.matmul(
+            vertices,
+            torch.linalg.inv(
+                torch.matmul(
+                    batched_camera.extrinsics.transpose(-1, -2),
+                    batched_camera.ht_optical.transpose(-1, -2),
+                ),
+            ),
+        ),
+        batched_camera.perspective_projection.transpose(-1, -2),
+    )
+
+    # render
+    renders = renderer.constant_color(
+        clip_vertices=vertices,
+        faces=meshes.faces,
+        resolution=resolution,
+    )
+
+    for idx, render in enumerate(renders):
+        cv2.imshow(f"render_{idx}", render.detach().cpu().numpy().squeeze())
+    cv2.waitKey(0)
+
+
 if __name__ == "__main__":
     # test_nvdiffrast_unit()
     # test_single_view_rendering()
     # test_single_config_single_view_pose_optimization()
     # test_multi_config_single_view_rendering()
-    test_multi_config_single_view_pose_optimization()
+    # test_multi_config_single_view_pose_optimization()
+    test_multi_camera_pose_rendering()

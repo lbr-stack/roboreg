@@ -108,12 +108,18 @@ class RobotScene:
             )
         observed_vertices = torch.matmul(
             self._observed_vertices,
-            torch.linalg.inv(
-                reference_transform
-                @ self._cameras[camera_name].extrinsics
-                @ self._cameras[camera_name].ht_optical
-            ).T
-            @ self._cameras[camera_name].perspective_projection.T,
+            torch.matmul(
+                torch.linalg.inv(
+                    torch.matmul(
+                        reference_transform,
+                        torch.matmul(
+                            self._cameras[camera_name].extrinsics,
+                            self._cameras[camera_name].ht_optical,
+                        ),
+                    )
+                ).transpose(-1, -2),
+                self._cameras[camera_name].perspective_projection.transpose(-1, -2),
+            ),
         )
         return self._renderer.constant_color(
             observed_vertices,
