@@ -199,18 +199,36 @@ class Camera:
             intrinsics = torch.from_numpy(intrinsics).float()
         if isinstance(extrinsics, np.ndarray):
             extrinsics = torch.from_numpy(extrinsics).float()
+        if (intrinsics.shape != (3, 3)) and (
+            intrinsics.dim() != 3 or intrinsics.shape[-2:] != (3, 3)
+        ):
+            raise ValueError(
+                f"Intrinsics must be a 3x3 or Bx3x3 matrix. Got shape {intrinsics.shape} of dim {intrinsics.dim()}."
+            )
+        if (extrinsics.shape != (4, 4)) and (
+            extrinsics.dim() != 3 or extrinsics.shape[-2:] != (4, 4)
+        ):
+            raise ValueError(
+                f"Extrinsics must be a 4x4 or Bx4x4 matrix. Got shape {extrinsics.shape} of dim {extrinsics.dim()}."
+            )
+
         self._intrinsics = intrinsics
         self._extrinsics = extrinsics
         self._resolution = resolution
-        self._ht_optical = torch.tensor(  # OpenCV-oriented optical frame, in quaternions: [0.5, -0.5, 0.5, -0.5] (w, x, y, z)
-            [
-                [0.0, 0.0, 1.0, 0.0],
-                [-1.0, 0.0, 0.0, 0.0],
-                [0.0, -1.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
-            ],
-            dtype=torch.float32,
+        ht_optical_shape = (
+            (1,) + extrinsics.shape[-2:]
+            if extrinsics.dim() == 3
+            else extrinsics.shape[-2:]
         )
+        self._ht_optical = torch.zeros(
+            ht_optical_shape, dtype=torch.float32, device=device
+        )
+        self._ht_optical[..., 0, 2] = (
+            1.0  # OpenCV-oriented optical frame, in quaternions: [0.5, -0.5, 0.5, -0.5] (w, x, y, z)
+        )
+        self._ht_optical[..., 1, 0] = -1.0
+        self._ht_optical[..., 2, 1] = -1.0
+        self._ht_optical[..., 3, 3] = 1.0
         self.to(device=device)
         self._name = name
 
@@ -307,30 +325,32 @@ class VirtualCamera(Camera):
         height, width = resolution
         self._zmin = zmin
         self._zmax = zmax
-        self._perspective_projection = torch.tensor(
-            [
-                [
-                    2.0 * intrinsics[0, 0] / width,
-                    0.0,
-                    2.0 * intrinsics[0, 2] / width - 1.0,
-                    0.0,
-                ],
-                [
-                    0.0,
-                    2.0 * intrinsics[1, 1] / height,
-                    2.0 * intrinsics[1, 2] / height - 1.0,
-                    0.0,
-                ],
-                [
-                    0.0,
-                    0.0,
-                    (zmax + zmin) / (zmax - zmin),
-                    2.0 * zmax * zmin / (zmin - zmax),
-                ],
-                [0.0, 0.0, 1.0, 0.0],
-            ],
-            dtype=torch.float32,
+
+        if (
+            len(intrinsics.shape) == 2
+        ):  # dimension check compatible with numpy and torch
+            self._perspective_projection = torch.zeros(4, 4, device=device)
+        elif len(intrinsics.shape) == 3:
+            self._perspective_projection = torch.zeros(
+                intrinsics.shape[0], 4, 4, device=device
+            )
+        else:
+            raise ValueError("Intrinsics must be a 3x3 or Bx3x3 matrix.")
+
+        # populate perspective projection matrix
+        self._perspective_projection[..., 0, 0] = 2.0 * intrinsics[..., 0, 0] / width
+        self._perspective_projection[..., 1, 1] = 2.0 * intrinsics[..., 1, 1] / height
+        self._perspective_projection[..., 0, 2] = (
+            2.0 * intrinsics[..., 0, 2] / width - 1.0
         )
+        self._perspective_projection[..., 1, 2] = (
+            2.0 * intrinsics[..., 1, 2] / height - 1.0
+        )
+        self._perspective_projection[..., 2, 2] = (zmax + zmin) / (zmax - zmin)
+        self._perspective_projection[..., 2, 3] = 2.0 * zmax * zmin / (zmin - zmax)
+        self._perspective_projection[..., 3, 2] = 1.0
+
+        # call parent constructor
         super().__init__(resolution, intrinsics, extrinsics, device)
 
     def to(self, device: torch.device) -> None:
