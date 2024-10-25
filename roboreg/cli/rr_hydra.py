@@ -6,8 +6,8 @@ import rich
 import torch
 
 from roboreg.hydra_icp import hydra_centroid_alignment, hydra_robust_icp
-from roboreg.io import find_files, load_data
-from roboreg.util import visualize_registration
+from roboreg.io import find_files
+from roboreg.util.viz import RegistrationVisualizer
 
 
 def args_factory() -> argparse.Namespace:
@@ -59,11 +59,6 @@ def args_factory() -> argparse.Namespace:
         help="Output file name. Relative to the path.",
     )
     parser.add_argument(
-        "--convex-hull",
-        action="store_true",
-        help="Use convex hull for collision mesh.",
-    )
-    parser.add_argument(
         "--erosion-kernel-size",
         type=int,
         default=10,
@@ -94,7 +89,6 @@ def main():
         joint_state_files=joint_state_files,
         number_of_points=number_of_points,
         erosion_kernel_size=args.erosion_kernel_size,
-        convex_hull=args.convex_hull,
     )
     if len(observed_xyzs) == 0 or len(mesh_xyzs) == 0 or len(mesh_xyzs_normals) == 0:
         raise ValueError("Failed to load data.")
@@ -124,15 +118,18 @@ def main():
         inner_max_iter=args.inner_max_iter,
     )
 
+    # visualize
+    visualizer = RegistrationVisualizer()
+    visualizer(mesh_vertices=mesh_xyzs, observed_vertices=observed_xyzs)
+    visualizer(
+        mesh_vertices=mesh_xyzs,
+        observed_vertices=observed_xyzs,
+        HT=torch.linalg.inv(HT),
+    )
+
     # to numpy
     HT = HT.cpu().numpy()
     np.save(os.path.join(path, args.output_file), HT)
-
-    for i in range(len(observed_xyzs)):
-        observed_xyzs[i] = observed_xyzs[i].cpu().numpy()
-        mesh_xyzs[i] = mesh_xyzs[i].cpu().numpy()
-
-    visualize_registration(observed_xyzs, mesh_xyzs, np.linalg.inv(HT))
 
 
 if __name__ == "__main__":

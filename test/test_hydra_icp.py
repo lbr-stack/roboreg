@@ -8,8 +8,7 @@ import torch
 import transformations as tf
 
 from roboreg.hydra_icp import hydra_centroid_alignment, hydra_icp
-from roboreg.io import load_data
-from roboreg.util import visualize_registration
+from roboreg.util.viz import RegistrationVisualizer
 
 
 def test_hydra_centroid_alignment():
@@ -60,15 +59,18 @@ def test_hydra_icp():
         rmse_change=1e-8,
     )
 
+    # visualize
+    visualizer = RegistrationVisualizer()
+    visualizer(mesh_vertices=mesh_xyzs, observed_vertices=observed_xyzs)
+    visualizer(
+        mesh_vertices=mesh_xyzs,
+        observed_vertices=observed_xyzs,
+        HT=torch.linalg.inv(HT),
+    )
+
     # to numpy
     HT = HT.cpu().numpy()
     np.save(os.path.join(prefix, "HT_hydra.npy"), HT)
-
-    for i in range(len(observed_xyzs)):
-        observed_xyzs[i] = observed_xyzs[i].cpu().numpy()
-        mesh_xyzs[i] = mesh_xyzs[i].cpu().numpy()
-
-    visualize_registration(observed_xyzs, mesh_xyzs, np.linalg.inv(HT))
 
 
 if __name__ == "__main__":

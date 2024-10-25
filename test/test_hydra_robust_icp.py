@@ -7,8 +7,7 @@ import numpy as np
 import torch
 
 from roboreg.hydra_icp import hydra_centroid_alignment, hydra_robust_icp
-from roboreg.io import load_data
-from roboreg.util import visualize_registration
+from roboreg.util.viz import RegistrationVisualizer
 
 
 def test_hydra_robust_icp():
@@ -44,15 +43,18 @@ def test_hydra_robust_icp():
         inner_max_iter=10,
     )
 
+    # visualize
+    visualizer = RegistrationVisualizer()
+    visualizer(mesh_vertices=mesh_xyzs, observed_vertices=observed_xyzs)
+    visualizer(
+        mesh_vertices=mesh_xyzs,
+        observed_vertices=observed_xyzs,
+        HT=torch.linalg.inv(HT),
+    )
+
     # to numpy
     HT = HT.cpu().numpy()
     np.save(os.path.join(prefix, "HT_hydra_robust.npy"), HT)
-
-    for i in range(len(observed_xyzs)):
-        observed_xyzs[i] = observed_xyzs[i].cpu().numpy()
-        mesh_xyzs[i] = mesh_xyzs[i].cpu().numpy()
-
-    visualize_registration(observed_xyzs, mesh_xyzs, np.linalg.inv(HT))
 
 
 if __name__ == "__main__":

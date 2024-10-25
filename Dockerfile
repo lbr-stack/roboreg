@@ -34,10 +34,7 @@ RUN apt-get install -y python3-pip
 RUN pip3 install \
     faiss-gpu \
     opencv-python \
-    kinpy \
-    matplotlib \
     numpy \
-    open3d \
     rich \
     torch \
     xacro

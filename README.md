@@ -24,7 +24,7 @@ The `nvdiffrast` dependency is not distributed on PyPI, we thus provide install 
 1. Create an environment
 
     ```shell
-    conda create -n rr-0.3.2 python=3.10
+    conda create -n rr-0.4.0 python=3.10
     ```
 
 2. Clone this repository and install dependencies
@@ -37,7 +37,7 @@ The `nvdiffrast` dependency is not distributed on PyPI, we thus provide install 
 3. Install `roboreg`
 
     ```shell
-    mamba activate rr-0.3.2 # can also use 'conda activate rr-0.3.2' in either case
+    mamba activate rr-0.4.0 # can also use 'conda activate rr-0.4.0' in either case
     pip3 install roboreg/
     ```
 
