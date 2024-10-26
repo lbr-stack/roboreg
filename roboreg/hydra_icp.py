@@ -6,7 +6,7 @@ import torch
 from rich import print
 from rich.progress import track
 
-from .util import print_line
+from .util.viz import print_line
 
 
 def kabsh_register(
