@@ -14,10 +14,8 @@ requires-python = ">=3.8"
 dependencies = [
   "faiss-gpu",
   "huggingface_hub",
-  "matplotlib",
   "ninja",
   "numpy",
-  "open3d",
   "opencv-python",
   "pytorch_kinematics",
   "rich",
