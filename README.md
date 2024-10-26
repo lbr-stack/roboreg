@@ -61,8 +61,11 @@ rr-hydra \
     --mask-pattern mask_*.png \
     --xyz-pattern xyz_*.npy \
     --joint-states-pattern joint_states_*.npy \
+    --ros-package lbr_description \
+    --xacro-path urdf/med7/med7.xacro \
+    --root-link-name lbr_link_0 \
+    --end-link-name lbr_link_7 \
     --number-of-points 5000 \
-    --convex-hull \
     --output-file HT_hydra_robust.npy
 ```
 
