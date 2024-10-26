@@ -10,7 +10,7 @@ from roboreg.differentiable import TorchKinematics, TorchMeshContainer
 from roboreg.hydra_icp import hydra_centroid_alignment, hydra_robust_icp
 from roboreg.io import URDFParser, parse_hydra_data
 from roboreg.util.mask import mask_boundary
-from roboreg.util.points import clean_xyz, from_homogeneous
+from roboreg.util.points import clean_xyz, compute_vertex_normals, from_homogeneous
 from roboreg.util.viz import RegistrationVisualizer
 
 
@@ -75,10 +75,15 @@ def test_hydra_robust_icp():
             ],
             ht.transpose(-1, -2),
         )
-    mesh_vertices = from_homogeneous(mesh_vertices)
 
     # mesh vertices to list
+    mesh_vertices = from_homogeneous(mesh_vertices)
     mesh_vertices = [mesh_vertices[i].contiguous() for i in range(batch_size)]
+    mesh_normals = []
+    for i in range(batch_size):
+        mesh_normals.append(
+            compute_vertex_normals(vertices=mesh_vertices[i], faces=meshes.faces)
+        )
 
     # clean observed vertices and turn into tensor
     observed_vertices = [
@@ -94,13 +99,14 @@ def test_hydra_robust_icp():
     for i in range(batch_size):
         idx = torch.randperm(mesh_vertices[i].shape[0])[:5000]
         mesh_vertices[i] = mesh_vertices[i][idx]
+        mesh_normals[i] = mesh_normals[i][idx]
 
     HT_init = hydra_centroid_alignment(observed_vertices, mesh_vertices)
     HT = hydra_robust_icp(
         HT_init,
         observed_vertices,
         mesh_vertices,
-        mesh_xyzs_normals,
+        mesh_normals,
         max_distance=0.01,
         outer_max_iter=int(50),
         inner_max_iter=10,
