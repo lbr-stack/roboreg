@@ -58,10 +58,6 @@ def print_line():
 
 
 class RegistrationVisualizer(object):
-    def __init__(self, background_color: List[int] = [0, 0, 0]):
-        self._plotter = pyvista.Plotter()
-        self._plotter.background_color = background_color
-
     def colorize_mesh(self, mesh_vertices: List[np.ndarray]) -> List[np.ndarray]:
         mesh_colors = []
 
@@ -108,7 +104,11 @@ class RegistrationVisualizer(object):
         mesh_vertices: List[torch.Tensor],
         observed_vertices: List[torch.Tensor],
         HT: Optional[torch.Tensor] = None,
+        background_color: List[int] = [0, 0, 0],
     ) -> None:
+        plotter = pyvista.Plotter()
+        plotter.background_color = background_color
+
         if HT is not None:
             mesh_vertices = [
                 torch.mm(HT[:3, :3], mesh_vertex.T).T + HT[:3, 3]
@@ -116,26 +116,30 @@ class RegistrationVisualizer(object):
             ]
 
         # to numpy
+        np_mesh_vertices = []
+        np_observed_vertices = []
         for i in range(len(mesh_vertices)):
-            mesh_vertices[i] = mesh_vertices[i].cpu().numpy()
-            observed_vertices[i] = observed_vertices[i].cpu().numpy()
+            np_mesh_vertices.append(mesh_vertices[i].cpu().numpy())
+            np_observed_vertices.append(observed_vertices[i].cpu().numpy())
 
         # get colors
-        mesh_colors = self.colorize_mesh(mesh_vertices)
-        observed_colors = self.colorize_observed(observed_vertices)
+        mesh_colors = self.colorize_mesh(np_mesh_vertices)
+        observed_colors = self.colorize_observed(np_observed_vertices)
 
-        for mesh_color, mesh_vertex in zip(mesh_colors, mesh_vertices):
-            self._plotter.add_points(
+        for mesh_color, mesh_vertex in zip(mesh_colors, np_mesh_vertices):
+            plotter.add_points(
                 mesh_vertex, scalars=mesh_color, rgba=True, show_scalar_bar=False
             )
 
-        for observed_color, observed_vertex in zip(observed_colors, observed_vertices):
-            self._plotter.add_points(
+        for observed_color, observed_vertex in zip(
+            observed_colors, np_observed_vertices
+        ):
+            plotter.add_points(
                 observed_vertex,
                 scalars=observed_color,
                 rgba=True,
                 show_scalar_bar=False,
             )
 
-        self._plotter.show(auto_close=False)
-        self._plotter.close()
+        plotter.show(auto_close=False)
+        plotter.close()

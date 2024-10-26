@@ -4,11 +4,11 @@ from typing import Dict, List, Tuple
 
 import cv2
 import numpy as np
+import rich
+import torch
 import yaml
 from pytorch_kinematics import urdf_parser_py
 from torch.utils.data import Dataset
-
-from roboreg.util import clean_xyz, generate_o3d_robot, mask_boundary
 
 
 class URDFParser:
@@ -223,47 +223,51 @@ def parse_camera_info(camera_info_file: str) -> Tuple[int, int, np.ndarray]:
     return height, width, intrinsic_matrix
 
 
-def load_data(
+def parse_hydra_data(
     path: str,
-    mask_files: List[str],
-    xyz_files: List[str],
-    joint_state_files: List[str],
-    number_of_points: int = 5000,
-    masked_boundary: bool = True,
-    erosion_kernel_size: int = 10,
-    convex_hull: bool = False,
+    joint_states_pattern: str = "joint_states_*.npy",
+    mask_pattern: str = "mask_*.png",
+    xyz_pattern: str = "xyz_*.npy",
+    device: str = "cuda",
 ) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
-    clean_observed_xyzs = []
-    mesh_xyzs = []
-    mesh_xyzs_normals = []
+    r"""Parse data for Hydra registration.
 
-    # load robot
-    robot = generate_o3d_robot(convex_hull=convex_hull)
+    Args:
+        path (str): Path to the data.
+        joint_states_pattern (str): Pattern for joint states files.
+        mask_pattern (str): Pattern for mask files.
+        xyz_pattern (str): Pattern for xyz files.
+        device (str): Device to load the data on.
 
-    for mask_file, xyz_file, joint_state_file in zip(
-        mask_files, xyz_files, joint_state_files
+    Returns:
+        joint_states (List[np.ndarray]): Joint states.
+        masks (List[np.ndarray]): Masks of shape HxW.
+        xyzs (List[np.ndarray]): Point clouds of shape HxWx3.
+    """
+    joint_state_files = find_files(path, joint_states_pattern)
+    mask_files = find_files(path, mask_pattern)
+    xyz_files = find_files(path, xyz_pattern)
+
+    if len(joint_state_files) == 0 or len(mask_files) == 0 or len(xyz_files) == 0:
+        raise ValueError("No files found.")
+    if len(joint_state_files) != len(mask_files) or len(joint_state_files) != len(
+        xyz_files
     ):
-        # load data
-        mask = cv2.imread(os.path.join(path, mask_file), cv2.IMREAD_GRAYSCALE)
-        if masked_boundary:
-            mask = mask_boundary(
-                mask, np.ones([erosion_kernel_size, erosion_kernel_size])
-            )
-        observed_xyz = np.load(os.path.join(path, xyz_file))
-        joint_state = np.load(os.path.join(path, joint_state_file))
+        raise ValueError("Number of files do not match.")
 
-        # clean cloud
-        clean_observed_xyzs.append(clean_xyz(observed_xyz, mask))
+    rich.print("Found the following files:")
+    rich.print(f"Joint states: {joint_state_files}")
+    rich.print(f"Masks: {mask_files}")
+    rich.print(f"XYZ: {xyz_files}")
 
-        # transform mesh
-        mesh_xyz = None
-        mesh_xyz_normals = None
-
-        robot.set_joint_positions(joint_state)
-        pcds = robot.sample_point_clouds_equally(number_of_points=number_of_points)
-        mesh_xyz = np.concatenate([np.array(pcd.points) for pcd in pcds])
-        mesh_xyz_normals = np.concatenate([np.array(pcd.normals) for pcd in pcds])
-        mesh_xyzs.append(mesh_xyz)
-        mesh_xyzs_normals.append(mesh_xyz_normals)
-
-    return clean_observed_xyzs, mesh_xyzs, mesh_xyzs_normals
+    # load data
+    joint_states = [
+        np.load(os.path.join(path, joint_state_file))
+        for joint_state_file in joint_state_files
+    ]
+    masks = [
+        cv2.imread(os.path.join(path, mask_file), cv2.IMREAD_GRAYSCALE)
+        for mask_file in mask_files
+    ]
+    xyzs = [np.load(os.path.join(path, xyz_file)) for xyz_file in xyz_files]
+    return joint_states, masks, xyzs
