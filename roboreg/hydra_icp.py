@@ -6,8 +6,6 @@ import torch
 from rich import print
 from rich.progress import track
 
-from .util import print_line
-
 
 def kabsh_register(
     input: torch.Tensor, target: torch.Tensor
@@ -195,10 +193,7 @@ def hydra_icp(
 
         prev_rmse = rmse.item()
 
-    print_line()
     print("HT estimate:\n", HT)
-    print_line()
-
     return HT
 
 
@@ -334,8 +329,5 @@ def hydra_robust_icp(
 
         prev_rmse = rmse.item()
 
-    print_line()
     print("HT estimate:\n", HT)
-    print_line()
-
     return HT

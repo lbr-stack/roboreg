@@ -53,10 +53,6 @@ def overlay_mask(
     return overlay_img_mask
 
 
-def print_line():
-    print("--------------------------------------------------")
-
-
 class RegistrationVisualizer(object):
     def colorize_mesh(self, mesh_vertices: List[np.ndarray]) -> List[np.ndarray]:
         mesh_colors = []
