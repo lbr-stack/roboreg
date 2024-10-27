@@ -18,8 +18,36 @@ Unified eye-in-hand / eye-to-hand calibration from RGB-D images using robot mesh
     </table>
 </body>
 
+## Table of Contents
+- [Installation](#installation)
+    - [Pip (Requires CUDA Toolkit Installation)](#pip-requires-cuda-toolkit-installation)
+    - [Conda (Installs CUDA Toolkit)](#conda-installs-cuda-toolkit)
+    - [Docker (Comes with CUDA Toolkit)](#docker-comes-with-cuda-toolkit)
+- [Command Line Interface](#command-line-interface)
+    - [Segment](#segment)
+    - [Hydra Robust ICP](#hydra-robust-icp)
+    - [Stereo Differentiable Rendering](#stereo-differentiable-rendering)
+    - [Render Results](#render-results)
+
 ## Installation
-The `nvdiffrast` dependency is not distributed on PyPI, we thus provide install instructions within an [Anaconda](https://www.anaconda.com/) environment (ideally use [Miniconda](https://docs.anaconda.com/miniconda/), or even better, [Mamba](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html)).
+Three install options are provided: 
+- [Pip (Requires CUDA Toolkit Installation)](#pip-requires-cuda-toolkit-installation)
+- [Conda (Installs CUDA Toolkit)](#conda-installs-cuda-toolkit)
+- [Docker (Comes with CUDA Toolkit)](#docker-comes-with-cuda-toolkit)
+
+### Pip (Requires CUDA Toolkit Installation)
+> [!NOTE]
+> During runtime, CUDA Toolkit is required for the differentiable rendering. If you are planning to do differentiable rendering, see [CUDA Toolkit Install Instructions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/). Alternatively, install using `conda`, see [Conda (Installs CUDA Toolkit)](#conda-installs-cuda-toolkit).
+
+To `pip` intall `roboreg`, simply run
+
+```shell
+git clone git@github.com:lbr-stack/roboreg.git && \
+pip3 install roboreg/
+```
+
+### Conda (Installs CUDA Toolkit)
+To install `roboreg` within an [Anaconda](https://www.anaconda.com/) environment (ideally [Miniconda](https://docs.anaconda.com/miniconda/), or even better, [Mamba](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html)), do the following:
 
 1. Create an environment
 
@@ -39,6 +67,48 @@ The `nvdiffrast` dependency is not distributed on PyPI, we thus provide install 
     ```shell
     mamba activate rr-0.4.0 # can also use 'conda activate rr-0.4.0' in either case
     pip3 install roboreg/
+    ```
+
+### Docker (Comes with CUDA Toolkit)
+A sample Docker container is provided for testing purposes. First:
+
+- Install Docker, see [Docker Install Instructions](https://docs.docker.com/engine/install/)
+- Install NVIDIA Container Toolkit, see [NVIDIA Container Toolkit Install Instructions](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+
+Next: 
+
+1. Clone this repository
+
+    ```shell
+    git clone git@github.com:lbr-stack/roboreg.git
+    ```
+
+2. Build the Docker image
+
+    ```shell
+    cd roboreg
+    docker build . \
+        --tag roboreg \
+        --build-arg USER_ID=$(id -u) \
+        --build-arg GROUP_ID=$(id -g) \
+        --build-arg USER=$USER
+    ```
+
+3. Run container
+
+    ```shell
+    docker remove roboreg-container
+    docker run -it \
+        --gpus all \
+        --network host \
+        --ipc host \
+        --volume /tmp/.X11-unix:/tmp/.X11-unix \
+        --volume /dev/shm:/dev/shm \
+        --volume /dev:/dev --privileged \
+        --env DISPLAY \
+        --env QT_X11_NO_MITSHM=1 \
+        --name roboreg-container \
+        roboreg
     ```
 
 ## Command Line Interface
@@ -126,6 +196,23 @@ rr-render \
     --image-pattern left_img_*.png \
     --joint-states-pattern joint_state_*.npy \
     --output-path test/data/lbr_med7/zed2i/stereo_data
+```
+
+## Testing
+For testing on the `xarm` data, follow [Docker (Comes with CUDA Toolkit)](#docker-comes-with-cuda-toolkit). Inside the container, do
+
+```shell
+rr-hydra \
+    --path test/data/xarm/realsense \
+    --mask-pattern mask_*.jpg \
+    --xyz-pattern xyz_*.npy \
+    --joint-states-pattern joint_states_*.npy \
+    --ros-package xarm_description \
+    --xacro-path  urdf/xarm_device.urdf.xacro \
+    --root-link-name link_base \
+    --end-link-name link7 \
+    --number-of-points 5000 \
+    --output-file HT_hydra_robust.npy
 ```
 
 ## Acknowledgements

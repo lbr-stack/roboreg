@@ -10,15 +10,20 @@ authors = [
 ]
 description = "Unified eye-in-hand / eye-to-hand calibration from RGB-D images using robot mesh as calibration target."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
   "faiss-gpu",
   "huggingface_hub",
+  "pytest",
+  "pytorch-kinematics",
+  "pyvista",
   "ninja",
   "numpy",
+  "nvdiffrast@git+https://github.com/NVlabs/nvdiffrast.git",
   "opencv-python",
-  "pytorch_kinematics",
   "rich",
+  "SAM-2@git+https://github.com/facebookresearch/segment-anything-2.git",
+  "segment_anything@git+https://github.com/facebookresearch/segment-anything.git",
   "torch",
   "transformations",
   "trimesh",
@@ -35,8 +40,8 @@ Homepage = "https://github.com/lbr-stack/roboreg"
 Issues = "https://github.com/lbr-stack/roboreg/issues"
 
 [project.scripts]
-rr-stereo-dr = "roboreg.cli.rr_stereo_dr:main"
 rr-hydra = "roboreg.cli.rr_hydra:main"
 rr-render = "roboreg.cli.rr_render:main"
 rr-sam = "roboreg.cli.rr_sam:main"
 rr-sam2 = "roboreg.cli.rr_sam2:main"
+rr-stereo-dr = "roboreg.cli.rr_stereo_dr:main"
