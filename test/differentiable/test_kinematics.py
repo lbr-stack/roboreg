@@ -17,14 +17,22 @@ from roboreg.differentiable.structs import TorchMeshContainer
 from roboreg.io import URDFParser
 
 
-def test_torch_kinematics() -> None:
+def test_torch_kinematics(
+    ros_package: str = "lbr_description",
+    xacro_path: str = "urdf/med7/med7.xacro",
+    root_link_name: str = "lbr_link_0",
+    end_link_name: str = "lbr_link_7",
+) -> None:
     urdf_parser = URDFParser()
     urdf = urdf_parser.urdf_from_ros_xacro(
-        ros_package="lbr_description", xacro_path="urdf/med7/med7.xacro"
+        ros_package=ros_package, xacro_path=xacro_path
     )
     device = "cuda" if torch.cuda.is_available() else "cpu"
     kinematics = TorchKinematics(
-        urdf=urdf, root_link_name="lbr_link_0", end_link_name="link_ee", device=device
+        urdf=urdf,
+        root_link_name=root_link_name,
+        end_link_name=end_link_name,
+        device=device,
     )
     q = torch.zeros([1, 7], device=device)
 
@@ -34,31 +42,48 @@ def test_torch_kinematics() -> None:
     print(ht_lookup)
 
 
-def test_torch_kinematics_on_mesh() -> None:
+def test_torch_kinematics_on_mesh(
+    ros_package: str = "lbr_description",
+    xacro_path: str = "urdf/med7/med7.xacro",
+    root_link_name: str = "lbr_link_0",
+    end_link_name: str = "lbr_link_7",
+) -> None:
     urdf_parser = URDFParser()
-    urdf_parser.from_ros_xacro(
-        ros_package="lbr_description", xacro_path="urdf/med7/med7.xacro"
-    )
+    urdf_parser.from_ros_xacro(ros_package=ros_package, xacro_path=xacro_path)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     kinematics = TorchKinematics(
         urdf=urdf_parser.urdf,
-        root_link_name="lbr_link_0",
-        end_link_name="lbr_link_7",
+        root_link_name=root_link_name,
+        end_link_name=end_link_name,
         device=device,
     )
     meshes = TorchMeshContainer(
-        urdf_parser.ros_package_mesh_paths("lbr_link_0", "lbr_link_7"), device=device
+        urdf_parser.ros_package_mesh_paths(root_link_name, end_link_name), device=device
     )
 
     # compute forward kinematics and apply transforms to the meshes
-    q = torch.zeros([1, 7], device=device)
+    q = torch.zeros([1, kinematics.chain.n_joints], device=device)
     q[:, 1] = torch.pi / 2.0
     q[:, 3] = torch.pi / 2.0
     ht_lookup = kinematics.mesh_forward_kinematics(q)
 
     # apply transforms to the meshes
+    vertices = meshes.vertices.clone()
     for link_name, ht in ht_lookup.items():
-        meshes.transform_mesh(ht, link_name)
+        vertices[
+            :,
+            meshes.lower_vertex_index_lookup[
+                link_name
+            ] : meshes.upper_vertex_index_lookup[link_name],
+        ] = torch.matmul(
+            vertices[
+                :,
+                meshes.lower_vertex_index_lookup[
+                    link_name
+                ] : meshes.upper_vertex_index_lookup[link_name],
+            ],
+            ht.get_matrix().transpose(-1, -2),
+        )
 
     # render the scene for reference
     # transform view
@@ -67,10 +92,10 @@ def test_torch_kinematics_on_mesh() -> None:
         dtype=torch.float32,
         device=device,
     )
-    meshes.vertices = torch.matmul(meshes.vertices, ht_view.T)
+    vertices = torch.matmul(vertices, ht_view.T)
 
     renderer = NVDiffRastRenderer(device=device)
-    render = renderer.constant_color(meshes.vertices, meshes.faces, [256, 256])
+    render = renderer.constant_color(vertices, meshes.faces, [256, 256])
 
     cv2.imshow("render", render.detach().cpu().numpy().squeeze())
     cv2.waitKey(0)
@@ -215,7 +240,23 @@ def test_joint_offset() -> None:
 
 
 if __name__ == "__main__":
-    # test_torch_kinematics()
-    # test_torch_kinematics_on_mesh()
-    test_diff_kinematics()
+    # test_torch_kinematics(
+    #     ros_package="lbr_description",
+    #     xacro_path="urdf/med7/med7.xacro",
+    #     root_link_name="lbr_link_0",
+    #     end_link_name="lbr_link_7",
+    # )
+    test_torch_kinematics_on_mesh(
+        ros_package="lbr_description",
+        xacro_path="urdf/med7/med7.xacro",
+        root_link_name="lbr_link_0",
+        end_link_name="lbr_link_7",
+    )
+    test_torch_kinematics_on_mesh(
+        ros_package="xarm_description",
+        xacro_path="urdf/xarm_device.urdf.xacro",
+        root_link_name="link_base",
+        end_link_name="link7",
+    )
+    # test_diff_kinematics()
     # test_joint_offset()

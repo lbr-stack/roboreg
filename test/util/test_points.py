@@ -93,7 +93,7 @@ def test_realsense_depth_to_xyz() -> None:
         dtype=torch.float32,
         device=device,
     )
-    xyzs = depth_to_xyz(depth=depths, intrinsics=intrinsics)
+    xyzs = depth_to_xyz(depth=depths, intrinsics=intrinsics, z_max=1.5)
     xyzs = xyzs.cpu().numpy()
 
     for idx, depth_file in enumerate(depth_files):

@@ -47,6 +47,10 @@ RUN mkdir -p ros2_ws/src && \
     git clone https://github.com/lbr-stack/lbr_fri_ros2_stack.git -b $ROS_DISTRO && \
     git clone https://github.com/xArm-Developer/xarm_ros2.git --recursive -b $ROS_DISTRO
 
+RUN apt-get install -y \
+    ros-${ROS_DISTRO}-gazebo-ros \
+    ros-${ROS_DISTRO}-ros2-control
+
 # copy roboreg for installation (this is done as root...)
 COPY . ./roboreg
 
@@ -57,12 +61,8 @@ RUN chmod -R 777 roboreg && \
 # NON ROOT USER INSTALLATION STUFF...
 USER $USER
 
-# install robot description files (xarm dependencies little intertwined, require some manual installation)
+# install robot description files (xarm dependencies little intertwined, require some manual installation, done above)
 RUN cd ros2_ws && \
-    apt-get install -y \
-        ros-${ROS_DISTRO}-gazebo-ros \
-        ros-${ROS_DISTRO}-control-msgs \
-        ros-${ROS_DISTRO}-ros2-control && \
     source /opt/ros/${ROS_DISTRO}/setup.bash && \
     colcon build --symlink-install --packages-select \
         xarm_description \
@@ -81,7 +81,7 @@ RUN cd ros2_ws && \
 
 # source ROS 2 workspace
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /home/$USER/.bashrc && \
-    echo "source /home/$USER/ros2_ws/install/local_setup.bash" >> /home/$USER/.bashrc
+    echo "source /workspace/ros2_ws/install/local_setup.bash" >> /home/$USER/.bashrc
 
 # extend PYTHONPATH and PATH (for CLI)
 ENV PYTHONPATH="/home/$USER/.local/lib/python3.10/site-packages"

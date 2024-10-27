@@ -28,6 +28,7 @@ Unified eye-in-hand / eye-to-hand calibration from RGB-D images using robot mesh
     - [Hydra Robust ICP](#hydra-robust-icp)
     - [Stereo Differentiable Rendering](#stereo-differentiable-rendering)
     - [Render Results](#render-results)
+- [Testing](#testing)
 
 ## Installation
 Three install options are provided: 
@@ -112,6 +113,8 @@ Next:
     ```
 
 ## Command Line Interface
+In these examples, the LBR-Stack is used. Make sure to follow [Quick Start](https://github.com/lbr-stack/lbr_fri_ros2_stack/#quick-start) first.
+
 ### Segment
 This is a required step to generate robot masks (also support SAM 2: `rr-sam2`).
 
