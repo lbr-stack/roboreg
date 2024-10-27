@@ -141,5 +141,4 @@ class RegistrationVisualizer(object):
                 show_scalar_bar=False,
             )
 
-        plotter.show(auto_close=False)
-        plotter.close()
+        plotter.show()
