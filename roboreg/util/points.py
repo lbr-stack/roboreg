@@ -27,6 +27,59 @@ def clean_xyz(xyz: np.ndarray, mask: np.ndarray = None) -> np.ndarray:
     return clean_xyz
 
 
+def depth_to_xyz(
+    depth: torch.FloatTensor,
+    intrinsics: torch.FloatTensor,
+    z_min: float = 0.01,
+    z_max: float = 2,
+    conversion_factor: float = 1.0e3,
+) -> torch.FloatTensor:
+    r"""Converts a depth image to a point cloud.
+
+    Args:
+        depth (torch.FloatTensor): Depth image of shape HxW / BxHxW / Bx1xHxW.
+        intrinsics (torch.FloatTensor): Camera intrinsics of shape 3x3 or Bx3x3.
+        z_min (float): Minimum depth value.
+        z_max (float): Maximum depth value.
+        conversion_factor (float): Conversion factor for depth. Computes z = depth / conversion_factor.
+
+    Returns:
+        Point cloud of shape HxWx3 or BxHxWx3.
+    """
+    if intrinsics.dim() > depth.dim():
+        raise ValueError("Expected intrinsics to have fewer dimensions than depth.")
+    if intrinsics.shape[-2:] != (3, 3):
+        raise ValueError("Expected intrinsics to have shape 3x3 or Bx3x3.")
+    if z_min >= z_max:
+        raise ValueError("Expected z_min to be less than z_max.")
+    if conversion_factor <= 0:
+        raise ValueError("Expected conversion_factor to be greater than zero.")
+    if z_min <= 0:
+        raise ValueError("Expected z_min to be greater than zero.")
+    height, width = depth.shape[-2:]
+    x = torch.linspace(0, width - 1, width, device=depth.device)
+    y = torch.linspace(0, height - 1, height, device=depth.device)
+    x, y = torch.meshgrid(x, y, indexing="ij")
+    if depth.dim() == 3:
+        x = x.unsqueeze(0).expand(depth.shape[0], -1, -1)
+        y = y.unsqueeze(0).expand(depth.shape[0], -1, -1)
+    z = depth / conversion_factor
+    z = torch.clamp(z, z_min, z_max)
+    if intrinsics.dim() == 2 and depth.dim() == 3:
+        intrinsics = intrinsics.unsqueeze(0).expand(depth.shape[0], -1, -1)
+    x = (
+        (x - intrinsics[..., 0, 2].unsqueeze(-1).unsqueeze(-1))
+        * z
+        / intrinsics[..., 0, 0].unsqueeze(-1).unsqueeze(-1)
+    )
+    y = (
+        (y - intrinsics[..., 1, 2].unsqueeze(-1).unsqueeze(-1))
+        * z
+        / intrinsics[..., 1, 1].unsqueeze(-1).unsqueeze(-1)
+    )
+    return torch.stack((x, y, z), dim=-1)
+
+
 def to_homogeneous(x: torch.Tensor) -> torch.Tensor:
     """Converts a tensor of shape (..., N) to (..., N+1) by appending ones."""
     return torch.nn.functional.pad(x, (0, 1), "constant", 1.0)

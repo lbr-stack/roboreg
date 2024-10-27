@@ -8,7 +8,7 @@ sys.path.append(
 import numpy as np
 import torch
 
-from roboreg.util import clean_xyz, compute_vertex_normals, to_homogeneous
+from roboreg.util import clean_xyz, compute_vertex_normals, depth_to_xyz, to_homogeneous
 
 
 def test_clean_xyz() -> None:
@@ -24,6 +24,59 @@ def test_clean_xyz() -> None:
         )
     if clean_points.shape[1] != 3:
         raise ValueError(f"Expected 3 channels, got {clean_points.shape[1]} channels.")
+
+
+def test_depth_to_xyz() -> None:
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    height, width = 256, 256
+    intrinsics = torch.tensor(
+        [
+            [height, 0.0, height / 2],
+            [0.0, width, width / 2],
+            [0.0, 0.0, 1.0],
+        ],
+        dtype=torch.float32,
+        device=device,
+    )
+    depth = torch.ones(height, width, device=device)
+
+    xyz = depth_to_xyz(depth=depth, intrinsics=intrinsics)
+
+    if xyz.shape[0] != height:
+        raise ValueError(f"Expected {height} points, got {xyz.shape[0]} points.")
+    if xyz.shape[1] != width:
+        raise ValueError(f"Expected {width} points, got {xyz.shape[1]} points.")
+    if xyz.shape[2] != 3:
+        raise ValueError(f"Expected 3 channels, got {xyz.shape[2]} channels.")
+
+    # test batched depth
+    batch_size = 4
+    depth = depth.repeat(batch_size, 1, 1)
+
+    xyz = depth_to_xyz(depth=depth, intrinsics=intrinsics)
+
+    if xyz.shape[0] != batch_size:
+        raise ValueError(f"Expected {batch_size} points, got {xyz.shape[0]} points.")
+    if xyz.shape[1] != height:
+        raise ValueError(f"Expected {height} points, got {xyz.shape[1]} points.")
+    if xyz.shape[2] != width:
+        raise ValueError(f"Expected {width} points, got {xyz.shape[2]} points.")
+    if xyz.shape[3] != 3:
+        raise ValueError(f"Expected 3 channels, got {xyz.shape[3]} channels.")
+
+    # test batched all
+    intrinsics = intrinsics.repeat(batch_size, 1, 1)
+
+    xyz = depth_to_xyz(depth=depth, intrinsics=intrinsics)
+
+    if xyz.shape[0] != batch_size:
+        raise ValueError(f"Expected {batch_size} points, got {xyz.shape[0]} points.")
+    if xyz.shape[1] != height:
+        raise ValueError(f"Expected {height} points, got {xyz.shape[1]} points.")
+    if xyz.shape[2] != width:
+        raise ValueError(f"Expected {width} points, got {xyz.shape[2]} points.")
+    if xyz.shape[3] != 3:
+        raise ValueError(f"Expected 3 channels, got {xyz.shape[3]} channels.")
 
 
 def test_compute_vertex_normals() -> None:
@@ -95,4 +148,5 @@ def test_compute_vertex_normals() -> None:
 
 if __name__ == "__main__":
     # test_clean_xyz()
-    test_compute_vertex_normals()
+    test_depth_to_xyz()
+    # test_compute_vertex_normals()
