@@ -7,9 +7,13 @@ import torch
 from roboreg.differentiable import TorchKinematics, TorchMeshContainer
 from roboreg.hydra_icp import hydra_centroid_alignment, hydra_robust_icp
 from roboreg.io import URDFParser, parse_hydra_data
-from roboreg.util.mask import mask_boundary
-from roboreg.util.points import clean_xyz, compute_vertex_normals, from_homogeneous
-from roboreg.util.viz import RegistrationVisualizer
+from roboreg.util import (
+    RegistrationVisualizer,
+    clean_xyz,
+    compute_vertex_normals,
+    from_homogeneous,
+    mask_boundary,
+)
 
 
 def args_factory() -> argparse.Namespace:

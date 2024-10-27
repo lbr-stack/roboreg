@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from roboreg import differentiable as rrd
 from roboreg.io import URDFParser, find_files, parse_camera_info
-from roboreg.util.viz import overlay_mask
+from roboreg.util import overlay_mask
 
 
 class TestRendering:

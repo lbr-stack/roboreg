@@ -8,7 +8,7 @@ sys.path.append(
 import numpy as np
 import torch
 
-from roboreg.util.points import clean_xyz, compute_vertex_normals, to_homogeneous
+from roboreg.util import clean_xyz, compute_vertex_normals, to_homogeneous
 
 
 def test_clean_xyz() -> None:

@@ -20,6 +20,7 @@ dependencies = [
   "pytorch_kinematics",
   "rich",
   "torch",
+  "transformations",
   "trimesh",
   "xacro",
 ]

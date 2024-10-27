@@ -11,7 +11,7 @@ import torch
 
 from roboreg import differentiable as rrd
 from roboreg.io import find_files
-from roboreg.util.viz import overlay_mask
+from roboreg.util import overlay_mask
 
 
 def args_factory() -> argparse.Namespace:

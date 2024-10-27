@@ -6,8 +6,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 import cv2
 
 from roboreg.io import find_files
-from roboreg.util.mask import extend_mask, mask_boundary, shrink_mask
-from roboreg.util.viz import overlay_mask
+from roboreg.util import extend_mask, mask_boundary, overlay_mask, shrink_mask
 
 
 def test_extend_mask() -> None:

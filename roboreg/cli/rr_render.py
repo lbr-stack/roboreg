@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 from roboreg import differentiable as rrd
 from roboreg.io import MonocularDataset
-from roboreg.util.viz import overlay_mask
+from roboreg.util import overlay_mask
 
 
 def args_factory() -> argparse.Namespace:

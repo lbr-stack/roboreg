@@ -9,7 +9,7 @@ from rich import progress
 from roboreg.detector import OpenCVDetector
 from roboreg.io import find_files
 from roboreg.segmentor import SamSegmentor
-from roboreg.util.viz import overlay_mask
+from roboreg.util import overlay_mask
 
 
 def args_factory() -> argparse.Namespace:

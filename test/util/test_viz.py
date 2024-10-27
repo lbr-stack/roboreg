@@ -2,8 +2,7 @@ import pyvista as pv
 import torch
 
 from roboreg import differentiable as rrd
-from roboreg.util.points import from_homogeneous
-from roboreg.util.viz import RegistrationVisualizer
+from roboreg.util import RegistrationVisualizer, from_homogeneous
 
 
 def test_visualize_point_cloud():
