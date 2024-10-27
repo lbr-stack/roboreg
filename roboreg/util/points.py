@@ -59,7 +59,7 @@ def depth_to_xyz(
     height, width = depth.shape[-2:]
     x = torch.linspace(0, width - 1, width, device=depth.device)
     y = torch.linspace(0, height - 1, height, device=depth.device)
-    x, y = torch.meshgrid(x, y, indexing="ij")
+    x, y = torch.meshgrid(y, x, indexing="ij")
     if depth.dim() == 3:
         x = x.unsqueeze(0).expand(depth.shape[0], -1, -1)
         y = y.unsqueeze(0).expand(depth.shape[0], -1, -1)

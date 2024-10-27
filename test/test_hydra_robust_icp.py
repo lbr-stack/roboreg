@@ -18,7 +18,7 @@ from roboreg.util import (
 )
 
 
-def test_hydra_robust_icp():
+def test_hydra_robust_icp() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     ros_package = "lbr_description"
     xacro_path = "urdf/med7/med7.xacro"

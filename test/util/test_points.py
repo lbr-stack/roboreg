@@ -8,6 +8,7 @@ sys.path.append(
 import numpy as np
 import torch
 
+from roboreg.io import find_files, parse_camera_info
 from roboreg.util import clean_xyz, compute_vertex_normals, depth_to_xyz, to_homogeneous
 
 
@@ -79,6 +80,29 @@ def test_depth_to_xyz() -> None:
         raise ValueError(f"Expected 3 channels, got {xyz.shape[3]} channels.")
 
 
+def test_realsense_depth_to_xyz() -> None:
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    path = "test/data/xarm/realsense"
+    depth_files = find_files(path, "depth_*.npy")
+    _, _, intrinsics = parse_camera_info(
+        "test/data/xarm/realsense/realsense_camera_info.yaml"
+    )
+    intrinsics = torch.tensor(intrinsics, dtype=torch.float32, device=device)
+    depths = torch.tensor(
+        [np.load(os.path.join(path, depth_file)) for depth_file in depth_files],
+        dtype=torch.float32,
+        device=device,
+    )
+    xyzs = depth_to_xyz(depth=depths, intrinsics=intrinsics)
+    xyzs = xyzs.cpu().numpy()
+
+    for idx, depth_file in enumerate(depth_files):
+        np.save(
+            os.path.join(path, f"xyz_{depth_file.split('_')[-1].split('.')[0]}.npy"),
+            xyzs[idx],
+        )
+
+
 def test_compute_vertex_normals() -> None:
     n_vertices = 100
     n_faces = 120
@@ -148,5 +172,6 @@ def test_compute_vertex_normals() -> None:
 
 if __name__ == "__main__":
     # test_clean_xyz()
-    test_depth_to_xyz()
+    # test_depth_to_xyz()
+    test_realsense_depth_to_xyz()
     # test_compute_vertex_normals()
