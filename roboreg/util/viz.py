@@ -4,7 +4,6 @@ import cv2
 import numpy as np
 import pyvista
 import torch
-from rich import print
 
 
 def overlay_mask(
