@@ -25,7 +25,6 @@ class RobotScene:
         "_kinematics",
         "_renderer",
         "_cameras",
-        "_ht_zero_lookup",
         "_observed_vertices",
     ]
 
@@ -41,18 +40,6 @@ class RobotScene:
         self._kinematics = kinematics
         self._renderer = renderer
         self._cameras = cameras
-        self._ht_zero_lookup = self._kinematics.mesh_forward_kinematics(
-            torch.zeros(
-                [self._meshes.batch_size, self._kinematics.chain.n_joints],
-                dtype=torch.float32,
-                device=self._meshes.device,
-            )
-        )  # track current transforms
-
-        for link_name in self._ht_zero_lookup.keys():
-            self._ht_zero_lookup[link_name] = torch.linalg.inv(
-                self._ht_zero_lookup[link_name]
-            )
 
         for camera_name in self._cameras.keys():
             if not all(
@@ -94,7 +81,7 @@ class RobotScene:
                         link_name
                     ] : self._meshes.upper_vertex_index_lookup[link_name],
                 ],
-                (ht @ self._ht_zero_lookup[link_name]).transpose(-1, -2),
+                ht.transpose(-1, -2),
             )
 
     def observe_from(
