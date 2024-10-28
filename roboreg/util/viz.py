@@ -102,6 +102,7 @@ class RegistrationVisualizer(object):
         background_color: List[int] = [0, 0, 0],
     ) -> None:
         plotter = pyvista.Plotter()
+        plotter.add_axes()
         plotter.background_color = background_color
 
         if HT is not None:

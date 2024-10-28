@@ -9,7 +9,14 @@ import numpy as np
 import torch
 
 from roboreg.io import find_files, parse_camera_info
-from roboreg.util import clean_xyz, compute_vertex_normals, depth_to_xyz, to_homogeneous
+from roboreg.util import (
+    clean_xyz,
+    compute_vertex_normals,
+    depth_to_xyz,
+    from_homogeneous,
+    generate_ht_optical,
+    to_homogeneous,
+)
 
 
 def test_clean_xyz() -> None:
@@ -84,8 +91,8 @@ def test_realsense_depth_to_xyz() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     path = "test/data/xarm/realsense"
     depth_files = find_files(path, "depth_*.npy")
-    _, _, intrinsics = parse_camera_info(
-        "test/data/xarm/realsense/realsense_camera_info.yaml"
+    height, width, intrinsics = parse_camera_info(
+        "test/data/xarm/realsense/camera_info.yaml"
     )
     intrinsics = torch.tensor(intrinsics, dtype=torch.float32, device=device)
     depths = torch.tensor(
@@ -94,6 +101,16 @@ def test_realsense_depth_to_xyz() -> None:
         device=device,
     )
     xyzs = depth_to_xyz(depth=depths, intrinsics=intrinsics, z_max=1.5)
+
+    # flatten BxHxWx3 -> Bx(H*W)x3
+    xyzs = xyzs.view(-1, height * width, 3)
+    xzys = to_homogeneous(xyzs)
+    ht_optical = generate_ht_optical(xyzs.shape[0], dtype=torch.float32, device=device)
+    xyzs = torch.matmul(xzys, ht_optical.transpose(-1, -2))
+    xyzs = from_homogeneous(xyzs)
+
+    # unflatten
+    xyzs = xyzs.view(-1, height, width, 3)
     xyzs = xyzs.cpu().numpy()
 
     for idx, depth_file in enumerate(depth_files):
@@ -113,9 +130,11 @@ def test_realsense_depth_to_xyz() -> None:
             for xyz_files in xyz_files
         ]
         xyzs = np.concatenate(xyzs, axis=0)
+        xyzs = clean_xyz(xyz=xyzs)
 
         pl = pv.Plotter()
         pl.background_color = [0, 0, 0]
+        pl.add_axes()
         pl.add_points(xyzs, scalars=xyzs[:, 2] / xyzs[:, 2].max(), point_size=1)
         pl.show()
 

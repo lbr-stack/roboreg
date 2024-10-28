@@ -83,6 +83,11 @@ def args_factory() -> argparse.Namespace:
         help="Output file name. Relative to the path.",
     )
     parser.add_argument(
+        "--without-erosion",
+        action="store_true",
+        help="Do not apply erosion to the mask boundary.",
+    )
+    parser.add_argument(
         "--erosion-kernel-size",
         type=int,
         default=10,
@@ -157,7 +162,19 @@ def main():
     # clean observed vertices and turn into tensor
     observed_vertices = [
         torch.tensor(
-            clean_xyz(xyz=xyz, mask=mask_boundary(mask)),
+            clean_xyz(
+                xyz=xyz,
+                mask=(
+                    mask
+                    if args.without_erosion
+                    else mask_boundary(
+                        mask,
+                        erosion_kernel=np.ones(
+                            [args.erosion_kernel_size, args.erosion_kernel_size]
+                        ),
+                    )
+                ),
+            ),
             dtype=torch.float32,
             device=device,
         )

@@ -207,9 +207,9 @@ For testing on the `xarm` data, follow [Docker (Comes with CUDA Toolkit)](#docke
 ```shell
 rr-hydra \
     --path test/data/xarm/realsense \
-    --mask-pattern mask_*.jpg \
+    --mask-pattern mask_*.png \
     --xyz-pattern xyz_*.npy \
-    --joint-states-pattern joint_states_*.npy \
+    --joint-states-pattern joint_state_*.npy \
     --ros-package xarm_description \
     --xacro-path  urdf/xarm_device.urdf.xacro \
     --root-link-name link_base \
