@@ -61,14 +61,14 @@ class TestRendering:
             )
 
         # instantiate URDF parser
-        self.urder_parser = URDFParser()
-        self.urder_parser.from_ros_xacro(
+        self.urdf_parser = URDFParser()
+        self.urdf_parser.from_ros_xacro(
             ros_package="lbr_description", xacro_path="urdf/med7/med7.xacro"
         )
 
         # instantiate meshes
         self.meshes = rrd.TorchMeshContainer(
-            mesh_paths=self.urder_parser.ros_package_mesh_paths(
+            mesh_paths=self.urdf_parser.ros_package_mesh_paths(
                 self.root_link_name, self.end_link_name
             ),
             batch_size=self.batch_size,
@@ -77,7 +77,7 @@ class TestRendering:
 
         # instantiante kinematics
         self.kinematics = rrd.TorchKinematics(
-            urdf_parser=self.urder_parser,
+            urdf_parser=self.urdf_parser,
             root_link_name=self.root_link_name,
             end_link_name=self.end_link_name,
             device=self.device,
@@ -265,7 +265,7 @@ def test_multi_config_single_view_rendering() -> None:
 
     # overwrite meshes with batch size
     test_rendering.meshes = rrd.TorchMeshContainer(
-        mesh_paths=test_rendering.urder_parser.ros_package_mesh_paths(
+        mesh_paths=test_rendering.urdf_parser.ros_package_mesh_paths(
             test_rendering.root_link_name, test_rendering.end_link_name
         ),
         batch_size=q.shape[0],
@@ -326,7 +326,7 @@ def test_multi_config_single_view_pose_optimization() -> None:
 
     # overwrite meshes with batch size
     test_rendering.meshes = rrd.TorchMeshContainer(
-        mesh_paths=test_rendering.urder_parser.ros_package_mesh_paths(
+        mesh_paths=test_rendering.urdf_parser.ros_package_mesh_paths(
             test_rendering.root_link_name, test_rendering.end_link_name
         ),
         batch_size=q.shape[0],

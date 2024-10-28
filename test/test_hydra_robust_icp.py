@@ -38,10 +38,10 @@ def test_hydra_robust_icp() -> None:
     )
 
     # instantiate kinematics
-    urder_parser = URDFParser()
-    urder_parser.from_ros_xacro(ros_package=ros_package, xacro_path=xacro_path)
+    urdf_parser = URDFParser()
+    urdf_parser.from_ros_xacro(ros_package=ros_package, xacro_path=xacro_path)
     kinematics = TorchKinematics(
-        urder_parser=urder_parser,
+        urdf_parser=urdf_parser,
         device=device,
         root_link_name=root_link_name,
         end_link_name=end_link_name,
@@ -50,7 +50,7 @@ def test_hydra_robust_icp() -> None:
     # instantiate mesh
     batch_size = len(joint_states)
     meshes = TorchMeshContainer(
-        mesh_paths=urder_parser.ros_package_mesh_paths(
+        mesh_paths=urdf_parser.ros_package_mesh_paths(
             root_link_name=root_link_name, end_link_name=end_link_name
         ),
         batch_size=batch_size,
