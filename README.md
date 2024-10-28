@@ -113,7 +113,8 @@ Next:
     ```
 
 ## Command Line Interface
-In these examples, the LBR-Stack is used. Make sure to follow [Quick Start](https://github.com/lbr-stack/lbr_fri_ros2_stack/#quick-start) first.
+> [!NOTE]
+> In these examples, the [lbr_fri_ros2_stack](https://github.com/lbr-stack/lbr_fri_ros2_stack/) is used. Make sure to follow [Quick Start](https://github.com/lbr-stack/lbr_fri_ros2_stack/#quick-start) first. However, you can also use your own robot description files.
 
 ### Segment
 This is a required step to generate robot masks (also support SAM 2: `rr-sam2`).
@@ -204,6 +205,9 @@ rr-render \
 ## Testing
 For testing on the `xarm` data, follow [Docker (Comes with CUDA Toolkit)](#docker-comes-with-cuda-toolkit). Inside the container, do
 
+### Hydra Robust ICP
+To run Hydra robust ICP on provided `xarm` and `realsense` data, run
+
 ```shell
 rr-hydra \
     --path test/data/xarm/realsense \
@@ -216,6 +220,27 @@ rr-hydra \
     --end-link-name link7 \
     --number-of-points 5000 \
     --output-file HT_hydra_robust.npy
+```
+
+### Render Results
+Generate renders using the obtained extrinsics:
+
+```shell
+rr-render \
+    --device cuda \
+    --batch-size 1 \
+    --num-workers 0 \
+    --ros-package xarm_description \
+    --xacro-path urdf/xarm_device.urdf.xacro \
+    --root-link-name link_base \
+    --end-link-name link7 \
+    --camera-info-file test/data/xarm/realsense/camera_info.yaml \
+    --extrinsics-file test/data/xarm/realsense/HT_hydra_robust.npy \
+    --images-path test/data/xarm/realsense \
+    --joint-states-path test/data/xarm/realsense \
+    --image-pattern img_*.png \
+    --joint-states-pattern joint_state_*.npy \
+    --output-path test/data/xarm/realsense
 ```
 
 ## Acknowledgements

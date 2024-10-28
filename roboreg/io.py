@@ -170,6 +170,10 @@ class MonocularDataset(Dataset):
         self._joint_states_path = joint_states_path
         self._joint_states_files = find_files(joint_states_path, joint_states_pattern)
 
+        rich.print("Found the following files:")
+        rich.print(f"Images: {self._image_files}")
+        rich.print(f"Joint states: {self._joint_states_files}")
+
         if len(self._image_files) != len(self._joint_states_files):
             raise ValueError(
                 f"Number of images '{len(self._image_files)}' and joint states '{len(self._joint_states_files)}' do not match."
