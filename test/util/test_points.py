@@ -102,6 +102,25 @@ def test_realsense_depth_to_xyz() -> None:
             xyzs[idx],
         )
 
+    def test_display_xyz() -> None:
+        import pyvista as pv
+
+        xyz_files = find_files(path, "xyz_*.npy")
+        xyzs = [
+            np.load(os.path.join(path, xyz_files)).reshape(
+                -1, 3
+            )  # flatten HxWx3 -> (H*W)x3
+            for xyz_files in xyz_files
+        ]
+        xyzs = np.concatenate(xyzs, axis=0)
+
+        pl = pv.Plotter()
+        pl.background_color = [0, 0, 0]
+        pl.add_points(xyzs, scalars=xyzs[:, 2] / xyzs[:, 2].max(), point_size=1)
+        pl.show()
+
+    test_display_xyz()
+
 
 def test_compute_vertex_normals() -> None:
     n_vertices = 100

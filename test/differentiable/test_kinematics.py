@@ -15,6 +15,7 @@ from roboreg.differentiable.kinematics import TorchKinematics
 from roboreg.differentiable.rendering import NVDiffRastRenderer
 from roboreg.differentiable.structs import TorchMeshContainer
 from roboreg.io import URDFParser
+from roboreg.util import from_homogeneous
 
 
 def test_torch_kinematics(
@@ -24,12 +25,10 @@ def test_torch_kinematics(
     end_link_name: str = "lbr_link_7",
 ) -> None:
     urdf_parser = URDFParser()
-    urdf = urdf_parser.urdf_from_ros_xacro(
-        ros_package=ros_package, xacro_path=xacro_path
-    )
+    urdf_parser.urdf_from_ros_xacro(ros_package=ros_package, xacro_path=xacro_path)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     kinematics = TorchKinematics(
-        urdf=urdf,
+        urdf_parser=urdf_parser,
         root_link_name=root_link_name,
         end_link_name=end_link_name,
         device=device,
@@ -52,7 +51,7 @@ def test_torch_kinematics_on_mesh(
     urdf_parser.from_ros_xacro(ros_package=ros_package, xacro_path=xacro_path)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     kinematics = TorchKinematics(
-        urdf=urdf_parser.urdf,
+        urdf_parser=urdf_parser,
         root_link_name=root_link_name,
         end_link_name=end_link_name,
         device=device,
@@ -82,23 +81,18 @@ def test_torch_kinematics_on_mesh(
                     link_name
                 ] : meshes.upper_vertex_index_lookup[link_name],
             ],
-            ht.get_matrix().transpose(-1, -2),
+            ht.transpose(-1, -2),
         )
 
-    # render the scene for reference
-    # transform view
-    ht_view = torch.tensor(
-        tf.euler_matrix(np.pi / 2, 0.0, 0.0).astype("float32"),
-        dtype=torch.float32,
-        device=device,
-    )
-    vertices = torch.matmul(vertices, ht_view.T)
+    def test_display_xyz(vertices: torch.Tensor) -> None:
+        import pyvista as pv
 
-    renderer = NVDiffRastRenderer(device=device)
-    render = renderer.constant_color(vertices, meshes.faces, [256, 256])
+        pl = pv.Plotter()
+        pl.background_color = [0, 0, 0]
+        pl.add_points(vertices, point_size=1)
+        pl.show()
 
-    cv2.imshow("render", render.detach().cpu().numpy().squeeze())
-    cv2.waitKey(0)
+    test_display_xyz(from_homogeneous(vertices.cpu().numpy())[0])
 
 
 def test_diff_kinematics() -> None:
@@ -108,7 +102,7 @@ def test_diff_kinematics() -> None:
     )
     device = "cuda" if torch.cuda.is_available() else "cpu"
     kinematics = TorchKinematics(
-        urdf=urdf_parser.urdf,
+        urdf_parser=urdf_parser,
         root_link_name="lbr_link_0",
         end_link_name="lbr_link_7",
         device=device,
@@ -221,24 +215,6 @@ def test_diff_kinematics() -> None:
         pass
 
 
-def test_joint_offset() -> None:
-    urdf_parser = URDFParser()
-    urdf = urdf_parser.urdf_from_ros_xacro(
-        ros_package="lbr_description", xacro_path="urdf/med7/med7.xacro"
-    )
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    kinematics = TorchKinematics(
-        urdf=urdf,
-        root_link_name="lbr_link_0",
-        end_link_name="lbr_link_7",
-        device=device,
-    )
-
-    for link_name in kinematics.chain.get_link_names():
-        print(link_name)
-        print(kinematics.chain.get_frame_indices(link_name))
-
-
 if __name__ == "__main__":
     # test_torch_kinematics(
     #     ros_package="lbr_description",
@@ -259,4 +235,3 @@ if __name__ == "__main__":
         end_link_name="link7",
     )
     # test_diff_kinematics()
-    # test_joint_offset()

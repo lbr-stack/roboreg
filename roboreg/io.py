@@ -5,7 +5,6 @@ from typing import Dict, List, Tuple
 import cv2
 import numpy as np
 import rich
-import torch
 import yaml
 from pytorch_kinematics import urdf_parser_py
 from torch.utils.data import Dataset
@@ -94,7 +93,7 @@ class URDFParser:
                 raise ValueError("Case unhandled.")
         return ros_package_mesh_paths
 
-    def link_origins(
+    def mesh_origins(
         self, root_link_name: str, end_link_name: str, visual: bool = False
     ) -> Dict[str, np.ndarray]:
         import transformations
@@ -102,7 +101,7 @@ class URDFParser:
         link_names = self.chain_link_names(
             root_link_name=root_link_name, end_link_name=end_link_name
         )
-        link_origins = {}
+        mesh_origins = {}
         for link_name in link_names:
             link: urdf_parser_py.urdf.Link = self._robot.link_map[link_name]
             if visual:
@@ -117,8 +116,8 @@ class URDFParser:
                 link_origin.rpy[0], link_origin.rpy[1], link_origin.rpy[2], "sxyz"
             )
             origin[:3, 3] = link_origin.xyz
-            link_origins[link_name] = origin
-        return link_origins
+            mesh_origins[link_name] = origin
+        return mesh_origins
 
     def _verify_links_in_chain(self, root_link_name: str, end_link_name: str) -> None:
         if not self._robot:
@@ -131,6 +130,8 @@ class URDFParser:
 
     @property
     def urdf(self) -> str:
+        if self._urdf is None:
+            raise ValueError("URDF not loaded.")
         return self._urdf
 
     @property
@@ -228,7 +229,6 @@ def parse_hydra_data(
     joint_states_pattern: str = "joint_states_*.npy",
     mask_pattern: str = "mask_*.png",
     xyz_pattern: str = "xyz_*.npy",
-    device: str = "cuda",
 ) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
     r"""Parse data for Hydra registration.
 
@@ -237,7 +237,6 @@ def parse_hydra_data(
         joint_states_pattern (str): Pattern for joint states files.
         mask_pattern (str): Pattern for mask files.
         xyz_pattern (str): Pattern for xyz files.
-        device (str): Device to load the data on.
 
     Returns:
         joint_states (List[np.ndarray]): Joint states.

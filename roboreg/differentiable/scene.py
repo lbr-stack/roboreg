@@ -160,7 +160,7 @@ def robot_scene_factory(
 
     # instantiate kinematics
     kinematics = TorchKinematics(
-        urdf=urdf_parser.urdf,
+        urdf_parser=urdf_parser,
         root_link_name=root_link_name,
         end_link_name=end_link_name,
         device=device,

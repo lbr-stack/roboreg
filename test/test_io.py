@@ -11,10 +11,10 @@ from roboreg.io import URDFParser, parse_camera_info, parse_hydra_data
 def test_urdf_parser() -> None:
     urdf_parser = URDFParser()
     urdf_parser.from_ros_xacro("lbr_description", "urdf/med7/med7.xacro")
-    print(urdf_parser.chain_link_names("lbr_link_0", "link_ee"))
-    print(urdf_parser.raw_mesh_paths("lbr_link_0", "link_ee"))
-    print(urdf_parser.ros_package_mesh_paths("lbr_link_0", "link_ee"))
-    print(urdf_parser.link_origins("lbr_link_0", "link_ee"))
+    print(urdf_parser.chain_link_names("lbr_link_0", "lbr_link_ee"))
+    print(urdf_parser.raw_mesh_paths("lbr_link_0", "lbr_link_ee"))
+    print(urdf_parser.ros_package_mesh_paths("lbr_link_0", "lbr_link_ee"))
+    print(urdf_parser.mesh_origins("lbr_link_0", "lbr_link_ee"))
 
 
 def test_parse_camera_info() -> None:
@@ -28,13 +28,11 @@ def test_parse_camera_info() -> None:
 
 
 def test_parse_hydra_data() -> None:
-    device = "cuda" if torch.cuda.is_available() else "cpu"
     joint_states, masks, xyzs = parse_hydra_data(
         "test/data/lbr_med7/zed2i/high_res",
         joint_states_pattern="joint_states_*.npy",
         mask_pattern="mask*.png",
         xyz_pattern="xyz_*.npy",
-        device=device,
     )
     print(len(joint_states))
     print(len(masks))
@@ -45,6 +43,6 @@ def test_parse_hydra_data() -> None:
 
 
 if __name__ == "__main__":
-    # test_urdf_parser()
+    test_urdf_parser()
     # test_parse_camera_info()
-    test_parse_hydra_data()
+    # test_parse_hydra_data()

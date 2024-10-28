@@ -3,19 +3,21 @@ from typing import Dict
 import pytorch_kinematics as pk
 import torch
 
+from roboreg.io import URDFParser
+
 
 class TorchKinematics:
     __slots__ = [
         "_root_link_name",
         "_end_link_name",
         "_chain",
-        "_global_joint_offset",
+        "_mesh_origins_lookup",
         "_device",
     ]
 
     def __init__(
         self,
-        urdf: str,
+        urdf_parser: URDFParser,
         root_link_name: str,
         end_link_name: str,
         device: torch.device = "cuda",
@@ -23,20 +25,18 @@ class TorchKinematics:
         self._root_link_name = root_link_name
         self._end_link_name = end_link_name
         self._chain = self._build_serial_chain_from_urdf(
-            urdf, root_link_name=self._root_link_name, end_link_name=self._end_link_name
+            urdf_parser.urdf,
+            root_link_name=self._root_link_name,
+            end_link_name=self._end_link_name,
         )
 
-        # populate global joint offset
-        self._global_joint_offset = {}
-        ht_joint_global = torch.eye(
-            4, dtype=self._chain.dtype, device=self._chain.device
+        self._mesh_origins_lookup = urdf_parser.mesh_origins(
+            root_link_name=root_link_name, end_link_name=end_link_name
         )
-        for link_name in self._chain.get_link_names():
-            ht_joint_global = (
-                ht_joint_global
-                @ self._chain.joint_offsets[self._chain.get_frame_indices(link_name)]
-            )
-            self._global_joint_offset[link_name] = ht_joint_global
+        self._mesh_origins_lookup = {
+            key: torch.from_numpy(value).to(device=device, dtype=torch.float32)
+            for key, value in self._mesh_origins_lookup.items()
+        }
 
         # default move to device
         self.to(device=device)
@@ -50,8 +50,8 @@ class TorchKinematics:
 
     def to(self, device: torch.device) -> None:
         self._chain.to(device=device)
-        for link_name in self._global_joint_offset:
-            self._global_joint_offset[link_name] = self._global_joint_offset[
+        for link_name in self._mesh_origins_lookup:
+            self._mesh_origins_lookup[link_name] = self._mesh_origins_lookup[
                 link_name
             ].to(device=device)
         self._device = device
@@ -61,7 +61,7 @@ class TorchKinematics:
         Corrects for mesh offsets. Meshes that are tranformed by the returned transformation appear physically correct.
         """
         ht_lookup = {
-            key: value.get_matrix() @ self._global_joint_offset[key].inverse()
+            key: value.get_matrix() @ self._mesh_origins_lookup[key]
             for key, value in self._chain.forward_kinematics(q, end_only=False).items()
         }
         return ht_lookup

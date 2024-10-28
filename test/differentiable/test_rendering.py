@@ -77,7 +77,7 @@ class TestRendering:
 
         # instantiante kinematics
         self.kinematics = rrd.TorchKinematics(
-            urdf=self.urder_parser.urdf,
+            urdf_parser=self.urder_parser,
             root_link_name=self.root_link_name,
             end_link_name=self.end_link_name,
             device=self.device,

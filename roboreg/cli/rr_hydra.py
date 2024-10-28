@@ -101,14 +101,13 @@ def main():
         joint_states_pattern=args.joint_states_pattern,
         mask_pattern=args.mask_pattern,
         xyz_pattern=args.xyz_pattern,
-        device=device,
     )
 
     # instantiate kinematics
-    parser = URDFParser()
-    parser.from_ros_xacro(ros_package=args.ros_package, xacro_path=args.xacro_path)
+    urdf_parser = URDFParser()
+    urdf_parser.from_ros_xacro(ros_package=args.ros_package, xacro_path=args.xacro_path)
     kinematics = TorchKinematics(
-        parser.urdf,
+        urdf_parser=urdf_parser,
         device=device,
         root_link_name=args.root_link_name,
         end_link_name=args.end_link_name,
@@ -117,7 +116,7 @@ def main():
     # instantiate mesh
     batch_size = len(joint_states)
     meshes = TorchMeshContainer(
-        mesh_paths=parser.ros_package_mesh_paths(
+        mesh_paths=urdf_parser.ros_package_mesh_paths(
             root_link_name=args.root_link_name, end_link_name=args.end_link_name
         ),
         batch_size=batch_size,

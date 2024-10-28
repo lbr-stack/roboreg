@@ -80,9 +80,9 @@ def test_visualize_robot():
     end_link_name = "lbr_link_7"
 
     # parse URDF
-    parser = rrd.URDFParser()
-    parser.from_ros_xacro("lbr_description", "urdf/med7/med7.xacro")
-    mesh_paths = parser.ros_package_mesh_paths(
+    urdf_parser = rrd.URDFParser()
+    urdf_parser.from_ros_xacro("lbr_description", "urdf/med7/med7.xacro")
+    mesh_paths = urdf_parser.ros_package_mesh_paths(
         root_link_name=root_link_name, end_link_name=end_link_name
     )
 
@@ -91,7 +91,7 @@ def test_visualize_robot():
 
     # instantiate kinematics
     kinematics = rrd.TorchKinematics(
-        parser.urdf,
+        urdf_parser=urdf_parser,
         root_link_name=root_link_name,
         end_link_name=end_link_name,
         device=device,
