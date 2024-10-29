@@ -73,6 +73,9 @@ class TorchMeshContainer:
             # load mesh
             m = self._load_mesh(mesh_path)
 
+            if isinstance(m, trimesh.Scene):
+                m = m.dump(concatenate=True)
+
             # populate mesh vertex count
             self._per_mesh_vertex_count[mesh_name] = len(m.vertices)
 

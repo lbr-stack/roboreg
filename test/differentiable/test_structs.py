@@ -11,10 +11,24 @@ from roboreg.differentiable.structs import Camera, TorchMeshContainer, VirtualCa
 
 
 def test_torch_mesh_container() -> None:
+    # test load simple meshes
     torch_robot_mesh = TorchMeshContainer(
         mesh_paths={
             "link_0": "test/data/lbr_med7/mesh/link_0.stl",
             "link_1": "test/data/lbr_med7/mesh/link_1.stl",
+        }
+    )
+    print(torch_robot_mesh.per_mesh_vertex_count)
+    print(torch_robot_mesh.lower_vertex_index_lookup)
+    print(torch_robot_mesh.upper_vertex_index_lookup)
+    print(torch_robot_mesh.lower_face_index_lookup)
+    print(torch_robot_mesh.upper_face_index_lookup)
+
+    # test load visual meshes
+    torch_robot_mesh = TorchMeshContainer(
+        mesh_paths={
+            "link_0": "test/data/lbr_med7/mesh/link_0.dae",
+            "link_1": "test/data/lbr_med7/mesh/link_1.dae",
         }
     )
     print(torch_robot_mesh.per_mesh_vertex_count)
@@ -137,6 +151,6 @@ def test_batched_virtual_camera() -> None:
 
 
 if __name__ == "__main__":
-    # test_torch_mesh_container()
-    test_batched_camera()
+    test_torch_mesh_container()
+    # test_batched_camera()
     # test_batched_virtual_camera()
