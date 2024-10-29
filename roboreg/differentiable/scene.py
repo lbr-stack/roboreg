@@ -1,6 +1,7 @@
 from typing import Dict
 
 import numpy as np
+import rich
 import torch
 
 from roboreg.io import URDFParser, parse_camera_info
@@ -140,10 +141,21 @@ def robot_scene_factory(
     end_link_name: str,
     camera_info_files: Dict[str, str],
     extrinsics_files: Dict[str, str],
+    visual: bool = False,
 ) -> RobotScene:
     # create URDF parser
     urdf_parser = URDFParser()
     urdf_parser.from_ros_xacro(ros_package=ros_package, xacro_path=xacro_path)
+    if root_link_name == "":
+        root_link_name = urdf_parser.link_names_with_meshes(visual=visual)[0]
+        rich.print(
+            f"Root link name not provided. Using the first link with mesh: '{root_link_name}'."
+        )
+    if end_link_name == "":
+        end_link_name = urdf_parser.link_names_with_meshes(visual=visual)[-1]
+        rich.print(
+            f"End link name not provided. Using the last link with mesh: '{end_link_name}'."
+        )
 
     # instantiate kinematics
     kinematics = TorchKinematics(
@@ -156,7 +168,7 @@ def robot_scene_factory(
     # instantiate meshes
     meshes = TorchMeshContainer(
         mesh_paths=urdf_parser.ros_package_mesh_paths(
-            root_link_name=root_link_name, end_link_name=end_link_name
+            root_link_name=root_link_name, end_link_name=end_link_name, visual=visual
         ),
         batch_size=batch_size,
         device=device,

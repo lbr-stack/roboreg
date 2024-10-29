@@ -18,10 +18,21 @@ class URDFParser:
         self._robot = None
 
     def from_urdf(self, urdf: str) -> None:
+        r"""Instantiate URDF parser from URDF string.
+
+        Args:
+            urdf (str): URDF string.
+        """
         self._urdf = urdf
         self._robot = urdf_parser_py.urdf.Robot.from_xml_string(urdf)
 
     def from_ros_xacro(self, ros_package: str, xacro_path: str) -> None:
+        r"""Instantiate URDF parser from ROS xacro file.
+
+        Args:
+            ros_package (str): Internally finds the path to ros_package.
+            xacro_path (str): Path to xacro file relative to ros_package.
+        """
         self.from_urdf(
             urdf=self.urdf_from_ros_xacro(
                 ros_package=ros_package, xacro_path=xacro_path
@@ -29,6 +40,16 @@ class URDFParser:
         )
 
     def urdf_from_ros_xacro(self, ros_package: str, xacro_path: str) -> str:
+        r"""Convert ROS xacro file to URDF.
+
+        Args:
+            ros_package (str): Internally finds the path to ros_package.
+            xacro_path (str): Path to xacro file relative to ros_package.
+
+        Returns:
+            str: URDF string.
+        """
+
         import xacro
         from ament_index_python import get_package_share_directory
 
@@ -38,6 +59,15 @@ class URDFParser:
         return self._urdf
 
     def chain_link_names(self, root_link_name: str, end_link_name: str) -> List[str]:
+        r"""Get link names in chain from root to end link.
+
+        Args:
+            root_link_name (str): Root link name.
+            end_link_name (str): End link name.
+
+        Returns:
+            List[str]: List of link names in chain from root_link_name to end_link_name.
+        """
         self._verify_links_in_chain(
             root_link_name=root_link_name, end_link_name=end_link_name
         )
@@ -52,9 +82,38 @@ class URDFParser:
             link_names.append(child_link_name)
         return link_names
 
+    def link_names_with_meshes(self, visual: bool = False) -> List[str]:
+        r"""Get link names that have meshes.
+
+        Args:
+            visual (bool): If True, get visual meshes, else collision meshes.
+
+        Returns:
+            List[str]: List of link names with meshes.
+        """
+        links = [link.name for link in self._robot.links]
+        for link in links:
+            if visual:
+                if not self._robot.link_map[link].visual:
+                    links.remove(link)
+            else:
+                if not self._robot.link_map[link].collision:
+                    links.remove(link)
+        return links
+
     def raw_mesh_paths(
         self, root_link_name: str, end_link_name: str, visual: bool = False
     ) -> Dict[str, str]:
+        r"""Get the raw mesh paths as specified in URDF.
+
+        Args:
+            root_link_name (str): Root link name.
+            end_link_name (str): End link name.
+            visual (bool): If True, get visual mesh paths, else collision mesh paths.
+
+        Returns:
+            Dict: Dictionary of link names and raw mesh paths.
+        """
         link_names = self.chain_link_names(
             root_link_name=root_link_name, end_link_name=end_link_name
         )
@@ -75,6 +134,16 @@ class URDFParser:
     def ros_package_mesh_paths(
         self, root_link_name: str, end_link_name: str, visual: bool = False
     ) -> Dict[str, str]:
+        r"""Get the absolute mesh paths by resolving package within ROS.
+
+        Args:
+            root_link_name (str): Root link name.
+            end_link_name (str): End link name.
+            visual (bool): If True, get visual mesh paths, else collision mesh paths.
+
+        Returns:
+            Dict: Dictionary of link names and absolute mesh paths.
+        """
         raw_mesh_paths = self.raw_mesh_paths(
             root_link_name=root_link_name, end_link_name=end_link_name, visual=visual
         )
@@ -96,6 +165,16 @@ class URDFParser:
     def mesh_origins(
         self, root_link_name: str, end_link_name: str, visual: bool = False
     ) -> Dict[str, np.ndarray]:
+        r"""Get mesh origins.
+
+        Args:
+            root_link_name (str): Root link name.
+            end_link_name (str): End link name.
+            visual (bool): If True, get visual mesh origins, else collision mesh origins.
+
+        Returns:
+            Dict: Dictionary of link names and mesh origins.
+        """
         import transformations
 
         link_names = self.chain_link_names(
@@ -130,12 +209,14 @@ class URDFParser:
 
     @property
     def urdf(self) -> str:
+        r"""Get URDF string."""
         if self._urdf is None:
             raise ValueError("URDF not loaded.")
         return self._urdf
 
     @property
     def robot(self) -> urdf_parser_py.urdf.Robot:
+        r"""Get robot object."""
         return self._robot
 
 

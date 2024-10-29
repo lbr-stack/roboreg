@@ -2,6 +2,7 @@ import argparse
 import os
 
 import numpy as np
+import rich
 import torch
 
 from roboreg.differentiable import TorchKinematics, TorchMeshContainer
@@ -47,10 +48,21 @@ def args_factory() -> argparse.Namespace:
         help="Path to the xacro file, relative to --ros-package.",
     )
     parser.add_argument(
-        "--root-link-name", type=str, default="lbr_link_0", help="Root link name."
+        "--root-link-name",
+        type=str,
+        default="",
+        help="Root link name. If unspecified, the first link with mesh will be used, which may cause errors.",
     )
     parser.add_argument(
-        "--end-link-name", type=str, default="lbr_link_7", help="End link name."
+        "--end-link-name",
+        type=str,
+        default="",
+        help="End link name. If unspecified, the last link with mesh will be used, which may cause errors.",
+    )
+    parser.add_argument(
+        "--visual-meshes",
+        action="store_true",
+        help="If set, visual meshes will be used instead of collision meshes.",
     )
     parser.add_argument(
         "--number-of-points",
@@ -111,18 +123,36 @@ def main():
     # instantiate kinematics
     urdf_parser = URDFParser()
     urdf_parser.from_ros_xacro(ros_package=args.ros_package, xacro_path=args.xacro_path)
+    root_link_name = args.root_link_name
+    end_link_name = args.end_link_name
+    if root_link_name == "":
+        root_link_name = urdf_parser.link_names_with_meshes(visual=args.visual_meshes)[
+            0
+        ]
+        rich.print(
+            f"Root link name not provided. Using the first link with mesh: '{root_link_name}'."
+        )
+    if end_link_name == "":
+        end_link_name = urdf_parser.link_names_with_meshes(visual=args.visual_meshes)[
+            -1
+        ]
+        rich.print(
+            f"End link name not provided. Using the last link with mesh: '{end_link_name}'."
+        )
     kinematics = TorchKinematics(
         urdf_parser=urdf_parser,
         device=device,
-        root_link_name=args.root_link_name,
-        end_link_name=args.end_link_name,
+        root_link_name=root_link_name,
+        end_link_name=end_link_name,
     )
 
     # instantiate mesh
     batch_size = len(joint_states)
     meshes = TorchMeshContainer(
         mesh_paths=urdf_parser.ros_package_mesh_paths(
-            root_link_name=args.root_link_name, end_link_name=args.end_link_name
+            root_link_name=root_link_name,
+            end_link_name=end_link_name,
+            visual=args.visual_meshes,
         ),
         batch_size=batch_size,
         device=device,

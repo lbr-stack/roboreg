@@ -25,7 +25,7 @@ def test_torch_kinematics(
     end_link_name: str = "lbr_link_7",
 ) -> None:
     urdf_parser = URDFParser()
-    urdf_parser.urdf_from_ros_xacro(ros_package=ros_package, xacro_path=xacro_path)
+    urdf_parser.from_ros_xacro(ros_package=ros_package, xacro_path=xacro_path)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     kinematics = TorchKinematics(
         urdf_parser=urdf_parser,

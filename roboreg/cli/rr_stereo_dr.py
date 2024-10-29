@@ -70,10 +70,21 @@ def args_factory() -> argparse.Namespace:
         help="Path to the xacro file, relative to --ros-package.",
     )
     parser.add_argument(
-        "--root-link-name", type=str, default="lbr_link_0", help="Root link name."
+        "--root-link-name",
+        type=str,
+        default="",
+        help="Root link name. If unspecified, the first link with mesh will be used, which may cause errors.",
     )
     parser.add_argument(
-        "--end-link-name", type=str, default="lbr_link_7", help="End link name."
+        "--end-link-name",
+        type=str,
+        default="",
+        help="End link name. If unspecified, the last link with mesh will be used, which may cause errors.",
+    )
+    parser.add_argument(
+        "--visual-meshes",
+        action="store_true",
+        help="If set, visual meshes will be used instead of collision meshes.",
     )
     parser.add_argument(
         "--left-camera-info-file",
@@ -235,6 +246,7 @@ def main() -> None:
             "left": args.left_extrinsics_file,
             "right": args.right_extrinsics_file,
         },
+        visual=args.visual_meshes,
     )
 
     # configure scene
