@@ -104,9 +104,9 @@ def test_realsense_depth_to_xyz() -> None:
 
     # flatten BxHxWx3 -> Bx(H*W)x3
     xyzs = xyzs.view(-1, height * width, 3)
-    xzys = to_homogeneous(xyzs)
+    xyzs = to_homogeneous(xyzs)
     ht_optical = generate_ht_optical(xyzs.shape[0], dtype=torch.float32, device=device)
-    xyzs = torch.matmul(xzys, ht_optical.transpose(-1, -2))
+    xyzs = torch.matmul(xyzs, ht_optical.transpose(-1, -2))
     xyzs = from_homogeneous(xyzs)
 
     # unflatten
