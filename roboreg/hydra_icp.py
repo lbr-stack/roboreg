@@ -1,7 +1,5 @@
 from typing import List, Tuple
 
-import faiss
-import faiss.contrib.torch_utils
 import torch
 from rich import print
 from rich.progress import track
@@ -14,12 +12,13 @@ def kabsh_register(
     Computes rotation and translation such that input @ R + t = target.
 
     Args:
-        input: input of shape (..., M, 3).
-        target: target of shape (..., M, 3).
+        input (torch.Tensor): input of shape (..., M, 3).
+        target(torch.Tensor): target of shape (..., M, 3).
 
-    Return:
-        R: Rotation matrix of shape (..., 3, 3).
-        t: Translation vector of shape (..., 3).
+    Returns:
+        Tuple[torch.Tensor,torch.Tensor]:
+            - Rotation matrix of shape (..., 3, 3).
+            - Translation vector of shape (..., 3).
     """
     # compute centroids
     input_centroid = torch.mean(input, dim=-2)
@@ -46,43 +45,29 @@ def kabsh_register(
     return R, t
 
 
-def hydra_closest_correspondence_indices(
-    observations: List[torch.Tensor],
-    meshes: List[torch.Tensor],
-    max_distance: float = 0.1,
-) -> List[torch.Tensor]:
-    r"""For each point in observation, find nearest neighbor index in mesh.
+def hydra_correspondence_indices(
+    input: torch.Tensor, target: torch.Tensor, max_distance: float = 0.1
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    r"""For each point in input, find nearest neighbor index in target.
 
     Args:
-        observations: List of observations of shape (Mi, 3).
-        meshes: List of meshes of shape (Ni, 3).
+        input (torch.Tensor): Input of shape (M, 3) or (B, M, 3).
+        target (torch.Tensor): Target of shape (N, 3) or (B, N, 3).
+        max_distance (float): Maximum distance between point correspondences.
 
     Returns:
-        argmins: List of indices of shape (Mi).
+        Tuple[torch.Tensor,torch.Tensor]:
+            - Match-indices of shape (M) or (B, M), where mi is the index of the nearest neighbor in target.
+            - Mask of shape (M) or (B, M).
     """
-    argmins = []
-    for observation, mesh in zip(observations, meshes):
-        distance = torch.cdist(observation, mesh)  # (Mi, Ni)
-        distance = torch.where(
-            distance < max_distance, distance, torch.full_like(distance, float("inf"))
-        )
-
-        _, argmin = torch.min(distance, dim=-1)  # (Mi)
-        argmins.append(argmin)
-
-    return argmins
-
-
-def hydra_gpu_index_flat_l2(meshes: List[torch.Tensor]) -> List[faiss.GpuIndexFlatL2]:
-    indices = []
-    flat_config = faiss.GpuIndexFlatConfig()
-    flat_config.device = 0
-    res = faiss.StandardGpuResources()
-    for mesh in meshes:
-        index = faiss.GpuIndexFlatL2(res, 3, flat_config)
-        index.add(mesh)
-        indices.append(index)
-    return indices
+    if input.shape[-1] != 3 or target.shape[-1] != 3:
+        raise ValueError("Input and target must have shape (..., 3).")
+    if max_distance < 0:
+        raise ValueError("Max distance must be positive.")
+    distances = torch.cdist(input, target, p=2)  # (M, N)
+    min_distance, matchindices = torch.min(distances, dim=-1)  # (M)
+    mask = min_distance < max_distance
+    return matchindices, mask
 
 
 def hydra_centroid_alignment(
@@ -92,11 +77,11 @@ def hydra_centroid_alignment(
     r"""Aligns centroids of Xs and Ys as an initial guess.
 
     Args:
-        Xs: List of poinclouds of shape (Mi, 3).
-        Ys: List of pointclouds of shape (Ni, 3).
+        Xs (List[torch.Tensor]): List of poinclouds of shape (Mi, 3).
+        Ys (List[torch.Tensor]): List of pointclouds of shape (Ni, 3).
 
     Returns:
-        HT: Homogeneous transformation of shape (4, 4). HT @ Xs = Ys.
+        torch.Tensor: Homogeneous transformation of shape (4, 4). HT @ Xs = Ys.
     """
     # for each cloud compute centroid
     Xs_centroids = [torch.mean(observation, dim=-2) for observation in Xs]
@@ -136,13 +121,9 @@ def hydra_icp(
         rmse_change: Minimum change in rmse to continue iterating.
 
     Returns:
-        HT: Homogeneous transformation of shape (4, 4). HT @ observations = meshes.
+        torch.Tensor: Homogeneous transformation of shape (4, 4). HT @ observations = meshes.
     """
     HT = HT_init
-
-    # build index
-    indices = hydra_gpu_index_flat_l2(meshes)
-
     # registration
     prev_rmse = float("inf")
     for _ in track(range(max_iter), description=f"Running Hydra ICP..."):
@@ -151,13 +132,12 @@ def hydra_icp(
         for i in range(len(meshes)):
             # search correspondences
             observations_tf = observations[i] @ HT[:3, :3].T + HT[:3, 3]
-            distances, matchindices = indices[i].search(observations_tf, 1)
-
-            # only keep matches within max_distance
-            mask = distances.squeeze() < max_distance
+            matchindices, mask = hydra_correspondence_indices(
+                observations_tf, meshes[i], max_distance
+            )
 
             observation_corr.append(observations[i][mask])
-            mesh_corr.append(meshes[i][matchindices[mask].squeeze()])
+            mesh_corr.append(meshes[i][matchindices[mask]].squeeze())
 
         observation_corr = torch.concatenate(observation_corr).unsqueeze(0)
         mesh_corr = torch.concatenate(mesh_corr).unsqueeze(0)
@@ -221,12 +201,9 @@ def hydra_robust_icp(
         rmse_change: Minimum change in rmse to continue iterating.
 
     Returns:
-        HT: Homogeneous transformation of shape (4, 4). HT @ observations = meshes.
+        torch.Tensor: Homogeneous transformation of shape (4, 4). HT @ observations = meshes.
     """
     HT = HT_init  # HT @ observation = mesh
-
-    # build indices
-    indices = hydra_gpu_index_flat_l2(meshes)
 
     observations_cross_mat = []
     for i in range(len(observations)):
@@ -261,11 +238,10 @@ def hydra_robust_icp(
             if len(observations) != len(meshes):
                 raise ValueError("Length of observations and meshes must be the same.")
             # search correspondences
-            observation_tf = observations[i] @ HT[:3, :3].T + HT[:3, 3]
-            distances, matchindices = indices[i].search(observation_tf, 1)
-
-            # only keep matches within max_distance
-            mask = distances.squeeze() < max_distance
+            observations_tf = observations[i] @ HT[:3, :3].T + HT[:3, 3]
+            matchindices, mask = hydra_correspondence_indices(
+                observations_tf, meshes[i], max_distance
+            )
 
             observations_corr.append(observations[i][mask])
             observations_cross_mat_corr.append(observations_cross_mat[i][mask])

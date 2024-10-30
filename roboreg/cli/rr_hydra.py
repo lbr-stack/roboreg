@@ -73,7 +73,7 @@ def args_factory() -> argparse.Namespace:
     parser.add_argument(
         "--max-distance",
         type=float,
-        default=0.01,
+        default=0.1,
         help="Maximum distance between two points to be considered as a correspondence.",
     )
     parser.add_argument(

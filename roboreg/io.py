@@ -112,7 +112,7 @@ class URDFParser:
             visual (bool): If True, get visual mesh paths, else collision mesh paths.
 
         Returns:
-            Dict: Dictionary of link names and raw mesh paths.
+            Dict[str,str]: Dictionary of link names and raw mesh paths.
         """
         link_names = self.chain_link_names(
             root_link_name=root_link_name, end_link_name=end_link_name
@@ -142,7 +142,7 @@ class URDFParser:
             visual (bool): If True, get visual mesh paths, else collision mesh paths.
 
         Returns:
-            Dict: Dictionary of link names and absolute mesh paths.
+            Dict[str,str]: Dictionary of link names and absolute mesh paths.
         """
         raw_mesh_paths = self.raw_mesh_paths(
             root_link_name=root_link_name, end_link_name=end_link_name, visual=visual
@@ -173,7 +173,7 @@ class URDFParser:
             visual (bool): If True, get visual mesh origins, else collision mesh origins.
 
         Returns:
-            Dict: Dictionary of link names and mesh origins.
+            Dict[str,np.ndarray]: Dictionary of link names and mesh origins.
         """
         import transformations
 
@@ -224,11 +224,11 @@ def find_files(path: str, pattern: str = "image_*.png") -> List[str]:
     r"""Find files in a directory.
 
     Args:
-        path: Path to the directory.
-        pattern: Pattern to match. Warn: The sorting key strictly assumes that pattern includes '_{number}.ext'.
+        path (str): Path to the directory.
+        pattern (str): Pattern to match. Warn: The sorting key strictly assumes that pattern includes '_{number}.ext'.
 
     Returns:
-        List of file names.
+        List[str]: File names.
     """
     path = pathlib.Path(path)
     image_paths = list(path.glob(pattern))
@@ -295,9 +295,10 @@ def parse_camera_info(camera_info_file: str) -> Tuple[int, int, np.ndarray]:
         camera_info_file (str): Absolute path to the camera info file.
 
     Returns:
-        height (int): Height of the image.
-        width (int): Width of the image.
-        intrinsic_matrix (np.ndarray): Intrinsic matrix of shape 3x3.
+        Tuple[int,int,np.ndarray]:
+            - Height of the image.
+            - Width of the image.
+            - Intrinsic matrix of shape 3x3.
     """
     with open(camera_info_file, "r") as f:
         camera_info = yaml.load(f, Loader=yaml.FullLoader)
@@ -324,9 +325,10 @@ def parse_hydra_data(
         xyz_pattern (str): Pattern for xyz files.
 
     Returns:
-        joint_states (List[np.ndarray]): Joint states.
-        masks (List[np.ndarray]): Masks of shape HxW.
-        xyzs (List[np.ndarray]): Point clouds of shape HxWx3.
+        Tuple[List[np.ndarray],List[np.ndarray],List[np.ndarray]]:
+            - Joint states.
+            - Masks of shape HxW.
+            - Point clouds of shape HxWx3.
     """
     joint_state_files = find_files(path, joint_states_pattern)
     mask_files = find_files(path, mask_pattern)
