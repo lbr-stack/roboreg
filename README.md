@@ -53,7 +53,7 @@ To install `roboreg` within an [Anaconda](https://www.anaconda.com/) environment
 1. Create an environment
 
     ```shell
-    conda create -n rr-0.4.1 python=3.10
+    conda create -n rr-0.4.2 python=3.10
     ```
 
 2. Clone this repository and install dependencies
@@ -66,7 +66,7 @@ To install `roboreg` within an [Anaconda](https://www.anaconda.com/) environment
 3. Install `roboreg`
 
     ```shell
-    mamba activate rr-0.4.1 # can also use 'conda activate rr-0.4.1' in either case
+    mamba activate rr-0.4.2 # can also use 'conda activate rr-0.4.2' in either case
     pip3 install roboreg/
     ```
 
