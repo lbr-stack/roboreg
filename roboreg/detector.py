@@ -81,11 +81,12 @@ class Detector(ABC, SampleParserMixin):
 
 class OpenCVDetector(Detector):
     def __init__(
-        self, n_positive_samples: int = 3, n_negative_samples: int = 3
+        self, n_positive_samples: int = 3, n_negative_samples: int = 3, window_name="detect"
     ) -> None:
         super().__init__(
             n_positive_samples=n_positive_samples, n_negative_samples=n_negative_samples
         )
+        self._window_name = window_name
 
     def _on_mouse(self, event, x, y, flags, param):
         if (
@@ -114,15 +115,15 @@ class OpenCVDetector(Detector):
             return
 
     def detect(self, img: np.ndarray) -> Tuple[List, List]:
-        cv2.namedWindow("detect")
-        cv2.setMouseCallback("detect", self._on_mouse)
+        cv2.namedWindow(self._window_name)
+        cv2.setMouseCallback(self._window_name, self._on_mouse)
         img_cpy = img.copy()
         while (
             len(self._positive_samples) < self._n_positive_samples
             or len(self._negative_samples) < self._n_negative_samples
         ):
             try:
-                cv2.imshow("detect", img_cpy)
+                cv2.imshow(self._window_name, img_cpy)
                 cv2.waitKey(10)
 
                 # draw samples
