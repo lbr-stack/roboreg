@@ -81,7 +81,10 @@ class Detector(ABC, SampleParserMixin):
 
 class OpenCVDetector(Detector):
     def __init__(
-        self, n_positive_samples: int = 3, n_negative_samples: int = 3, window_name="detect"
+        self,
+        n_positive_samples: int = 3,
+        n_negative_samples: int = 3,
+        window_name="detect",
     ) -> None:
         super().__init__(
             n_positive_samples=n_positive_samples, n_negative_samples=n_negative_samples
