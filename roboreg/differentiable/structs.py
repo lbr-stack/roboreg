@@ -2,6 +2,7 @@ import abc
 from collections import OrderedDict
 from typing import Dict, List, Tuple, Union
 
+import fast_simplification
 import numpy as np
 import torch
 import trimesh
@@ -34,6 +35,7 @@ class TorchMeshContainer:
         mesh_paths: Dict[str, str],
         batch_size: int = 1,
         device: torch.device = "cuda",
+        target_reduction: float = 0.0,
     ) -> None:
         self._mesh_names = []
         self._vertices = []
@@ -46,7 +48,7 @@ class TorchMeshContainer:
         self._upper_face_index_lookup = {}
 
         # load meshes
-        self._populate_meshes(mesh_paths, device)
+        self._populate_meshes(mesh_paths, device, target_reduction)
 
         # add batch dim
         self._batch_size = batch_size
@@ -63,7 +65,10 @@ class TorchMeshContainer:
 
     @abc.abstractmethod
     def _populate_meshes(
-        self, mesh_paths: Dict[str, str], device: torch.device = "cuda"
+        self,
+        mesh_paths: Dict[str, str],
+        device: torch.device = "cuda",
+        target_reduction: float = 0.0,
     ) -> None:
         offset = 0
         for mesh_name, mesh_path in mesh_paths.items():
@@ -76,12 +81,21 @@ class TorchMeshContainer:
             if isinstance(m, trimesh.Scene):
                 m = m.dump(concatenate=True)
 
+            vertices = m.vertices
+            faces = m.faces
+
+            vertices, faces = fast_simplification.simplify(
+                points=vertices,
+                triangles=faces,
+                target_reduction=target_reduction,
+            )
+
             # populate mesh vertex count
-            self._per_mesh_vertex_count[mesh_name] = len(m.vertices)
+            self._per_mesh_vertex_count[mesh_name] = len(vertices)
 
             # populate vertices
             self._vertices.append(
-                torch.tensor(m.vertices, dtype=torch.float32, device=device)
+                torch.tensor(vertices, dtype=torch.float32, device=device)
             )
             self._vertices[-1] = torch.cat(
                 [
@@ -92,16 +106,16 @@ class TorchMeshContainer:
             )  # (x,y,z) -> (x,y,z,1): homogeneous coordinates
 
             # populate mesh face count
-            self._per_mesh_face_count[mesh_name] = len(m.faces)
+            self._per_mesh_face_count[mesh_name] = len(faces)
 
             # populate faces (also add an offset to the point ids)
             self._faces.append(
                 torch.add(
-                    torch.tensor(m.faces, dtype=torch.int32, device=device),
+                    torch.tensor(faces, dtype=torch.int32, device=device),
                     offset,
                 )
             )
-            offset += len(m.vertices)
+            offset += len(vertices)
 
         self._vertices = torch.cat(self._vertices, dim=0)
         self._faces = torch.cat(self._faces, dim=0)

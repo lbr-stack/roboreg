@@ -5,6 +5,7 @@ sys.path.append(
     os.path.dirname((os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 )
 
+import numpy as np
 import torch
 
 from roboreg.differentiable.structs import Camera, TorchMeshContainer, VirtualCamera
@@ -36,6 +37,28 @@ def test_torch_mesh_container() -> None:
     print(torch_robot_mesh.upper_vertex_index_lookup)
     print(torch_robot_mesh.lower_face_index_lookup)
     print(torch_robot_mesh.upper_face_index_lookup)
+
+    n_vertices = torch_robot_mesh.vertices.shape[1]
+    print(n_vertices)
+
+    # test taret reduction
+    target_reduction = 0.6
+    torch_robot_mesh = TorchMeshContainer(
+        mesh_paths={
+            "link_0": "test/data/lbr_med7/mesh/link_0.dae",
+            "link_1": "test/data/lbr_med7/mesh/link_1.dae",
+        },
+        target_reduction=target_reduction,
+    )
+
+    reduced_n_vertices = torch_robot_mesh.vertices.shape[1]
+    print(reduced_n_vertices)
+    print(1.0 - np.round(reduced_n_vertices / n_vertices, 1))
+
+    if not np.isclose(
+        1.0 - np.round(reduced_n_vertices / n_vertices, 1), target_reduction
+    ):
+        raise ValueError("Expected target reduction")
 
 
 def test_batched_camera() -> None:
