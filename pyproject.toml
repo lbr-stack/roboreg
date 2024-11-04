@@ -16,7 +16,7 @@ dependencies = [
   "huggingface_hub",
   "pycollada",
   "pytest",
-  "pytorch-kinematics",
+  "pytorch-kinematics>=0.7.4",
   "pyvista",
   "ninja",
   "numpy",
