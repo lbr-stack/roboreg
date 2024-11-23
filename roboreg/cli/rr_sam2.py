@@ -59,14 +59,14 @@ def main():
     segmentor = Sam2Segmentor(model_id=args.model_id, device=args.device)
 
     for image_name in progress.track(image_names, description="Generating masks..."):
-        image_prefix = image_name.split(".")[0]
-        image_suffix = image_name.split(".")[1]
+        image_stem = pathlib.Path(image_name).stem
+        image_suffix = pathlib.Path(image_name).suffix
         img = cv2.imread(os.path.join(path.absolute(), image_name))
         annotations = False
         if args.pre_annotated:
             try:
                 samples, labels = detector.read(
-                    path=os.path.join(path.absolute(), f"{image_prefix}_samples.csv")
+                    path=os.path.join(path.absolute(), f"{image_stem}_samples.csv")
                 )
                 annotations = True
             except FileNotFoundError:
@@ -74,7 +74,7 @@ def main():
         if not annotations:
             samples, labels = detector.detect(img)
             detector.write(
-                path=os.path.join(path.absolute(), f"{image_prefix}_samples.csv"),
+                path=os.path.join(path.absolute(), f"{image_stem}_samples.csv"),
                 samples=samples,
                 labels=labels,
             )
@@ -85,13 +85,13 @@ def main():
 
         # write probability and mask
         probability_path = os.path.join(
-            path.absolute(), f"probability_sam2_{image_prefix}.{image_suffix}"
+            path.absolute(), f"probability_sam2_{image_stem}.{image_suffix}"
         )
         mask_path = os.path.join(
-            path.absolute(), f"mask_sam2_{image_prefix}.{image_suffix}"
+            path.absolute(), f"mask_sam2_{image_stem}.{image_suffix}"
         )
         overlay_path = os.path.join(
-            path.absolute(), f"mask_overlay_sam2_{image_prefix}.{image_suffix}"
+            path.absolute(), f"mask_overlay_sam2_{image_stem}.{image_suffix}"
         )
         cv2.imwrite(probability_path, (probability * 255.0).astype(np.uint8))
         cv2.imwrite(mask_path, mask)
