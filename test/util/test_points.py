@@ -1,4 +1,5 @@
 import os
+import pathlib
 import sys
 
 sys.path.append(
@@ -114,8 +115,10 @@ def test_realsense_depth_to_xyz() -> None:
     xyzs = xyzs.cpu().numpy()
 
     for idx, depth_file in enumerate(depth_files):
+        depth_file_stem = pathlib.Path(depth_file).stem
+        depth_file_suffix = pathlib.Path(depth_file).suffix
         np.save(
-            os.path.join(path, f"xyz_{depth_file.split('_')[-1].split('.')[0]}.npy"),
+            os.path.join(path, f"xyz_{depth_file_stem + depth_file_suffix}"),
             xyzs[idx],
         )
 
