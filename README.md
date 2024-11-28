@@ -26,6 +26,7 @@ Eye-to-hand calibration from RGB-D images using robot mesh as calibration target
 - [Command Line Interface](#command-line-interface)
     - [Segment](#segment)
     - [Hydra Robust ICP](#hydra-robust-icp)
+    - [Camera Swarm](#camera-swarm)
     - [Stereo Differentiable Rendering](#stereo-differentiable-rendering)
     - [Render Results](#render-results)
 - [Testing](#testing)
@@ -53,7 +54,7 @@ To install `roboreg` within an [Anaconda](https://www.anaconda.com/) environment
 1. Create an environment
 
     ```shell
-    conda create -n rr-0.4.2 python=3.10
+    conda create -n rr-0.4.3 python=3.10
     ```
 
 2. Clone this repository and install dependencies
@@ -66,7 +67,7 @@ To install `roboreg` within an [Anaconda](https://www.anaconda.com/) environment
 3. Install `roboreg`
 
     ```shell
-    mamba activate rr-0.4.2 # can also use 'conda activate rr-0.4.2' in either case
+    mamba activate rr-0.4.3 # can also use 'conda activate rr-0.4.3' in either case
     pip3 install roboreg/
     ```
 
@@ -127,7 +128,7 @@ rr-sam \
 ```
 
 ### Hydra Robust ICP
-This registration only works for registered point clouds!
+The Hydra robust ICP implements a point-to-plane ICP registration on a Lie algebra. It does not use rendering and can also be used on CPU.
 
 ```shell
 rr-hydra \
@@ -143,13 +144,25 @@ rr-hydra \
     --output-file HT_hydra_robust.npy
 ```
 
+### Camera Swarm
+> [!WARNING]
+> On first run, `nvdiffrast` compiles PyTorch extensions. This might use too many resources on some systems (< 16 GB RAM). 
+> You can create an environment variable `export MAX_JOBS=1` before the first run to limit concurrent compilation.
+> Also refer to this [Issue](https://github.com/NVlabs/nvdiffrast/issues/201).
+
+The camera swarm optimization can serve for finding an initial guess to [Stereo Differentiable Rendering](#stereo-differentiable-rendering).
+
+```shell
+rr-cam-swarm TODO
+```
+
 ### Stereo Differentiable Rendering
 > [!WARNING]
 > On first run, `nvdiffrast` compiles PyTorch extensions. This might use too many resources on some systems (< 16 GB RAM). 
 > You can create an environment variable `export MAX_JOBS=1` before the first run to limit concurrent compilation.
 > Also refer to this [Issue](https://github.com/NVlabs/nvdiffrast/issues/201).
 
-This rendering refinement requires a good initial estimate, as e.g. obtained from [Hydra Robust ICP](#hydra-robust-icp).
+This rendering refinement requires a good initial estimate, as e.g. obtained from [Hydra Robust ICP](#hydra-robust-icp) or [Camera Swarm](#camera-swarm)
 
 ```shell
 rr-stereo-dr \
