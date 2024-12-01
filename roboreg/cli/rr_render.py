@@ -140,10 +140,12 @@ def main():
         images = images.numpy()
         renders = (renders * 255.0).squeeze(-1).cpu().numpy().astype(np.uint8)
         for render, image, image_file in zip(renders, images, image_files):
-            prefix = image_file.split(".")[0]
-            suffix = image_file.split(".")[1]
+            image_stem = pathlib.Path(image_file).stem
+            image_suffix = pathlib.Path(image_file).suffix
             cv2.imwrite(
-                os.path.join(str(output_path.absolute()), f"overlay_{prefix}.{suffix}"),
+                os.path.join(
+                    str(output_path.absolute()), f"overlay_{image_stem + image_suffix}"
+                ),
                 overlay_mask(image, render, "b", scale=1.0),
             )
 
