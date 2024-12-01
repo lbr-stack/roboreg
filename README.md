@@ -153,7 +153,28 @@ rr-hydra \
 The camera swarm optimization can serve for finding an initial guess to [Stereo Differentiable Rendering](#stereo-differentiable-rendering).
 
 ```shell
-rr-cam-swarm TODO
+rr-cam-swarm \
+    --n-cameras 50 \
+    --min-distance 0.5 \
+    --max-distance 3.0 \
+    --angle-range 3.141 \
+    --w 0.7 \
+    --c1 1.5 \
+    --c2 1.5 \
+    --max-iterations 200 \
+    --display-progress \
+    --ros-package lbr_description \
+    --xacro-path urdf/med7/med7.xacro \
+    --root-link-name lbr_link_0 \
+    --end-link-name lbr_link_7 \
+    --target-reduction 0.95 \
+    --scale 0.25 \
+    --camera-info-file test/data/lbr_med7/zed2i/stereo_data/left_camera_info.yaml \
+    --path test/data/lbr_med7/zed2i/stereo_data \
+    --image-pattern left_img_*.png \
+    --joint-states-pattern joint_state_*.npy \
+    --mask-pattern left_mask_*.png \
+    --output-file HT_cam_swarm.npy
 ```
 
 ### Stereo Differentiable Rendering
@@ -166,7 +187,6 @@ This rendering refinement requires a good initial estimate, as e.g. obtained fro
 
 ```shell
 rr-stereo-dr \
-    --device cuda \
     --optimizer SGD \
     --lr 0.0001 \
     --epochs 100 \
@@ -177,7 +197,7 @@ rr-stereo-dr \
     --end-link-name lbr_link_7 \
     --left-camera-info-file test/data/lbr_med7/zed2i/stereo_data/left_camera_info.yaml \
     --right-camera-info-file test/data/lbr_med7/zed2i/stereo_data/right_camera_info.yaml \
-    --left-extrinsics-file test/data/lbr_med7/zed2i/stereo_data/HT_hydra_robust.npy \
+    --left-extrinsics-file test/data/lbr_med7/zed2i/stereo_data/HT_cam_swarm.npy \
     --right-extrinsics-file test/data/lbr_med7/zed2i/stereo_data/HT_right_to_left.npy \
     --path test/data/lbr_med7/zed2i/stereo_data \
     --left-image-pattern left_img_*.png \
@@ -199,7 +219,6 @@ Generate renders using the obtained extrinsics:
 
 ```shell
 rr-render \
-    --device cuda \
     --batch-size 1 \
     --num-workers 0 \
     --ros-package lbr_description \
@@ -240,7 +259,6 @@ Generate renders using the obtained extrinsics:
 
 ```shell
 rr-render \
-    --device cuda \
     --batch-size 1 \
     --num-workers 0 \
     --ros-package xarm_description \

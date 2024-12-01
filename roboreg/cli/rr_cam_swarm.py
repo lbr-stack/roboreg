@@ -36,7 +36,7 @@ def args_factory() -> argparse.Namespace:
     parser.add_argument(
         "--max-distance",
         type=float,
-        default=5.0,
+        default=2.0,
         help="The maximum distance of the camera from the object.",
     )
     parser.add_argument(
@@ -71,6 +71,11 @@ def args_factory() -> argparse.Namespace:
         type=float,
         default=1e-4,
         help="The minimum velocity for early convergence.",
+    )
+    parser.add_argument(
+        "--display-progress",
+        action="store_true",
+        help="Display optimization progress.",
     )
     parser.add_argument(
         "--ros-package",
@@ -121,6 +126,12 @@ def args_factory() -> argparse.Namespace:
     )
     parser.add_argument("--path", type=str, required=True, help="Path to the data.")
     parser.add_argument(
+        "--image-pattern",
+        type=str,
+        default="image_*.png",
+        help="Image file pattern. The images are only used to --display-progress.",
+    )
+    parser.add_argument(
         "--joint-states-pattern",
         type=str,
         default="joint_states_*.npy",
@@ -132,22 +143,37 @@ def args_factory() -> argparse.Namespace:
         default="image_*_mask.png",
         help="Mask file pattern.",
     )
+    parser.add_argument(
+        "--output-file",
+        type=str,
+        default="HT_cam_swarm.npy",
+        help="Output file name. Relative to --path.",
+    )
     return parser.parse_args()
 
 
 def parse_data(
-    path: str, mask_pattern: str, joint_states_pattern: str, device: str = "cuda"
-) -> Tuple[torch.Tensor, torch.Tensor]:
+    path: str,
+    image_pattern: str,
+    mask_pattern: str,
+    joint_states_pattern: str,
+    device: str = "cuda",
+) -> Tuple[np.ndarray, torch.Tensor, torch.Tensor]:
+    image_files = find_files(path, image_pattern)
     mask_files = find_files(path, mask_pattern)
     joint_states_files = find_files(path, joint_states_pattern)
 
     rich.print("Found the following files:")
+    rich.print(f"Images: {image_files}")
     rich.print(f"Masks: {mask_files}")
     rich.print(f"Joint states: {joint_states_files}")
 
     if len(mask_files) != len(joint_states_files):
         raise ValueError("Number of masks and joint states do not match.")
 
+    images = [
+        cv2.imread(os.path.join(path, file), cv2.IMREAD_COLOR) for file in image_files
+    ]
     masks = [
         cv2.imread(os.path.join(path, file), cv2.IMREAD_GRAYSCALE)
         for file in mask_files
@@ -159,7 +185,7 @@ def parse_data(
         np.array(joint_states), dtype=torch.float32, device=device
     )
 
-    return joint_states, masks
+    return images, joint_states, masks
 
 
 def instantiate_particles(
@@ -221,20 +247,6 @@ def instantiate_particles(
     return torch.cat([random_eyes, random_centers, random_angles], dim=-1)
 
 
-def instantiate_particle_box_bounds(
-    eye_max_dist: float,
-    device: torch.device = torch.device("cuda"),
-) -> torch.Tensor:
-    particle_bounds = torch.zeros(
-        7, 2, dtype=torch.float32, device=device
-    )  # note that these are simple box constraints (only supported for now in ParticleSwarm)
-    particle_bounds[:6, 0] = -eye_max_dist
-    particle_bounds[:6, 1] = eye_max_dist
-    particle_bounds[6, 0] = -np.pi
-    particle_bounds[6, 1] = np.pi
-    return particle_bounds
-
-
 def main() -> None:
     args = args_factory()
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -243,8 +255,9 @@ def main() -> None:
     height, width, intrinsics = parse_camera_info(
         camera_info_file=args.camera_info_file
     )
-    joint_states, masks = parse_data(
+    images, joint_states, masks = parse_data(
         path=args.path,
+        image_pattern=args.image_pattern,
         mask_pattern=args.mask_pattern,
         joint_states_pattern=args.joint_states_pattern,
         device=device,
@@ -254,7 +267,7 @@ def main() -> None:
     # scale image data (memory reduction)
     height = int(height * args.scale)
     width = int(width * args.scale)
-    intrinsics = intrinsics / args.scale
+    intrinsics = intrinsics * args.scale
     masks = torch.nn.functional.interpolate(
         masks.unsqueeze(1), size=(height, width), mode="nearest"
     ).squeeze(1)
@@ -271,22 +284,14 @@ def main() -> None:
         angle_interval=args.angle_range,
         device=device,
     )
-    particle_bounds = instantiate_particle_box_bounds(
-        eye_max_dist=args.max_distance, device=device
-    )
     particle_swarm = LinearParticleSwarm(
         particles=particles,
-        particle_bounds=particle_bounds,
         w=args.w,
         c1=args.c1,
         c2=args.c2,
     )
 
-    # instantiate scene for fitness evaluation (each camera observes n_joint_states joint states)
-    batch_size = n_joint_states * args.n_cameras
-    if joint_states.shape[0] != batch_size:
-        raise ValueError("Joint states of invalid shape.")
-
+    # instantiate scene for fitness evaluation
     urdf_parser = rrd.URDFParser()
     urdf_parser.from_ros_xacro(ros_package=args.ros_package, xacro_path=args.xacro_path)
 
@@ -297,6 +302,9 @@ def main() -> None:
         device=device,
     )
 
+    batch_size = (
+        n_joint_states * args.n_cameras
+    )  # (each camera observes n_joint_states joint states)
     meshes = rrd.TorchMeshContainer(
         mesh_paths=urdf_parser.ros_package_mesh_paths(
             root_link_name=args.root_link_name,
@@ -324,36 +332,68 @@ def main() -> None:
         cameras={camera_name: camera},
     )
 
-    scene.configure_robot_joint_states(joint_states)
-
     # repeat joint states and masks for each camera
     masks = masks.repeat(args.n_cameras, 1, 1)
     joint_states = joint_states.repeat(args.n_cameras, 1)
+    if joint_states.shape[0] != batch_size:
+        raise ValueError("Joint states of invalid shape.")
+    scene.configure_robot_joint_states(joint_states)
 
-    # def fitness_closure() -> torch.Tensor:
-    #     # for each particle, compute a fitness
-
-    #     # particle_swarm_optimizer.particle_swarm.particles
-    #     # extrinsics = look_at_from_angle()
-    #     # scene.cameras["camera"].extrinsics = extrinsics.repeat_interleave(
-    #     #     n_joint_configurations, 0
-    #     # )
-    #     # renders = scene.observe_from("camera").squeeze()
-    #     # loss = soft_dice_loss(renders, masks_tensor)
-    #     # return loss
-    #     pass
+    def fitness_closure() -> torch.Tensor:
+        eye = particle_swarm_optimizer.particle_swarm.particles[:, :3]
+        center = particle_swarm_optimizer.particle_swarm.particles[:, 3:6]
+        angle = particle_swarm_optimizer.particle_swarm.particles[:, -1:]
+        extrinsics = look_at_from_angle(eye=eye, center=center, angle=angle)
+        scene.cameras["camera"].extrinsics = extrinsics.repeat_interleave(
+            n_joint_states, 0
+        )
+        renders = scene.observe_from("camera").squeeze()
+        fitness = (
+            soft_dice_loss(renders, masks)
+            .view(args.n_cameras, n_joint_states)
+            .mean(dim=1)
+        )
+        # show the best particle of the current iteration
+        if args.display_progress:
+            offset = 0
+            current_best_idx = torch.argmin(fitness)
+            current_best_render = (
+                renders[current_best_idx * n_joint_states + offset].cpu().numpy()
+                * 255.0
+            ).astype(np.uint8)
+            # upscale render
+            current_best_render = cv2.resize(
+                current_best_render, (images[offset].shape[1], images[offset].shape[0])
+            )
+            overlay = overlay_mask(
+                images[offset],
+                current_best_render,
+                scale=1.0,
+            )
+            cv2.imshow("Best particle of current iteration", overlay)
+            cv2.waitKey(1)
+        return fitness
 
     # prepare optimizer
     particle_swarm_optimizer = ParticleSwarmOptimizer(
         particle_swarm=particle_swarm,
     )
 
-    # # optimize
-    # particle_swarm_optimizer(
-    #     fitness_function=fitness_closure,
-    #     max_iterations=args.max_iterations,
-    #     min_velocity=args.min_velocity,
-    # )
+    # optimize
+    best_particle = particle_swarm_optimizer(
+        fitness_function=fitness_closure,
+        max_iterations=args.max_iterations,
+        min_velocity=args.min_velocity,
+    )
+
+    # save results
+    best_eye = best_particle[:3].unsqueeze(0)
+    best_center = best_particle[3:6].unsqueeze(0)
+    best_angle = best_particle[-1:].unsqueeze(0)
+    HT_cam_swarm = look_at_from_angle(
+        eye=best_eye, center=best_center, angle=best_angle
+    )
+    np.save(os.path.join(args.path, args.output_file), HT_cam_swarm.cpu().numpy())
 
 
 if __name__ == "__main__":

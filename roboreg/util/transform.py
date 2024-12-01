@@ -121,6 +121,7 @@ def look_at_from_angle(
 
     # add a random rotation about the z-axis in [-angle_interval/2, angle_interval/2]
     random_rot = torch.eye(4, device=device).repeat(batch_size, 1, 1)
+    angle = angle.squeeze()
     random_rot[:, 0, 0] = torch.cos(angle)
     random_rot[:, 0, 1] = -torch.sin(angle)
     random_rot[:, 1, 0] = torch.sin(angle)

@@ -127,9 +127,13 @@ def test_realsense_depth_to_xyz() -> None:
 
 
 def test_look_at_from_angle() -> None:
+    batch_size = 4
     eye = torch.tensor([0.0, 0.0, 1.0], dtype=torch.float32).unsqueeze(0)
     center = torch.tensor([0.0, 0.0, 0.0], dtype=torch.float32).unsqueeze(0)
     angle = torch.tensor([np.pi], dtype=torch.float32).unsqueeze(0)
+    eye = eye.repeat(batch_size, 1)
+    center = center.repeat(batch_size, 1)
+    angle = angle.repeat(batch_size, 1)
 
     ht = look_at_from_angle(
         eye=eye,
@@ -137,8 +141,11 @@ def test_look_at_from_angle() -> None:
         angle=angle,
     )
 
-    if ht.shape != (eye.shape[0], 4, 4):
-        raise ValueError(f"Expected shape ({eye.shape[0]}, 4, 4), got {ht.shape}.")
+    if angle.shape != (batch_size, 1):  # check this remains unchanged
+        raise ValueError(f"Expected shape ({batch_size}, 1), got {angle.shape}.")
+
+    if ht.shape != (batch_size, 4, 4):
+        raise ValueError(f"Expected shape ({batch_size}, 4, 4), got {ht.shape}.")
 
 
 if __name__ == "__main__":

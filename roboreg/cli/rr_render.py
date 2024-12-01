@@ -16,12 +16,6 @@ from roboreg.util import overlay_mask
 def args_factory() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--device",
-        type=str,
-        default="cuda",
-        help="Device to use, e.g. 'cuda' or 'cpu'.",
-    )
-    parser.add_argument(
         "--batch-size",
         type=int,
         default=1,
@@ -100,8 +94,9 @@ def args_factory() -> argparse.Namespace:
 
 def main():
     args = args_factory()
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     scene = rrd.robot_scene_factory(
-        device=args.device,
+        device=device,
         batch_size=args.batch_size,
         ros_package=args.ros_package,
         xacro_path=args.xacro_path,
@@ -133,7 +128,7 @@ def main():
         dataloader, description="Rendering..."
     ):
         # pre-process
-        joint_states = joint_states.to(dtype=torch.float32, device=args.device)
+        joint_states = joint_states.to(dtype=torch.float32, device=device)
 
         # configure robot
         scene.configure_robot_joint_states(joint_states)
