@@ -4,43 +4,30 @@ import numpy as np
 import torch
 
 
-def random_position_in_hollow_sphere(
-    inner_radius: float,
-    outer_radius: float,
-    batch_size: int = 1,
-    device: torch.device = "cuda",
+def random_position_in_hollow_spheres(
+    inner_radii: torch.Tensor,
+    outer_radii: torch.Tensor,
 ) -> torch.Tensor:
     r"""Randomly samples a position in a hollow sphere.
 
     Args:
-        inner_radius (float): The inner radius of the hollow sphere.
-        outer_radius (float): The outer radius of the hollow sphere.
-        batch_size (int): The number of samples to generate. Defaults to 1.
-        device (torch.device): The device to generate the samples on. Defaults to "cuda".
+        inner_radius (torch.Tensor): The inner radii of the hollow spheres.
+        outer_radius (torch.Tensor): The outer radii of the hollow spheres.
 
     Returns:
-        torch.Tensor: A tensor of shape (batch_size, 3) containing the sampled positions.
+        torch.Tensor: A tensor of shape (radii, 3) containing the sampled positions.
     """
-    if inner_radius > outer_radius:
+    if inner_radii.shape != outer_radii.shape:
         raise ValueError(
-            f"Expected inner_radius <= outer_radius, got inner_radius={inner_radius} and outer_radius={outer_radius}."
+            "Expected inner_radius and outer_radius to have the same shape."
         )
-    if inner_radius < 0:
+    if torch.greater(inner_radii, outer_radii).any():
+        raise ValueError(f"Expected inner_radius <= outer_radius.")
+    if torch.less(inner_radii, 0.0).any():
         raise ValueError("Expected inner_radius >= 0.")
-    if outer_radius <= 0:
-        raise ValueError("Expected outer_radius > 0.")
-    r = (
-        torch.rand(batch_size, device=device) * (outer_radius - inner_radius)
-        + inner_radius
-    )
-    theta = (
-        torch.rand(batch_size, device=device)
-        * 2
-        * torch.tensor([torch.pi], device=device)
-    )
-    phi = torch.rand(batch_size, device=device) * torch.tensor(
-        [torch.pi], device=device
-    )
+    r = torch.rand_like(outer_radii) * (outer_radii - inner_radii) + inner_radii
+    theta = torch.rand_like(outer_radii) * 2 * torch.full_like(outer_radii, torch.pi)
+    phi = torch.rand_like(outer_radii) * torch.full_like(outer_radii, torch.pi)
     x = r * torch.sin(phi) * torch.cos(theta)
     y = r * torch.sin(phi) * torch.sin(theta)
     z = r * torch.cos(phi)
@@ -48,62 +35,75 @@ def random_position_in_hollow_sphere(
 
 
 def random_fov_eye_space_coordinates(
-    height: int,
-    width: int,
-    focal_length_x: float,
-    focal_length_y: float,
-    eye_min_dist: float = 1.0,
-    eye_max_dist: float = 5.0,
-    angle_interval: float = torch.pi,
-    batch_size: int = 1,
-    device: torch.device = "cuda",
+    heights: torch.IntTensor,
+    widths: torch.IntTensor,
+    focal_lengths_x: torch.Tensor,
+    focal_lengths_y: torch.Tensor,
+    eye_min_dists: torch.Tensor,
+    eye_max_dists: torch.Tensor,
+    angle_intervals: torch.Tensor,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     r"""Randomly samples eye space coordinates for a camera with a given field of view.
     The sampled eye space coordinates guarantee that the view center is visible under the field of view.
 
     Args:
-        height (int): The height of the image.
-        width (int): The width of the image.
-        focal_length_x (float): The focal length in x direction.
-        focal_length_y (float): The focal length in y direction.
-        eye_min_dist (float): The minimum distance of the eye from the origin. Defaults to 1.0.
-        eye_max_dist (float): The maximum distance of the eye from the origin. Defaults to 5.0.
-        angle_interval (float): The interval [-angle_interval/2, angle_interval/2] in which to sample the rotation angle. Defaults to pi.
-        batch_size (int): The number of samples to generate. Defaults to 1.
-        device (torch.device): The device to generate the samples on. Defaults to "cuda".
+        heights (torch.IntTensor): The heights of the images. 1D tensor with N elements.
+        widths (torch.IntTensor): The widths of the images. 1D tensor with N elements.
+        focal_lengths_x (torch.Tensor): The focal lengths in x direction. 1D tensor with N elements.
+        focal_lengths_y (torch.Tensor): The focal lengths in y direction. 1D tensor with N elements.
+        eye_min_dists (torch.Tensor): The minimum distances of the eye from the origin. 1D tensor with N elements.
+        eye_max_dists (torch.Tensor): The maximum distances of the eye from the origin. 1D tensor with N elements.
+        angle_intervals (torch.Tensor): The intervals [-angle_intervals/2, angle_intervals/2] in which to sample the rotation angle. 1D tensor with N elements.
 
     Returns:
         Tuple[torch.Tensor,torch.Tensor,torch.Tensor]:
-            - Random eye positions of shape (batch_size, 3).
-            - Random center positions of shape (batch_size, 3).
-            - Random rotation angles of shape (batch_size, 1).
+            - Random eye positions of shape (N, 3).
+            - Random center positions of shape (N, 3).
+            - Random rotation angles of shape (N, 1).
     """
+    if (
+        heights.device != widths.device
+        or heights.device != focal_lengths_x.device
+        or heights.device != focal_lengths_y.device
+        or heights.device != eye_min_dists.device
+        or heights.device != eye_max_dists.device
+        or heights.device != angle_intervals.device
+    ):
+        raise ValueError("Expected all tensors to be on the same device.")
+    if heights.ndim != 1:
+        raise ValueError("Expected heights to be a 1D tensor.")
+    if (
+        heights.shape != widths.shape
+        or heights.shape != focal_lengths_x.shape
+        or heights.shape != focal_lengths_y.shape
+        or heights.shape != eye_min_dists.shape
+        or heights.shape != eye_max_dists.shape
+        or heights.shape != angle_intervals.shape
+    ):
+        raise ValueError("Expected all tensors to be of same shape.")
+
     # compute a random eye position
-    random_eye = random_position_in_hollow_sphere(
-        inner_radius=eye_min_dist,
-        outer_radius=eye_max_dist,
-        batch_size=batch_size,
-        device=device,
+    random_eye = random_position_in_hollow_spheres(
+        inner_radii=eye_min_dists,
+        outer_radii=eye_max_dists,
     )
 
     # compute maximum distance for the view center from the origin
     # such that center is still visible under field of view
-    fov_x = 2 * np.arctan(width / (2 * focal_length_x))
-    fov_y = 2 * np.arctan(height / (2 * focal_length_y))
-    max_fov = max(fov_x, fov_y)
+    fovs_x = 2 * torch.arctan(widths / (2 * focal_lengths_x))
+    fovs_y = 2 * torch.arctan(heights / (2 * focal_lengths_y))
+    max_fovs = torch.max(fovs_x, fovs_y)
     distance = torch.norm(random_eye, dim=1)
-    center_max_dist = distance * np.tan(max_fov / 2) / 2
+    center_max_dists = distance * torch.tan(max_fovs / 2) / 2
 
     # compute a random rotation (parameterized by a center point of view)
-    random_center = random_position_in_hollow_sphere(
-        inner_radius=0.0,
-        outer_radius=center_max_dist,
-        batch_size=batch_size,
-        device=device,
+    random_center = random_position_in_hollow_spheres(
+        inner_radii=torch.zeros_like(center_max_dists),
+        outer_radii=center_max_dists,
     )
 
     random_angle = (
-        torch.rand(batch_size, device=device) * angle_interval - angle_interval / 2.0
+        torch.rand_like(angle_intervals) * angle_intervals - angle_intervals / 2.0
     ).unsqueeze(-1)
 
     return random_eye, random_center, random_angle

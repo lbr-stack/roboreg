@@ -7,12 +7,20 @@ from rich import progress
 
 
 class ParticleSwarm(ABC):
-    def __init__(self, particles: torch.Tensor, particle_bounds: torch.Tensor) -> None:
-        if particle_bounds.shape[-1] != 2 or particle_bounds.ndim != 2:
+    __slots__ = ["_particles", "_particle_box_bounds", "_velocity"]
+
+    def __init__(
+        self, particles: torch.Tensor, particle_box_bounds: torch.Tensor
+    ) -> None:
+        if particles.device != particle_box_bounds.device:
+            raise ValueError(
+                "Particles and particle bounds must be on the same device."
+            )
+        if particle_box_bounds.shape[-1] != 2 or particle_box_bounds.ndim != 2:
             raise ValueError("Particle bounds must have shape (DoF, 2).")
-        if particle_bounds[:, 0].ge(particle_bounds[:, 1]).any():
+        if particle_box_bounds[:, 0].ge(particle_box_bounds[:, 1]).any():
             raise ValueError("Lower bounds must be less than upper bounds.")
-        if particles.shape[-1] != particle_bounds.shape[0]:
+        if particles.shape[-1] != particle_box_bounds.shape[0]:
             raise ValueError(
                 "Particles and particle bounds must have the same number of DoF."
             )
@@ -20,7 +28,7 @@ class ParticleSwarm(ABC):
             raise ValueError("Particles must be 2 dimensional.")
 
         self._particles = particles
-        self._particle_bounds = particle_bounds
+        self._particle_box_bounds = particle_box_bounds
         self._velocity = torch.zeros_like(particles)
 
     @property
@@ -29,7 +37,7 @@ class ParticleSwarm(ABC):
 
     @property
     def particle_bounds(self) -> torch.Tensor:
-        return self._particle_bounds
+        return self._particle_box_bounds
 
     @property
     def velocity(self) -> torch.Tensor:
@@ -41,14 +49,16 @@ class ParticleSwarm(ABC):
 
     def step(self) -> None:
         self._particles += self._velocity
-        self._particles = torch.clamp(
+        self._particles = torch.clamp(  # note that these are simple box constraints
             self._particles,
-            min=self._particle_bounds[:, 0],
-            max=self._particle_bounds[:, 1],
+            min=self._particle_box_bounds[:, 0],
+            max=self._particle_box_bounds[:, 1],
         )
 
 
 class LinearParticleSwarm(ParticleSwarm):
+    __slots__ = ["_w", "_c1", "_c2"]
+
     def __init__(
         self,
         particles: torch.Tensor,
@@ -124,15 +134,6 @@ class ParticleSwarmOptimizer:
                 for iteration in progress.track(
                     range(max_iterations), description="Optimizing particle swarm..."
                 ):
-                    if (
-                        self._particle_swarm.velocity.norm() < min_velocity
-                        and iteration > 0
-                    ):
-                        rich.print(
-                            "Velocity is below threshold. Stopping optimization."
-                        )
-                        break
-
                     # update particle velocity
                     self._particle_swarm.compute_velocity(
                         self._best_particles,
@@ -142,6 +143,14 @@ class ParticleSwarmOptimizer:
 
                     # evaluate fitness
                     fitnesses = fitness_function()
+                    if fitnesses.ndim != 1:
+                        raise ValueError(
+                            "Expected fitness function to return 1D tensor."
+                        )
+                    if fitnesses.shape != self._particle_swarm.particles.shape[0]:
+                        raise ValueError(
+                            "Expected fitness function to return fitness for each particle."
+                        )
 
                     # update particles best known losses and positions
                     mask = fitnesses < self._best_particles_fitness
@@ -158,6 +167,12 @@ class ParticleSwarmOptimizer:
                         rich.print(
                             f"New best loss: {best_loss_print} at iteration {iteration}."
                         )
+                    if self._particle_swarm.velocity.norm(dim=-1).mean() < min_velocity:
+                        rich.print(
+                            f"Velocity is below threshold {min_velocity}. Stopping optimization."
+                        )
+                        break
+
         except KeyboardInterrupt:
             pass
         return self._best_particle
