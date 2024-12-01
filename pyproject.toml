@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "roboreg"
-version = "0.4.2"
+version = "0.4.3"
 authors = [
   { name="mhubii", email="m.huber_1994@hotmail.de" },
 ]
@@ -41,6 +41,7 @@ Homepage = "https://github.com/lbr-stack/roboreg"
 Issues = "https://github.com/lbr-stack/roboreg/issues"
 
 [project.scripts]
+rr-cam-swarm = "roboreg.cli.rr_cam_swarm:main"
 rr-hydra = "roboreg.cli.rr_hydra:main"
 rr-render = "roboreg.cli.rr_render:main"
 rr-sam = "roboreg.cli.rr_sam:main"

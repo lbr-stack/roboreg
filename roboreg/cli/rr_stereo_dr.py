@@ -17,12 +17,6 @@ from roboreg.util import overlay_mask
 def args_factory() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--device",
-        type=str,
-        default="cuda",
-        help="Device to use, e.g. 'cuda' or 'cpu'.",
-    )
-    parser.add_argument(
         "--optimizer",
         type=str,
         default="SGD",
@@ -222,6 +216,7 @@ def parse_data(
 
 def main() -> None:
     args = args_factory()
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     left_images, right_images, joint_states, left_masks, right_masks = parse_data(
         path=args.path,
         left_image_pattern=args.left_image_pattern,
@@ -229,10 +224,10 @@ def main() -> None:
         joint_states_pattern=args.joint_states_pattern,
         left_mask_pattern=args.left_mask_pattern,
         right_mask_pattern=args.right_mask_pattern,
-        device=args.device,
+        device=device,
     )
     scene = rrd.robot_scene_factory(
-        device=args.device,
+        device=device,
         batch_size=joint_states.shape[0],
         ros_package=args.ros_package,
         xacro_path=args.xacro_path,

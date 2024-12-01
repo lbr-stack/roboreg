@@ -26,6 +26,7 @@ Eye-to-hand calibration from RGB-D images using robot mesh as calibration target
 - [Command Line Interface](#command-line-interface)
     - [Segment](#segment)
     - [Hydra Robust ICP](#hydra-robust-icp)
+    - [Camera Swarm](#camera-swarm)
     - [Stereo Differentiable Rendering](#stereo-differentiable-rendering)
     - [Render Results](#render-results)
 - [Testing](#testing)
@@ -53,7 +54,7 @@ To install `roboreg` within an [Anaconda](https://www.anaconda.com/) environment
 1. Create an environment
 
     ```shell
-    conda create -n rr-0.4.2 python=3.10
+    conda create -n rr-0.4.3 python=3.10
     ```
 
 2. Clone this repository and install dependencies
@@ -66,7 +67,7 @@ To install `roboreg` within an [Anaconda](https://www.anaconda.com/) environment
 3. Install `roboreg`
 
     ```shell
-    mamba activate rr-0.4.2 # can also use 'conda activate rr-0.4.2' in either case
+    mamba activate rr-0.4.3 # can also use 'conda activate rr-0.4.3' in either case
     pip3 install roboreg/
     ```
 
@@ -127,7 +128,7 @@ rr-sam \
 ```
 
 ### Hydra Robust ICP
-This registration only works for registered point clouds!
+The Hydra robust ICP implements a point-to-plane ICP registration on a Lie algebra. It does not use rendering and can also be used on CPU.
 
 ```shell
 rr-hydra \
@@ -143,17 +144,49 @@ rr-hydra \
     --output-file HT_hydra_robust.npy
 ```
 
+### Camera Swarm
+> [!WARNING]
+> On first run, `nvdiffrast` compiles PyTorch extensions. This might use too many resources on some systems (< 16 GB RAM). 
+> You can create an environment variable `export MAX_JOBS=1` before the first run to limit concurrent compilation.
+> Also refer to this [Issue](https://github.com/NVlabs/nvdiffrast/issues/201).
+
+The camera swarm optimization can serve for finding an initial guess to [Stereo Differentiable Rendering](#stereo-differentiable-rendering).
+
+```shell
+rr-cam-swarm \
+    --n-cameras 50 \
+    --min-distance 0.5 \
+    --max-distance 3.0 \
+    --angle-range 3.141 \
+    --w 0.7 \
+    --c1 1.5 \
+    --c2 1.5 \
+    --max-iterations 200 \
+    --display-progress \
+    --ros-package lbr_description \
+    --xacro-path urdf/med7/med7.xacro \
+    --root-link-name lbr_link_0 \
+    --end-link-name lbr_link_7 \
+    --target-reduction 0.95 \
+    --scale 0.25 \
+    --camera-info-file test/data/lbr_med7/zed2i/stereo_data/left_camera_info.yaml \
+    --path test/data/lbr_med7/zed2i/stereo_data \
+    --image-pattern left_img_*.png \
+    --joint-states-pattern joint_state_*.npy \
+    --mask-pattern left_mask_*.png \
+    --output-file HT_cam_swarm.npy
+```
+
 ### Stereo Differentiable Rendering
 > [!WARNING]
 > On first run, `nvdiffrast` compiles PyTorch extensions. This might use too many resources on some systems (< 16 GB RAM). 
 > You can create an environment variable `export MAX_JOBS=1` before the first run to limit concurrent compilation.
 > Also refer to this [Issue](https://github.com/NVlabs/nvdiffrast/issues/201).
 
-This rendering refinement requires a good initial estimate, as e.g. obtained from [Hydra Robust ICP](#hydra-robust-icp).
+This rendering refinement requires a good initial estimate, as e.g. obtained from [Hydra Robust ICP](#hydra-robust-icp) or [Camera Swarm](#camera-swarm)
 
 ```shell
 rr-stereo-dr \
-    --device cuda \
     --optimizer SGD \
     --lr 0.0001 \
     --epochs 100 \
@@ -164,7 +197,7 @@ rr-stereo-dr \
     --end-link-name lbr_link_7 \
     --left-camera-info-file test/data/lbr_med7/zed2i/stereo_data/left_camera_info.yaml \
     --right-camera-info-file test/data/lbr_med7/zed2i/stereo_data/right_camera_info.yaml \
-    --left-extrinsics-file test/data/lbr_med7/zed2i/stereo_data/HT_hydra_robust.npy \
+    --left-extrinsics-file test/data/lbr_med7/zed2i/stereo_data/HT_cam_swarm.npy \
     --right-extrinsics-file test/data/lbr_med7/zed2i/stereo_data/HT_right_to_left.npy \
     --path test/data/lbr_med7/zed2i/stereo_data \
     --left-image-pattern left_img_*.png \
@@ -186,7 +219,6 @@ Generate renders using the obtained extrinsics:
 
 ```shell
 rr-render \
-    --device cuda \
     --batch-size 1 \
     --num-workers 0 \
     --ros-package lbr_description \
@@ -227,7 +259,6 @@ Generate renders using the obtained extrinsics:
 
 ```shell
 rr-render \
-    --device cuda \
     --batch-size 1 \
     --num-workers 0 \
     --ros-package xarm_description \
