@@ -1,0 +1,5 @@
+Please note that while this code is distributed under Apache License 2.0,
+dependencies, especially the nvdiffrast library are not, and licensing
+should be determined on a per algorithm basis. The Hydra ICP algorithm, e.g.,
+vastly relies on PyTorch, SAM / SAM 2, OpenCV, Numpy, and their dependencies, 
+only.
