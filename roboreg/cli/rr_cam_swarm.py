@@ -149,6 +149,12 @@ def args_factory() -> argparse.Namespace:
         default="HT_cam_swarm.npy",
         help="Output file name. Relative to --path.",
     )
+    parser.add_argument(
+        "--n-samples",
+        type=int,
+        default=5,
+        help="Number of samples to randomly select from the data for optimization.",
+    )
     return parser.parse_args()
 
 
@@ -157,6 +163,7 @@ def parse_data(
     image_pattern: str,
     mask_pattern: str,
     joint_states_pattern: str,
+    n_samples: int = 5,
     device: str = "cuda",
 ) -> Tuple[np.ndarray, torch.Tensor, torch.Tensor]:
     image_files = find_files(path, image_pattern)
@@ -164,6 +171,19 @@ def parse_data(
     joint_states_files = find_files(path, joint_states_pattern)
 
     rich.print("Found the following files:")
+    rich.print(f"Images: {image_files}")
+    rich.print(f"Masks: {mask_files}")
+    rich.print(f"Joint states: {joint_states_files}")
+
+    # randomly sample n_samples
+    if n_samples > len(image_files):
+        n_samples = len(image_files)
+    random_indices = np.random.choice(len(image_files), n_samples, replace=False)
+    image_files = np.array(image_files)[random_indices].tolist()
+    mask_files = np.array(mask_files)[random_indices].tolist()
+    joint_states_files = np.array(joint_states_files)[random_indices].tolist()
+
+    rich.print(f"Randomly sampled the following {n_samples} files:")
     rich.print(f"Images: {image_files}")
     rich.print(f"Masks: {mask_files}")
     rich.print(f"Joint states: {joint_states_files}")
@@ -260,6 +280,7 @@ def main() -> None:
         image_pattern=args.image_pattern,
         mask_pattern=args.mask_pattern,
         joint_states_pattern=args.joint_states_pattern,
+        n_samples=args.n_samples,
         device=device,
     )
     n_joint_states = joint_states.shape[0]
