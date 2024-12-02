@@ -27,6 +27,7 @@ Eye-to-hand calibration from RGB-D images using robot mesh as calibration target
     - [Segment](#segment)
     - [Hydra Robust ICP](#hydra-robust-icp)
     - [Camera Swarm](#camera-swarm)
+    - [Monocular Differentiable Rendering](#monocular-differentiable-rendering)
     - [Stereo Differentiable Rendering](#stereo-differentiable-rendering)
     - [Render Results](#render-results)
 - [Testing](#testing)
@@ -150,7 +151,7 @@ rr-hydra \
 > You can create an environment variable `export MAX_JOBS=1` before the first run to limit concurrent compilation.
 > Also refer to this [Issue](https://github.com/NVlabs/nvdiffrast/issues/201).
 
-The camera swarm optimization can serve for finding an initial guess to [Stereo Differentiable Rendering](#stereo-differentiable-rendering).
+The camera swarm optimization can serve for finding an initial guess to [Monocular Differentiable Rendering](#monocular-differentiable-rendering) or [Stereo Differentiable Rendering](#stereo-differentiable-rendering).
 
 ```shell
 rr-cam-swarm \
@@ -177,13 +178,40 @@ rr-cam-swarm \
     --output-file HT_cam_swarm.npy
 ```
 
+### Monocular Differentiable Rendering
+> [!WARNING]
+> On first run, `nvdiffrast` compiles PyTorch extensions. This might use too many resources on some systems (< 16 GB RAM). 
+> You can create an environment variable `export MAX_JOBS=1` before the first run to limit concurrent compilation.
+> Also refer to this [Issue](https://github.com/NVlabs/nvdiffrast/issues/201).
+
+This monocular differentiable rendering refinement requires a good initial estimate, as e.g. obtained from [Hydra Robust ICP](#hydra-robust-icp) or [Camera Swarm](#camera-swarm)
+
+```shell
+rr-mono-dr \
+    --optimizer SGD \
+    --lr 0.0001 \
+    --epochs 100 \
+    --display-progress \
+    --ros-package lbr_description \
+    --xacro-path urdf/med7/med7.xacro \
+    --root-link-name lbr_link_0 \
+    --end-link-name lbr_link_7 \
+    --camera-info-file test/data/lbr_med7/zed2i/high_res/camera_info.yaml \
+    --extrinsics-file test/data/lbr_med7/zed2i/high_res/HT_hydra_robust.npy \
+    --path test/data/lbr_med7/zed2i/high_res \
+    --image-pattern image_*.png \
+    --joint-states-pattern joint_states_*.npy \
+    --mask-pattern mask_*.png \
+    --output-file HT_dr.npy
+```
+
 ### Stereo Differentiable Rendering
 > [!WARNING]
 > On first run, `nvdiffrast` compiles PyTorch extensions. This might use too many resources on some systems (< 16 GB RAM). 
 > You can create an environment variable `export MAX_JOBS=1` before the first run to limit concurrent compilation.
 > Also refer to this [Issue](https://github.com/NVlabs/nvdiffrast/issues/201).
 
-This rendering refinement requires a good initial estimate, as e.g. obtained from [Hydra Robust ICP](#hydra-robust-icp) or [Camera Swarm](#camera-swarm)
+This stereo differentiable rendering refinement requires a good initial estimate, as e.g. obtained from [Hydra Robust ICP](#hydra-robust-icp) or [Camera Swarm](#camera-swarm)
 
 ```shell
 rr-stereo-dr \

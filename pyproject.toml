@@ -43,6 +43,7 @@ Issues = "https://github.com/lbr-stack/roboreg/issues"
 [project.scripts]
 rr-cam-swarm = "roboreg.cli.rr_cam_swarm:main"
 rr-hydra = "roboreg.cli.rr_hydra:main"
+rr-mono-dr = "roboreg.cli.rr_mono_dr:main"
 rr-render = "roboreg.cli.rr_render:main"
 rr-sam = "roboreg.cli.rr_sam:main"
 rr-sam2 = "roboreg.cli.rr_sam2:main"

@@ -158,7 +158,9 @@ def parse_data(
     left_mask_pattern: str,
     right_mask_pattern: str,
     device: str = "cuda",
-) -> Tuple[np.ndarray, np.ndarray, torch.FloatTensor, torch.FloatTensor]:
+) -> Tuple[
+    np.ndarray, np.ndarray, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor
+]:
     left_image_files = find_files(path, left_image_pattern)
     right_image_files = find_files(path, right_image_pattern)
     joint_states_files = find_files(path, joint_states_pattern)
