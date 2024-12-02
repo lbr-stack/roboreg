@@ -3,9 +3,7 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import torch
-
-from roboreg.io import URDFParser, parse_camera_info, parse_hydra_data
+from roboreg.io import URDFParser, find_files, parse_camera_info, parse_hydra_data
 
 
 def test_urdf_parser() -> None:
@@ -17,6 +15,12 @@ def test_urdf_parser() -> None:
     print(urdf_parser.mesh_origins("lbr_link_0", "lbr_link_ee"))
     print(urdf_parser.link_names_with_meshes(visual=False))
     print(urdf_parser.link_names_with_meshes(visual=True))
+
+
+def test_find_files() -> None:
+    path = "test/data/lbr_med7/zed2i/high_res"
+    for mask_file in find_files(path, "mask_*.png"):
+        print(mask_file)
 
 
 def test_parse_camera_info() -> None:
@@ -46,5 +50,6 @@ def test_parse_hydra_data() -> None:
 
 if __name__ == "__main__":
     test_urdf_parser()
+    # test_find_files()
     # test_parse_camera_info()
     # test_parse_hydra_data()
