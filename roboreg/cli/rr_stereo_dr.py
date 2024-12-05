@@ -5,6 +5,7 @@ from typing import Tuple
 
 import cv2
 import numpy as np
+import pytorch_kinematics as pk
 import rich
 import rich.progress
 import torch
@@ -250,9 +251,10 @@ def main() -> None:
     scene.configure_robot_joint_states(joint_states)
 
     # enable gradient tracking and instantiate optimizer
-    scene.cameras["left"].extrinsics.requires_grad = True
+    extrinsics_lie = pk.matrix44_to_se3_9d(scene.cameras["left"].extrinsics)
+    extrinsics_lie.requires_grad = True
     optimizer = getattr(importlib.import_module("torch.optim"), args.optimizer)(
-        [scene.cameras["left"].extrinsics], lr=args.lr
+        [extrinsics_lie], lr=args.lr
     )
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, step_size=args.step_size, gamma=args.gamma
@@ -262,10 +264,12 @@ def main() -> None:
     best_loss = float("inf")
 
     for _ in rich.progress.track(range(args.epochs), "Optimizing..."):
-        if not scene.cameras["left"].extrinsics.requires_grad:
-            raise ValueError("Extrinsics require gradients.")
+        if not extrinsics_lie.requires_grad:
+            raise ValueError("Lie extrinsics require gradients.")
         if not torch.is_grad_enabled():
             raise ValueError("Gradients must be enabled.")
+        extrinsics = pk.se3_9d_to_matrix44(extrinsics_lie)
+        scene.cameras["left"].extrinsics = extrinsics
         renders = {
             "left": scene.observe_from("left"),
             "right": scene.observe_from("right", scene.cameras["left"].extrinsics),
