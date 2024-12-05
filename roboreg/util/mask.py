@@ -27,7 +27,7 @@ def mask_extract_boundary(
 
 
 def mask_exponential_distance_transform(
-    mask: np.ndarray, sigma: float = 10.0
+    mask: np.ndarray, sigma: float = 2.0
 ) -> np.ndarray:
     inverse_mask = np.where(mask > 0.0, 0.0, 1.0).astype(np.uint8)
     distance_map = cv2.distanceTransform(
