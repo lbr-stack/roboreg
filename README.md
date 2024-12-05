@@ -189,8 +189,8 @@ This monocular differentiable rendering refinement requires a good initial estim
 ```shell
 rr-mono-dr \
     --optimizer SGD \
-    --lr 0.0001 \
-    --epochs 100 \
+    --lr 0.01 \
+    --max-iterations 100 \
     --display-progress \
     --ros-package lbr_description \
     --xacro-path urdf/med7/med7.xacro \
@@ -216,8 +216,8 @@ This stereo differentiable rendering refinement requires a good initial estimate
 ```shell
 rr-stereo-dr \
     --optimizer SGD \
-    --lr 0.0001 \
-    --epochs 100 \
+    --lr 0.01 \
+    --max-iterations 100 \
     --display-progress \
     --ros-package lbr_description \
     --xacro-path urdf/med7/med7.xacro \

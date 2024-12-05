@@ -5,13 +5,15 @@ from typing import Tuple
 
 import cv2
 import numpy as np
+import pytorch_kinematics as pk
 import rich
 import rich.progress
 import torch
 
 from roboreg import differentiable as rrd
 from roboreg.io import find_files
-from roboreg.util import overlay_mask
+from roboreg.losses import soft_dice_loss
+from roboreg.util import mask_exponential_distance_transform, overlay_mask
 
 
 def args_factory() -> argparse.Namespace:
@@ -29,7 +31,7 @@ def args_factory() -> argparse.Namespace:
         help="Learning rate for the optimizer.",
     )
     parser.add_argument(
-        "--epochs",
+        "--max-iterations",
         type=int,
         default=200,
         help="Number of epochs to optimize for.",
@@ -45,6 +47,12 @@ def args_factory() -> argparse.Namespace:
         type=float,
         default=1.0,
         help="Gamma for the learning rate scheduler.",
+    )
+    parser.add_argument(
+        "--sigma",
+        type=float,
+        default=2.0,
+        help="Sigma for the exponential distance transform on target masks.",
     )
     parser.add_argument(
         "--display-progress",
@@ -125,6 +133,7 @@ def parse_data(
     image_pattern: str,
     joint_states_pattern: str,
     mask_pattern: str,
+    sigma: float = 2.0,
     device: str = "cuda",
 ) -> Tuple[np.ndarray, torch.FloatTensor, torch.FloatTensor]:
     image_files = find_files(path, image_pattern)
@@ -144,7 +153,9 @@ def parse_data(
     images = [cv2.imread(os.path.join(path, file)) for file in image_files]
     joint_states = [np.load(os.path.join(path, file)) for file in joint_states_files]
     masks = [
-        cv2.imread(os.path.join(path, file), cv2.IMREAD_GRAYSCALE)
+        mask_exponential_distance_transform(
+            cv2.imread(os.path.join(path, file), cv2.IMREAD_GRAYSCALE), sigma=sigma
+        )
         for file in left_mask_files
     ]
 
@@ -152,9 +163,8 @@ def parse_data(
     joint_states = torch.tensor(
         np.array(joint_states), dtype=torch.float32, device=device
     )
-    masks = (
-        torch.tensor(np.array(masks), dtype=torch.float32, device=device).unsqueeze(-1)
-        / 255.0
+    masks = torch.tensor(np.array(masks), dtype=torch.float32, device=device).unsqueeze(
+        -1
     )
     return images, joint_states, masks
 
@@ -167,6 +177,7 @@ def main() -> None:
         image_pattern=args.image_pattern,
         joint_states_pattern=args.joint_states_pattern,
         mask_pattern=args.mask_pattern,
+        sigma=args.sigma,
         device=device,
     )
     scene = rrd.robot_scene_factory(
@@ -189,26 +200,28 @@ def main() -> None:
     scene.configure_robot_joint_states(joint_states)
 
     # enable gradient tracking and instantiate optimizer
-    scene.cameras["camera"].extrinsics.requires_grad = True
+    extrinsics_lie = pk.matrix44_to_se3_9d(scene.cameras["camera"].extrinsics)
+    extrinsics_lie.requires_grad = True
     optimizer = getattr(importlib.import_module("torch.optim"), args.optimizer)(
-        [scene.cameras["camera"].extrinsics], lr=args.lr
+        [extrinsics_lie], lr=args.lr
     )
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, step_size=args.step_size, gamma=args.gamma
     )
-    metric = torch.nn.BCELoss()
     best_extrinsics = scene.cameras["camera"].extrinsics
     best_loss = float("inf")
 
-    for _ in rich.progress.track(range(args.epochs), "Optimizing..."):
-        if not scene.cameras["camera"].extrinsics.requires_grad:
-            raise ValueError("Extrinsics require gradients.")
+    for _ in rich.progress.track(range(args.max_iterations), "Optimizing..."):
+        if not extrinsics_lie.requires_grad:
+            raise ValueError("Lie extrinsics require gradients.")
         if not torch.is_grad_enabled():
             raise ValueError("Gradients must be enabled.")
+        extrinsics = pk.se3_9d_to_matrix44(extrinsics_lie)
+        scene.cameras["camera"].extrinsics = extrinsics
         renders = {
             "camera": scene.observe_from("camera"),
         }
-        loss = metric(renders["camera"], masks)
+        loss = soft_dice_loss(renders["camera"], masks).mean()
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()

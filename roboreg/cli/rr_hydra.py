@@ -13,7 +13,7 @@ from roboreg.util import (
     clean_xyz,
     compute_vertex_normals,
     from_homogeneous,
-    mask_boundary,
+    mask_extract_boundary,
 )
 
 
@@ -197,7 +197,7 @@ def main():
                 mask=(
                     mask
                     if args.without_erosion
-                    else mask_boundary(
+                    else mask_extract_boundary(
                         mask,
                         erosion_kernel=np.ones(
                             [args.erosion_kernel_size, args.erosion_kernel_size]

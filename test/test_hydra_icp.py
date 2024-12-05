@@ -20,7 +20,7 @@ from roboreg.util import (
     clean_xyz,
     compute_vertex_normals,
     from_homogeneous,
-    mask_boundary,
+    mask_extract_boundary,
 )
 
 
@@ -162,7 +162,7 @@ def test_hydra_icp():
     # clean observed vertices and turn into tensor
     observed_vertices = [
         torch.tensor(
-            clean_xyz(xyz=xyz, mask=mask_boundary(mask)),
+            clean_xyz(xyz=xyz, mask=mask_extract_boundary(mask)),
             dtype=torch.float32,
             device=device,
         )
@@ -270,7 +270,7 @@ def test_hydra_robust_icp() -> None:
     # clean observed vertices and turn into tensor
     observed_vertices = [
         torch.tensor(
-            clean_xyz(xyz=xyz, mask=mask_boundary(mask)),
+            clean_xyz(xyz=xyz, mask=mask_extract_boundary(mask)),
             dtype=torch.float32,
             device=device,
         )
