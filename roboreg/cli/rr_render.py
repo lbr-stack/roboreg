@@ -144,7 +144,8 @@ def main():
             image_suffix = pathlib.Path(image_file).suffix
             cv2.imwrite(
                 os.path.join(
-                    str(output_path.absolute()), f"overlay_{image_stem + image_suffix}"
+                    str(output_path.absolute()),
+                    f"overlay_render_{image_stem + image_suffix}",
                 ),
                 overlay_mask(image, render, "b", scale=1.0),
             )

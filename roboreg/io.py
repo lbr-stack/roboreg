@@ -314,7 +314,7 @@ def parse_hydra_data(
     path: str,
     joint_states_pattern: str = "joint_states_*.npy",
     mask_pattern: str = "mask_*.png",
-    xyz_pattern: str = "xyz_*.npy",
+    depth_pattern: str = "depth_*.npy",
 ) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
     r"""Parse data for Hydra registration.
 
@@ -322,7 +322,7 @@ def parse_hydra_data(
         path (str): Path to the data.
         joint_states_pattern (str): Pattern for joint states files.
         mask_pattern (str): Pattern for mask files.
-        xyz_pattern (str): Pattern for xyz files.
+        depth_pattern (str): Pattern for depth files. Note that depth values are expected in meters.
 
     Returns:
         Tuple[List[np.ndarray],List[np.ndarray],List[np.ndarray]]:
@@ -332,19 +332,19 @@ def parse_hydra_data(
     """
     joint_state_files = find_files(path, joint_states_pattern)
     mask_files = find_files(path, mask_pattern)
-    xyz_files = find_files(path, xyz_pattern)
+    depth_files = find_files(path, depth_pattern)
 
-    if len(joint_state_files) == 0 or len(mask_files) == 0 or len(xyz_files) == 0:
+    if len(joint_state_files) == 0 or len(mask_files) == 0 or len(depth_files) == 0:
         raise ValueError("No files found.")
     if len(joint_state_files) != len(mask_files) or len(joint_state_files) != len(
-        xyz_files
+        depth_files
     ):
         raise ValueError("Number of files do not match.")
 
     rich.print("Found the following files:")
     rich.print(f"Joint states: {joint_state_files}")
     rich.print(f"Masks: {mask_files}")
-    rich.print(f"XYZ: {xyz_files}")
+    rich.print(f"Depths: {depth_files}")
 
     # load data
     joint_states = [
@@ -355,5 +355,5 @@ def parse_hydra_data(
         cv2.imread(os.path.join(path, mask_file), cv2.IMREAD_GRAYSCALE)
         for mask_file in mask_files
     ]
-    xyzs = [np.load(os.path.join(path, xyz_file)) for xyz_file in xyz_files]
-    return joint_states, masks, xyzs
+    depths = [np.load(os.path.join(path, depth_file)) for depth_file in depth_files]
+    return joint_states, masks, depths

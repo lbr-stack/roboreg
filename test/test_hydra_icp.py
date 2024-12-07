@@ -14,13 +14,16 @@ from roboreg.hydra_icp import (
     hydra_icp,
     hydra_robust_icp,
 )
-from roboreg.io import URDFParser, parse_hydra_data
+from roboreg.io import URDFParser, parse_camera_info, parse_hydra_data
 from roboreg.util import (
     RegistrationVisualizer,
     clean_xyz,
     compute_vertex_normals,
+    depth_to_xyz,
     from_homogeneous,
+    generate_ht_optical,
     mask_extract_boundary,
+    to_homogeneous,
 )
 
 
@@ -100,17 +103,21 @@ def test_hydra_icp():
     xacro_path = "urdf/med7/med7.xacro"
     root_link_name = "lbr_link_0"
     end_link_name = "lbr_link_7"
-    path = "test/data/lbr_med7/zed2i/high_res"
+    path = "test/data/lbr_med7/zed2i"
+    camera_info_file = "left_camera_info.yaml"
     joint_states_pattern = "joint_states_*.npy"
-    mask_pattern = "mask*.png"
-    xyz_pattern = "xyz_*.npy"
+    mask_pattern = "mask_sam2_left_*.png"
+    depth_pattern = "depth_*.npy"
 
     # load data
-    joint_states, masks, xyzs = parse_hydra_data(
+    joint_states, masks, depths = parse_hydra_data(
         path=path,
         joint_states_pattern=joint_states_pattern,
         mask_pattern=mask_pattern,
-        xyz_pattern=xyz_pattern,
+        depth_pattern=depth_pattern,
+    )
+    height, width, intrinsics = parse_camera_info(
+        camera_info_file=os.path.join(path, camera_info_file)
     )
 
     # instantiate kinematics
@@ -133,7 +140,7 @@ def test_hydra_icp():
         device=device,
     )
 
-    # process data
+    # perform forward kinematics
     mesh_vertices = meshes.vertices.clone()
     joint_states = torch.tensor(
         np.array(joint_states), dtype=torch.float32, device=device
@@ -155,6 +162,22 @@ def test_hydra_icp():
             ht.transpose(-1, -2),
         )
     mesh_vertices = from_homogeneous(mesh_vertices)
+
+    # turn depths into xyzs
+    intrinsics = torch.tensor(intrinsics, dtype=torch.float32, device=device)
+    depths = torch.tensor(np.array(depths), dtype=torch.float32, device=device)
+    xyzs = depth_to_xyz(depth=depths, intrinsics=intrinsics, z_max=1.5)
+
+    # flatten BxHxWx3 -> Bx(H*W)x3
+    xyzs = xyzs.view(-1, height * width, 3)
+    xyzs = to_homogeneous(xyzs)
+    ht_optical = generate_ht_optical(xyzs.shape[0], dtype=torch.float32, device=device)
+    xyzs = torch.matmul(xyzs, ht_optical.transpose(-1, -2))
+    xyzs = from_homogeneous(xyzs)
+
+    # unflatten
+    xyzs = xyzs.view(-1, height, width, 3)
+    xyzs = [xyz.squeeze() for xyz in xyzs.cpu().numpy()]
 
     # mesh vertices to list
     mesh_vertices = [mesh_vertices[i].contiguous() for i in range(batch_size)]
@@ -203,17 +226,21 @@ def test_hydra_robust_icp() -> None:
     xacro_path = "urdf/med7/med7.xacro"
     root_link_name = "lbr_link_0"
     end_link_name = "lbr_link_7"
-    path = "test/data/lbr_med7/zed2i/high_res"
+    path = "test/data/lbr_med7/zed2i"
+    camera_info_file = "left_camera_info.yaml"
     joint_states_pattern = "joint_states_*.npy"
-    mask_pattern = "mask*.png"
-    xyz_pattern = "xyz_*.npy"
+    mask_pattern = "mask_sam2_left_*.png"
+    depth_pattern = "depth_*.npy"
 
     # load data
-    joint_states, masks, xyzs = parse_hydra_data(
+    joint_states, masks, depths = parse_hydra_data(
         path=path,
         joint_states_pattern=joint_states_pattern,
         mask_pattern=mask_pattern,
-        xyz_pattern=xyz_pattern,
+        depth_pattern=depth_pattern,
+    )
+    height, width, intrinsics = parse_camera_info(
+        camera_info_file=os.path.join(path, camera_info_file)
     )
 
     # instantiate kinematics
@@ -236,7 +263,7 @@ def test_hydra_robust_icp() -> None:
         device=device,
     )
 
-    # process data
+    # perform forward kinematics
     mesh_vertices = meshes.vertices.clone()
     joint_states = torch.tensor(
         np.array(joint_states), dtype=torch.float32, device=device
@@ -257,6 +284,22 @@ def test_hydra_robust_icp() -> None:
             ],
             ht.transpose(-1, -2),
         )
+
+    # turn depths into xyzs
+    intrinsics = torch.tensor(intrinsics, dtype=torch.float32, device=device)
+    depths = torch.tensor(np.array(depths), dtype=torch.float32, device=device)
+    xyzs = depth_to_xyz(depth=depths, intrinsics=intrinsics, z_max=1.5)
+
+    # flatten BxHxWx3 -> Bx(H*W)x3
+    xyzs = xyzs.view(-1, height * width, 3)
+    xyzs = to_homogeneous(xyzs)
+    ht_optical = generate_ht_optical(xyzs.shape[0], dtype=torch.float32, device=device)
+    xyzs = torch.matmul(xyzs, ht_optical.transpose(-1, -2))
+    xyzs = from_homogeneous(xyzs)
+
+    # unflatten
+    xyzs = xyzs.view(-1, height, width, 3)
+    xyzs = [xyz.squeeze() for xyz in xyzs.cpu().numpy()]
 
     # mesh vertices to list
     mesh_vertices = from_homogeneous(mesh_vertices)

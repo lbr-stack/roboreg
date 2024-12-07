@@ -91,7 +91,7 @@ def main():
             path.absolute(), f"mask_sam2_{image_stem + image_suffix}"
         )
         overlay_path = os.path.join(
-            path.absolute(), f"mask_overlay_sam2_{image_stem + image_suffix}"
+            path.absolute(), f"overlay_sam2_{image_stem + image_suffix}"
         )
         cv2.imwrite(probability_path, (probability * 255.0).astype(np.uint8))
         cv2.imwrite(mask_path, mask)
