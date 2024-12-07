@@ -7,18 +7,27 @@ import torch
 
 from roboreg.differentiable import TorchKinematics, TorchMeshContainer
 from roboreg.hydra_icp import hydra_centroid_alignment, hydra_robust_icp
-from roboreg.io import URDFParser, parse_hydra_data
+from roboreg.io import URDFParser, parse_camera_info, parse_hydra_data
 from roboreg.util import (
     RegistrationVisualizer,
     clean_xyz,
     compute_vertex_normals,
+    depth_to_xyz,
     from_homogeneous,
+    generate_ht_optical,
     mask_extract_boundary,
+    to_homogeneous,
 )
 
 
 def args_factory() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--camera-info-file",
+        type=str,
+        required=True,
+        help="Path to the camera parameters, <path_to>/camera_info.yaml.",
+    )
     parser.add_argument("--path", type=str, required=True, help="Path to the data.")
     parser.add_argument(
         "--mask-pattern",
@@ -27,7 +36,10 @@ def args_factory() -> argparse.Namespace:
         help="Mask file pattern.",
     )
     parser.add_argument(
-        "--xyz-pattern", type=str, default="xyz_*.npy", help="XYZ file pattern."
+        "--depth-pattern",
+        type=str,
+        default="depth_*.npy",
+        help="Depth file pattern. Note that depth values are expected in meters.",
     )
     parser.add_argument(
         "--joint-states-pattern",
@@ -113,12 +125,13 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # load data
-    joint_states, masks, xyzs = parse_hydra_data(
+    joint_states, masks, depths = parse_hydra_data(
         path=args.path,
         joint_states_pattern=args.joint_states_pattern,
         mask_pattern=args.mask_pattern,
-        xyz_pattern=args.xyz_pattern,
+        depth_pattern=args.depth_pattern,
     )
+    height, width, intrinsics = parse_camera_info(args.camera_info_file)
 
     # instantiate kinematics
     urdf_parser = URDFParser()
@@ -158,7 +171,7 @@ def main():
         device=device,
     )
 
-    # process data
+    # perform forward kinematics
     mesh_vertices = meshes.vertices.clone()
     joint_states = torch.tensor(
         np.array(joint_states), dtype=torch.float32, device=device
@@ -179,6 +192,22 @@ def main():
             ],
             ht.transpose(-1, -2),
         )
+
+    # turn depths into xyzs
+    intrinsics = torch.tensor(intrinsics, dtype=torch.float32, device=device)
+    depths = torch.tensor(np.array(depths), dtype=torch.float32, device=device)
+    xyzs = depth_to_xyz(depth=depths, intrinsics=intrinsics, z_max=1.5)
+
+    # flatten BxHxWx3 -> Bx(H*W)x3
+    xyzs = xyzs.view(-1, height * width, 3)
+    xyzs = to_homogeneous(xyzs)
+    ht_optical = generate_ht_optical(xyzs.shape[0], dtype=torch.float32, device=device)
+    xyzs = torch.matmul(xyzs, ht_optical.transpose(-1, -2))
+    xyzs = from_homogeneous(xyzs)
+
+    # unflatten
+    xyzs = xyzs.view(-1, height, width, 3)
+    xyzs = [xyz.squeeze() for xyz in xyzs.cpu().numpy()]
 
     # mesh vertices to list
     mesh_vertices = from_homogeneous(mesh_vertices)

@@ -119,13 +119,15 @@ Next:
 > In these examples, the [lbr_fri_ros2_stack](https://github.com/lbr-stack/lbr_fri_ros2_stack/) is used. Make sure to follow [Quick Start](https://github.com/lbr-stack/lbr_fri_ros2_stack/#quick-start) first. However, you can also use your own robot description files.
 
 ### Segment
-This is a required step to generate robot masks (also support SAM 2: `rr-sam2`).
+This is a required step to generate robot masks (also supports SAM: `rr-sam`).
 
 ```shell
-rr-sam \
-    --path <path_to_images> \
+rr-sam2 \
+    --path test/data/lbr_med7/zed2i \
     --pattern "*_image_*.png" \
-    --checkpoint <full_path_to_checkpoint>/*.pth
+    --n-positive-samples 5 \
+    --n-negative-samples 5 \
+    --device cuda
 ```
 
 ### Hydra Robust ICP
@@ -133,9 +135,10 @@ The Hydra robust ICP implements a point-to-plane ICP registration on a Lie algeb
 
 ```shell
 rr-hydra \
-    --path test/data/lbr_med7/zed2i/high_res \
-    --mask-pattern mask_*.png \
-    --xyz-pattern xyz_*.npy \
+    --camera-info-file test/data/lbr_med7/zed2i/left_camera_info.yaml \
+    --path test/data/lbr_med7/zed2i \
+    --mask-pattern mask_sam2_left_image_*.png \
+    --depth-pattern depth_*.npy \
     --joint-states-pattern joint_states_*.npy \
     --ros-package lbr_description \
     --xacro-path urdf/med7/med7.xacro \
@@ -155,7 +158,7 @@ The camera swarm optimization can serve for finding an initial guess to [Monocul
 
 ```shell
 rr-cam-swarm \
-    --n-cameras 50 \
+    --n-cameras 100 \
     --min-distance 0.5 \
     --max-distance 3.0 \
     --angle-range 3.141 \
@@ -170,11 +173,11 @@ rr-cam-swarm \
     --end-link-name lbr_link_7 \
     --target-reduction 0.95 \
     --scale 0.25 \
-    --camera-info-file test/data/lbr_med7/zed2i/stereo_data/left_camera_info.yaml \
-    --path test/data/lbr_med7/zed2i/stereo_data \
-    --image-pattern left_img_*.png \
-    --joint-states-pattern joint_state_*.npy \
-    --mask-pattern left_mask_*.png \
+    --camera-info-file test/data/lbr_med7/zed2i/left_camera_info.yaml \
+    --path test/data/lbr_med7/zed2i \
+    --image-pattern left_image_*.png \
+    --joint-states-pattern joint_states_*.npy \
+    --mask-pattern mask_sam2_left_image_*.png \
     --output-file HT_cam_swarm.npy
 ```
 
@@ -189,19 +192,19 @@ This monocular differentiable rendering refinement requires a good initial estim
 ```shell
 rr-mono-dr \
     --optimizer SGD \
-    --lr 0.01 \
+    --lr 0.001 \
     --max-iterations 100 \
     --display-progress \
     --ros-package lbr_description \
     --xacro-path urdf/med7/med7.xacro \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
-    --camera-info-file test/data/lbr_med7/zed2i/high_res/camera_info.yaml \
-    --extrinsics-file test/data/lbr_med7/zed2i/high_res/HT_hydra_robust.npy \
-    --path test/data/lbr_med7/zed2i/high_res \
-    --image-pattern image_*.png \
+    --camera-info-file test/data/lbr_med7/zed2i/left_camera_info.yaml \
+    --extrinsics-file test/data/lbr_med7/zed2i/HT_hydra_robust.npy \
+    --path test/data/lbr_med7/zed2i \
+    --image-pattern left_image_*.png \
     --joint-states-pattern joint_states_*.npy \
-    --mask-pattern mask_*.png \
+    --mask-pattern mask_sam2_left_image_*.png \
     --output-file HT_dr.npy
 ```
 
@@ -216,23 +219,23 @@ This stereo differentiable rendering refinement requires a good initial estimate
 ```shell
 rr-stereo-dr \
     --optimizer SGD \
-    --lr 0.01 \
+    --lr 0.001 \
     --max-iterations 100 \
     --display-progress \
     --ros-package lbr_description \
     --xacro-path urdf/med7/med7.xacro \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
-    --left-camera-info-file test/data/lbr_med7/zed2i/stereo_data/left_camera_info.yaml \
-    --right-camera-info-file test/data/lbr_med7/zed2i/stereo_data/right_camera_info.yaml \
-    --left-extrinsics-file test/data/lbr_med7/zed2i/stereo_data/HT_cam_swarm.npy \
-    --right-extrinsics-file test/data/lbr_med7/zed2i/stereo_data/HT_right_to_left.npy \
-    --path test/data/lbr_med7/zed2i/stereo_data \
-    --left-image-pattern left_img_*.png \
-    --right-image-pattern right_img_*.png \
-    --joint-states-pattern joint_state_*.npy \
-    --left-mask-pattern left_mask_*.png \
-    --right-mask-pattern right_mask_*.png \
+    --left-camera-info-file test/data/lbr_med7/zed2i/left_camera_info.yaml \
+    --right-camera-info-file test/data/lbr_med7/zed2i/right_camera_info.yaml \
+    --left-extrinsics-file test/data/lbr_med7/zed2i/HT_hydra_robust.npy \
+    --right-extrinsics-file test/data/lbr_med7/zed2i/HT_right_to_left.npy \
+    --path test/data/lbr_med7/zed2i \
+    --left-image-pattern left_image_*.png \
+    --right-image-pattern right_image_*.png \
+    --joint-states-pattern joint_states_*.npy \
+    --left-mask-pattern mask_sam2_left_image_*.png \
+    --right-mask-pattern mask_sam2_right_image_*.png \
     --left-output-file HT_left_dr.npy \
     --right-output-file HT_right_dr.npy
 ```
@@ -253,13 +256,13 @@ rr-render \
     --xacro-path urdf/med7/med7.xacro \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
-    --camera-info-file test/data/lbr_med7/zed2i/stereo_data/left_camera_info.yaml \
-    --extrinsics-file test/data/lbr_med7/zed2i/stereo_data/HT_left_dr.npy \
-    --images-path test/data/lbr_med7/zed2i/stereo_data \
-    --joint-states-path test/data/lbr_med7/zed2i/stereo_data \
-    --image-pattern left_img_*.png \
-    --joint-states-pattern joint_state_*.npy \
-    --output-path test/data/lbr_med7/zed2i/stereo_data
+    --camera-info-file test/data/lbr_med7/zed2i/left_camera_info.yaml \
+    --extrinsics-file test/data/lbr_med7/zed2i/HT_left_dr.npy \
+    --images-path test/data/lbr_med7/zed2i \
+    --joint-states-path test/data/lbr_med7/zed2i \
+    --image-pattern left_image_*.png \
+    --joint-states-pattern joint_states_*.npy \
+    --output-path test/data/lbr_med7/zed2i
 ```
 
 ## Testing
@@ -272,7 +275,7 @@ To run Hydra robust ICP on provided `xarm` and `realsense` data, run
 rr-hydra \
     --path test/data/xarm/realsense \
     --mask-pattern mask_*.png \
-    --xyz-pattern xyz_*.npy \
+    --depth-pattern depth_*.npy \
     --joint-states-pattern joint_state_*.npy \
     --ros-package xarm_description \
     --xacro-path  urdf/xarm_device.urdf.xacro \

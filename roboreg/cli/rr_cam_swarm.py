@@ -370,7 +370,7 @@ def main() -> None:
         )
         renders = scene.observe_from("camera").squeeze()
         fitness = (
-            soft_dice_loss(renders, masks)
+            soft_dice_loss(renders.unsqueeze(-1), masks.unsqueeze(-1))
             .view(args.n_cameras, n_joint_states)
             .mean(dim=1)
         )
