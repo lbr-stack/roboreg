@@ -273,6 +273,7 @@ To run Hydra robust ICP on provided `xarm` and `realsense` data, run
 
 ```shell
 rr-hydra \
+    --camera-info-file test/data/xarm/realsense/camera_info.yaml \
     --path test/data/xarm/realsense \
     --mask-pattern mask_*.png \
     --depth-pattern depth_*.npy \
