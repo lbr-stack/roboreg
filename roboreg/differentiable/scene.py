@@ -6,84 +6,43 @@ import torch
 
 from roboreg.io import URDFParser, parse_camera_info
 
-from .kinematics import TorchKinematics
 from .rendering import NVDiffRastRenderer
-from .structs import TorchMeshContainer, VirtualCamera
+from .robot import Robot
+from .structs import VirtualCamera
 
 
 class RobotScene:
-    r"""Differentiable robot scene:
-
-    - Contains utility functions to
-        - Configure camera pose
-        - Configure robot configuration
-    - Currently only supports single robot
-    - Supports multi-camera, e.g. stereo
-    """
-
     __slots__ = [
-        "_meshes",
-        "_kinematics",
-        "_renderer",
         "_cameras",
-        "_observed_vertices",
+        "_robot",
+        "_renderer",
     ]
 
     def __init__(
         self,
-        meshes: TorchMeshContainer,
-        kinematics: TorchKinematics,
-        renderer: NVDiffRastRenderer,
         cameras: Dict[str, VirtualCamera],
+        robot: Robot,  # TODO: ideally this is any combinations of TorchMeshContainers, i.e. Dict[str, TorchMeshContainer] (future work)
+        renderer: NVDiffRastRenderer,
     ) -> None:
-        self._meshes = meshes
-        self._observed_vertices = self._meshes.vertices.clone()
-        self._kinematics = kinematics
-        self._renderer = renderer
         self._cameras = cameras
+        self._robot = robot
+        self._renderer = renderer
+        self._verify_devices()
 
+    def _verify_devices(self) -> None:
         for camera_name in self._cameras.keys():
             if not all(
                 [
-                    self._meshes.device == self._kinematics.device,
-                    self._kinematics.device == self._renderer.device,
-                    self._renderer.device == self._cameras[camera_name].device,
+                    self._cameras[camera_name].device == self._robot.device,
+                    self._robot.device == self._renderer.device,
                 ]
             ):
                 raise ValueError(
                     "All devices must be the same. Got:\n"
-                    f"Meshes on: {self._meshes.device}\n"
-                    f"Kinematics on: {self._kinematics.device}\n"
-                    f"Renderer on: {self._renderer.device}\n"
-                    f"Camera '{camera_name}' on: {self._cameras[camera_name].device}"
+                    f"Camera '{camera_name}' on: {self._cameras[camera_name].device}\n"
+                    f"Robot on: {self._robot.device}\n"
+                    f"Renderer on: {self._renderer.device}"
                 )
-
-    def configure_robot_joint_states(self, q: torch.FloatTensor) -> None:
-        if self._kinematics.chain.n_joints != q.shape[-1]:
-            raise ValueError(
-                f"Expected joint configuration of shape {self._kinematics.chain.n_joints}, got {q.shape[-1]}."
-            )
-        if q.shape[0] != self._meshes.batch_size:
-            raise ValueError(
-                f"Batch size mismatch. Meshes: {self._meshes.batch_size}, joint states: {q.shape[0]}."
-            )
-        ht_target_lookup = self._kinematics.mesh_forward_kinematics(q)
-        self._observed_vertices = self._meshes.vertices.clone()
-        for link_name, ht in ht_target_lookup.items():
-            self._observed_vertices[
-                :,
-                self._meshes.lower_vertex_index_lookup[
-                    link_name
-                ] : self._meshes.upper_vertex_index_lookup[link_name],
-            ] = torch.matmul(
-                self._observed_vertices[
-                    :,
-                    self._meshes.lower_vertex_index_lookup[
-                        link_name
-                    ] : self._meshes.upper_vertex_index_lookup[link_name],
-                ],
-                ht.transpose(-1, -2),
-            )
 
     def observe_from(
         self, camera_name: str, reference_transform: torch.FloatTensor = None
@@ -95,7 +54,7 @@ class RobotScene:
                 device=self._cameras[camera_name].extrinsics.device,
             )
         observed_vertices = torch.matmul(
-            self._observed_vertices,
+            self._robot.configured_vertices,
             torch.matmul(
                 torch.linalg.inv(
                     torch.matmul(
@@ -111,25 +70,21 @@ class RobotScene:
         )
         return self._renderer.constant_color(
             observed_vertices,
-            self._meshes.faces,
+            self._robot.faces,
             self._cameras[camera_name].resolution,
         )
 
     @property
-    def meshes(self) -> TorchMeshContainer:
-        return self._meshes
+    def cameras(self) -> Dict[str, VirtualCamera]:
+        return self._cameras
 
     @property
-    def kinematics(self) -> TorchKinematics:
-        return self._kinematics
+    def robot(self) -> Robot:
+        return self._robot
 
     @property
     def renderer(self) -> NVDiffRastRenderer:
         return self._renderer
-
-    @property
-    def cameras(self) -> Dict[str, VirtualCamera]:
-        return self._cameras
 
 
 def robot_scene_factory(
@@ -157,21 +112,15 @@ def robot_scene_factory(
             f"End link name not provided. Using the last link with mesh: '{end_link_name}'."
         )
 
-    # instantiate kinematics
-    kinematics = TorchKinematics(
+    # instantiate robot
+    robot = Robot(
         urdf_parser=urdf_parser,
         root_link_name=root_link_name,
         end_link_name=end_link_name,
-        device=device,
-    )
-
-    # instantiate meshes
-    meshes = TorchMeshContainer(
-        mesh_paths=urdf_parser.ros_package_mesh_paths(
-            root_link_name=root_link_name, end_link_name=end_link_name, visual=visual
-        ),
+        visual=visual,
         batch_size=batch_size,
         device=device,
+        target_reduction=0.0,
     )
 
     # instantiate renderer
@@ -198,32 +147,7 @@ def robot_scene_factory(
 
     # instantiate and return scene
     return RobotScene(
-        meshes=meshes,
-        kinematics=kinematics,
-        renderer=renderer,
         cameras=cameras,
+        robot=robot,
+        renderer=renderer,
     )
-
-
-class RobotSceneModule(torch.nn.Module):
-    f"""Differentiable robot scene as module."""
-
-    def __init__(
-        self,
-        meshes: TorchMeshContainer,
-        kinematics: TorchKinematics,
-        renderer: NVDiffRastRenderer,
-        cameras: Dict[str, VirtualCamera],
-    ) -> None:
-        super().__init__()
-        self._robot_scene = RobotScene(
-            meshes=meshes,
-            kinematics=kinematics,
-            renderer=renderer,
-            cameras=cameras,
-        )
-
-    def forward(
-        self, pose: torch.FloatTensor, q: torch.FloatTensor
-    ) -> torch.FloatTensor:
-        raise NotImplementedError

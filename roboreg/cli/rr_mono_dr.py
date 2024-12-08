@@ -197,7 +197,7 @@ def main() -> None:
     )
 
     # configure scene
-    scene.configure_robot_joint_states(joint_states)
+    scene.robot.configure(joint_states)
 
     # enable gradient tracking and instantiate optimizer
     extrinsics_lie = pk.matrix44_to_se3_9d(scene.cameras["camera"].extrinsics)

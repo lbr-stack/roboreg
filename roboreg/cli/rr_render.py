@@ -131,7 +131,7 @@ def main():
         joint_states = joint_states.to(dtype=torch.float32, device=device)
 
         # configure robot
-        scene.configure_robot_joint_states(joint_states)
+        scene.robot.configure(joint_states)
 
         # render
         renders = scene.observe_from(list(scene.cameras.keys())[0])
