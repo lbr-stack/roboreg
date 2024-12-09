@@ -217,6 +217,7 @@ def main() -> None:
         optimizer, step_size=args.step_size, gamma=args.gamma
     )
     best_extrinsics = extrinsics
+    best_extrinsics_inv = extrinsics_inv
     best_loss = float("inf")
 
     for iteration in rich.progress.track(
@@ -243,7 +244,8 @@ def main() -> None:
 
         if loss.item() < best_loss:
             best_loss = loss.item()
-            best_extrinsics = torch.linalg.inv(extrinsics_inv.detach().clone())
+            best_extrinsics_inv = extrinsics_inv.detach().clone()
+            best_extrinsics = torch.linalg.inv(best_extrinsics_inv)
 
         # display optimization progress
         if args.display_progress:
@@ -288,7 +290,6 @@ def main() -> None:
 
     # render final results and save extrinsics
     with torch.no_grad():
-        best_extrinsics_inv = torch.linalg.inv(best_extrinsics)
         scene.robot.configure(joint_states, best_extrinsics_inv)
         renders = scene.observe_from("camera")
 
