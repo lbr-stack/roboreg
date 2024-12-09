@@ -312,9 +312,7 @@ def main() -> None:
         if loss.item() < best_loss:
             best_loss = loss.item()
             best_left_extrinsics_inv = left_extrinsics_inv.detach().clone()
-            best_left_extrinsics = torch.linalg.inv(
-                best_left_extrinsics_inv
-            )
+            best_left_extrinsics = torch.linalg.inv(best_left_extrinsics_inv)
 
         # display optimization progress
         if args.display_progress:
