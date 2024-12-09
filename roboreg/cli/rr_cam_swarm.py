@@ -326,17 +326,6 @@ def main() -> None:
     batch_size = (
         n_joint_states * args.n_cameras
     )  # (each camera observes n_joint_states joint states)
-    meshes = rrd.TorchMeshContainer(
-        mesh_paths=urdf_parser.ros_package_mesh_paths(
-            root_link_name=args.root_link_name,
-            end_link_name=args.end_link_name,
-            visual=args.visual_meshes,
-        ),
-        batch_size=batch_size,
-        device=device,
-        target_reduction=args.target_reduction,  # reduce mesh vertex count for memory reduction
-    )
-
     camera_name = "camera"
     camera = rrd.VirtualCamera(
         resolution=(height, width),
@@ -345,12 +334,21 @@ def main() -> None:
         device=device,
     )
 
+    robot = rrd.Robot(
+        urdf_parser=urdf_parser,
+        root_link_name=args.root_link_name,
+        end_link_name=args.end_link_name,
+        visual=args.visual_meshes,
+        batch_size=batch_size,
+        device=device,
+        target_reduction=args.target_reduction,  # reduce mesh vertex count for memory reduction
+    )
+
     renderer = rrd.NVDiffRastRenderer(device=device)
     scene = rrd.RobotScene(
-        meshes=meshes,
-        kinematics=kinematics,
-        renderer=renderer,
         cameras={camera_name: camera},
+        robot=robot,
+        renderer=renderer,
     )
 
     # repeat joint states and masks for each camera
@@ -358,7 +356,7 @@ def main() -> None:
     joint_states = joint_states.repeat(args.n_cameras, 1)
     if joint_states.shape[0] != batch_size:
         raise ValueError("Joint states of invalid shape.")
-    scene.configure_robot_joint_states(joint_states)
+    scene.robot.configure(joint_states)
 
     def fitness_closure() -> torch.Tensor:
         eye = particle_swarm_optimizer.particle_swarm.particles[:, :3]

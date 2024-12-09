@@ -10,9 +10,9 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from roboreg import differentiable as rrd
 from roboreg.io import find_files
 from roboreg.util import overlay_mask
+from roboreg.util.factories import create_robot_scene, create_virtual_camera
 
 
 class TestScene:
@@ -23,7 +23,7 @@ class TestScene:
         end_link_name: str = "lbr_link_7",
         camera_requires_grad: bool = False,
         data_prefix: str = "test/data/lbr_med7",
-        recording_prefix: str = "zed2i/stereo_data",
+        recording_prefix: str = "zed2i",
     ) -> None:
         prefix = os.path.join(data_prefix, recording_prefix)
 
@@ -36,18 +36,18 @@ class TestScene:
         for camera_name in self.camera_names:
             self.masks[camera_name] = [
                 cv2.imread(os.path.join(prefix, file), cv2.IMREAD_GRAYSCALE)
-                for file in find_files(prefix, f"{camera_name}_mask_*.png")
+                for file in find_files(prefix, f"mask_sam2_{camera_name}_image_*.png")
             ]
 
             self.images[camera_name] = [
                 cv2.imread(os.path.join(prefix, file))
-                for file in find_files(prefix, f"{camera_name}_img_*.png")
+                for file in find_files(prefix, f"{camera_name}_image_*.png")
             ]
 
         # load joint states
         self.joint_states = [
             np.load(os.path.join(prefix, file))
-            for file in find_files(prefix, "joint_state_*.npy")
+            for file in find_files(prefix, "joint_states_*.npy")
         ]
 
         # test for equal length
@@ -87,16 +87,25 @@ class TestScene:
             ),
         }
 
+        # instantiate cameras
+        cameras = {
+            camera_name: create_virtual_camera(
+                camera_info_file=camera_info_files[camera_name],
+                extrinsics_file=extrinsics_files[camera_name],
+                device=device,
+            )
+            for camera_name in self.camera_names
+        }
+
         # instantiate scene
-        self.scene = rrd.robot_scene_factory(
-            device=device,
+        self.scene = create_robot_scene(
             batch_size=self.joint_states.shape[0],
             ros_package="lbr_description",
             xacro_path="urdf/med7/med7.xacro",
             root_link_name=root_link_name,
             end_link_name=end_link_name,
-            camera_info_files=camera_info_files,
-            extrinsics_files=extrinsics_files,
+            cameras=cameras,
+            device=device,
         )
 
         # enable gradient tracking
@@ -107,7 +116,7 @@ def test_multi_config_stereo_view() -> None:
     test_scene = TestScene(camera_requires_grad=False)
 
     # configure robot joint states
-    test_scene.scene.configure_robot_joint_states(q=test_scene.joint_states)
+    test_scene.scene.robot.configure(q=test_scene.joint_states)
 
     # render all camera views
     all_renders = {
@@ -129,13 +138,14 @@ def test_multi_config_stereo_view() -> None:
 
             cv2.imshow(camera_name, overlay)
             cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
 
 def test_multi_config_stereo_view_pose_optimization() -> None:
     test_scene = TestScene(camera_requires_grad=True)
 
     # configure robot joint states
-    test_scene.scene.configure_robot_joint_states(q=test_scene.joint_states)
+    test_scene.scene.robot.configure(q=test_scene.joint_states)
 
     # instantiante optimizer
     optimizer = torch.optim.SGD([test_scene.scene.cameras["left"].extrinsics], lr=0.001)
@@ -213,25 +223,29 @@ def test_multi_config_stereo_view_pose_optimization() -> None:
 
             cv2.imshow(camera_name, overlay)
             cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
 
 def test_single_camera_multiple_poses() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     batch_size = 4
     camera_name = "camera"
-    scene = rrd.robot_scene_factory(
-        device=device,
+    camera = {
+        camera_name: create_virtual_camera(
+            camera_info_file="test/data/lbr_med7/zed2i/left_camera_info.yaml",
+            extrinsics_file="test/data/lbr_med7/zed2i/HT_hydra_robust.npy",
+            device=device,
+        )
+    }
+
+    scene = create_robot_scene(
         batch_size=batch_size,
         ros_package="lbr_description",
         xacro_path="urdf/med7/med7.xacro",
         root_link_name="lbr_link_0",
         end_link_name="lbr_link_7",
-        camera_info_files={
-            camera_name: "test/data/lbr_med7/zed2i/stereo_data/left_camera_info.yaml"
-        },
-        extrinsics_files={
-            camera_name: "test/data/lbr_med7/zed2i/stereo_data/HT_hydra_robust.npy"
-        },
+        cameras=camera,
+        device=device,
     )
 
     # for each batch element, configure a unique camera pose...
@@ -245,13 +259,13 @@ def test_single_camera_multiple_poses() -> None:
         scene.cameras[camera_name].extrinsics[i, 0, 3] += 0.2 * i  # shift 20 cm each
 
     # random joint states (same for all batch elements)
-    q_min, q_max = scene.kinematics.chain.get_joint_limits()
+    q_min, q_max = scene.robot.kinematics.chain.get_joint_limits()
     torch.random.manual_seed(42)
     q_min = torch.tensor(q_min, dtype=torch.float32, device=device)
     q_max = torch.tensor(q_max, dtype=torch.float32, device=device)
     q = (
         torch.rand(
-            scene.kinematics.chain.n_joints,
+            scene.robot.kinematics.chain.n_joints,
             dtype=torch.float32,
             device=device,
         )
@@ -261,7 +275,7 @@ def test_single_camera_multiple_poses() -> None:
     q = q.repeat(batch_size, 1)
 
     # configure scene
-    scene.configure_robot_joint_states(q=q)
+    scene.robot.configure(q=q)
 
     # observe
     renders = scene.observe_from(camera_name)
@@ -271,9 +285,10 @@ def test_single_camera_multiple_poses() -> None:
         render = render.squeeze().detach().cpu().numpy()
         cv2.imshow(f"render_{idx}", (render * 255.0).astype(np.uint8))
     cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
-    # test_multi_config_stereo_view()
-    # test_multi_config_stereo_view_pose_optimization()
+    test_multi_config_stereo_view()
+    test_multi_config_stereo_view_pose_optimization()
     test_single_camera_multiple_poses()

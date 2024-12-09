@@ -158,7 +158,7 @@ The camera swarm optimization can serve for finding an initial guess to [Monocul
 
 ```shell
 rr-cam-swarm \
-    --n-cameras 100 \
+    --n-cameras 1000 \
     --min-distance 0.5 \
     --max-distance 3.0 \
     --angle-range 3.141 \
@@ -172,7 +172,8 @@ rr-cam-swarm \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
     --target-reduction 0.95 \
-    --scale 0.25 \
+    --scale 0.1 \
+    --n-samples 1 \
     --camera-info-file test/data/lbr_med7/zed2i/left_camera_info.yaml \
     --path test/data/lbr_med7/zed2i \
     --image-pattern left_image_*.png \
@@ -192,7 +193,7 @@ This monocular differentiable rendering refinement requires a good initial estim
 ```shell
 rr-mono-dr \
     --optimizer SGD \
-    --lr 0.001 \
+    --lr 0.01 \
     --max-iterations 100 \
     --display-progress \
     --ros-package lbr_description \
@@ -219,7 +220,7 @@ This stereo differentiable rendering refinement requires a good initial estimate
 ```shell
 rr-stereo-dr \
     --optimizer SGD \
-    --lr 0.001 \
+    --lr 0.01 \
     --max-iterations 100 \
     --display-progress \
     --ros-package lbr_description \

@@ -8,9 +8,9 @@ import torch
 from rich import progress
 from torch.utils.data import DataLoader
 
-from roboreg import differentiable as rrd
 from roboreg.io import MonocularDataset
 from roboreg.util import overlay_mask
+from roboreg.util.factories import create_robot_scene, create_virtual_camera
 
 
 def args_factory() -> argparse.Namespace:
@@ -95,15 +95,21 @@ def args_factory() -> argparse.Namespace:
 def main():
     args = args_factory()
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    scene = rrd.robot_scene_factory(
-        device=device,
+    camera = {
+        "camera": create_virtual_camera(
+            camera_info_file=args.camera_info_file,
+            extrinsics_file=args.extrinsics_file,
+            device=device,
+        )
+    }
+    scene = create_robot_scene(
         batch_size=args.batch_size,
         ros_package=args.ros_package,
         xacro_path=args.xacro_path,
         root_link_name=args.root_link_name,
         end_link_name=args.end_link_name,
-        camera_info_files={"camera": args.camera_info_file},
-        extrinsics_files={"camera": args.extrinsics_file},
+        cameras=camera,
+        device=device,
         visual=args.visual_meshes,
     )
     dataset = MonocularDataset(
@@ -131,7 +137,7 @@ def main():
         joint_states = joint_states.to(dtype=torch.float32, device=device)
 
         # configure robot
-        scene.configure_robot_joint_states(joint_states)
+        scene.robot.configure(joint_states)
 
         # render
         renders = scene.observe_from(list(scene.cameras.keys())[0])
