@@ -219,7 +219,9 @@ def main() -> None:
     best_extrinsics = extrinsics
     best_loss = float("inf")
 
-    for iteration in rich.progress.track(range(1, args.max_iterations + 1), "Optimizing..."):
+    for iteration in rich.progress.track(
+        range(1, args.max_iterations + 1), "Optimizing..."
+    ):
         if not extrinsics_inv_lie.requires_grad:
             raise ValueError("Lie extrinsics require gradients.")
         if not torch.is_grad_enabled():
