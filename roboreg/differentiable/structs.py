@@ -1,6 +1,6 @@
 import abc
 from collections import OrderedDict
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import fast_simplification
 import numpy as np
@@ -203,19 +203,19 @@ class Camera:
     def __init__(
         self,
         resolution: Tuple[int, int],
-        intrinsics: Union[torch.FloatTensor, np.ndarray] = torch.eye(
-            3, dtype=torch.float32
-        ),
-        extrinsics: Union[torch.FloatTensor, np.ndarray] = torch.eye(
-            4, dtype=torch.float32
-        ),
+        intrinsics: Optional[Union[torch.FloatTensor, np.ndarray]] = None,
+        extrinsics: Optional[Union[torch.FloatTensor, np.ndarray]] = None,
         device: torch.device = "cuda",
         name: str = "camera",
     ) -> None:
+        if intrinsics is None:
+            intrinsics = torch.eye(3, dtype=torch.float32, device=device)
+        if extrinsics is None:
+            extrinsics = torch.eye(4, dtype=torch.float32, device=device)
         if isinstance(intrinsics, np.ndarray):
-            intrinsics = torch.from_numpy(intrinsics).float()
+            intrinsics = torch.from_numpy(intrinsics).float().to(device=device)
         if isinstance(extrinsics, np.ndarray):
-            extrinsics = torch.from_numpy(extrinsics).float()
+            extrinsics = torch.from_numpy(extrinsics).float().to(device=device)
         if (intrinsics.shape != (3, 3)) and (
             intrinsics.dim() != 3 or intrinsics.shape[-2:] != (3, 3)
         ):
@@ -232,6 +232,7 @@ class Camera:
         self._intrinsics = intrinsics
         self._extrinsics = extrinsics
         self._resolution = resolution
+        self._device = device
         ht_optical_shape = (
             (1,) + extrinsics.shape[-2:]
             if extrinsics.dim() == 3
@@ -246,7 +247,6 @@ class Camera:
         self._ht_optical[..., 1, 0] = -1.0
         self._ht_optical[..., 2, 1] = -1.0
         self._ht_optical[..., 3, 3] = 1.0
-        self.to(device=device)
         self._name = name
 
     @abc.abstractmethod
@@ -281,11 +281,11 @@ class Camera:
         self._resolution = resolution
 
     @property
-    def width(self) -> int:
+    def height(self) -> int:
         return self._resolution[0]
 
     @property
-    def height(self) -> int:
+    def width(self) -> int:
         return self._resolution[1]
 
     @property
@@ -329,46 +329,44 @@ class VirtualCamera(Camera):
     def __init__(
         self,
         resolution: Tuple[int, int],
-        intrinsics: Union[torch.FloatTensor, np.ndarray] = torch.eye(
-            3, dtype=torch.float32
-        ),
-        extrinsics: Union[torch.FloatTensor, np.ndarray] = torch.eye(
-            4, dtype=torch.float32
-        ),
+        intrinsics: Optional[Union[torch.FloatTensor, np.ndarray]] = None,
+        extrinsics: Optional[Union[torch.FloatTensor, np.ndarray]] = None,
         zmin: float = 0.1,
         zmax: float = 100.0,
         device: torch.device = "cuda",
     ) -> None:
-        height, width = resolution
+        super().__init__(resolution, intrinsics, extrinsics, device)
+
+        # build perspective projection matrix
         self._zmin = zmin
         self._zmax = zmax
 
         if (
-            len(intrinsics.shape) == 2
+            self._intrinsics.ndim == 2
         ):  # dimension check compatible with numpy and torch
             self._perspective_projection = torch.zeros(4, 4, device=device)
-        elif len(intrinsics.shape) == 3:
+        elif self._intrinsics.ndim == 3:
             self._perspective_projection = torch.zeros(
-                intrinsics.shape[0], 4, 4, device=device
+                self._intrinsics.shape[0], 4, 4, device=device
             )
         else:
             raise ValueError("Intrinsics must be a 3x3 or Bx3x3 matrix.")
 
-        # populate perspective projection matrix
-        self._perspective_projection[..., 0, 0] = 2.0 * intrinsics[..., 0, 0] / width
-        self._perspective_projection[..., 1, 1] = 2.0 * intrinsics[..., 1, 1] / height
+        self._perspective_projection[..., 0, 0] = (
+            2.0 * self._intrinsics[..., 0, 0] / self.width
+        )
+        self._perspective_projection[..., 1, 1] = (
+            2.0 * self._intrinsics[..., 1, 1] / self.height
+        )
         self._perspective_projection[..., 0, 2] = (
-            2.0 * intrinsics[..., 0, 2] / width - 1.0
+            2.0 * self._intrinsics[..., 0, 2] / self.width - 1.0
         )
         self._perspective_projection[..., 1, 2] = (
-            2.0 * intrinsics[..., 1, 2] / height - 1.0
+            2.0 * self._intrinsics[..., 1, 2] / self.height - 1.0
         )
         self._perspective_projection[..., 2, 2] = (zmax + zmin) / (zmax - zmin)
         self._perspective_projection[..., 2, 3] = 2.0 * zmax * zmin / (zmin - zmax)
         self._perspective_projection[..., 3, 2] = 1.0
-
-        # call parent constructor
-        super().__init__(resolution, intrinsics, extrinsics, device)
 
     def to(self, device: torch.device) -> None:
         self._perspective_projection = self._perspective_projection.to(device=device)

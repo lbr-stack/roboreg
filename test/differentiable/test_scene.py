@@ -10,9 +10,9 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from roboreg import differentiable as rrd
 from roboreg.io import find_files
 from roboreg.util import overlay_mask
+from roboreg.util.factories import create_robot_scene, create_virtual_camera
 
 
 class TestScene:
@@ -87,16 +87,25 @@ class TestScene:
             ),
         }
 
+        # instantiate cameras
+        cameras = {
+            camera_name: create_virtual_camera(
+                camera_info_file=camera_info_files[camera_name],
+                extrinsics_file=extrinsics_files[camera_name],
+                device=device,
+            )
+            for camera_name in self.camera_names
+        }
+
         # instantiate scene
-        self.scene = rrd.robot_scene_factory(
-            device=device,
+        self.scene = create_robot_scene(
             batch_size=self.joint_states.shape[0],
             ros_package="lbr_description",
             xacro_path="urdf/med7/med7.xacro",
             root_link_name=root_link_name,
             end_link_name=end_link_name,
-            camera_info_files=camera_info_files,
-            extrinsics_files=extrinsics_files,
+            cameras=cameras,
+            device=device,
         )
 
         # enable gradient tracking
@@ -221,17 +230,22 @@ def test_single_camera_multiple_poses() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     batch_size = 4
     camera_name = "camera"
-    scene = rrd.robot_scene_factory(
-        device=device,
+    camera = {
+        camera_name: create_virtual_camera(
+            camera_info_file="test/data/lbr_med7/zed2i/left_camera_info.yaml",
+            extrinsics_file="test/data/lbr_med7/zed2i/HT_hydra_robust.npy",
+            device=device,
+        )
+    }
+
+    scene = create_robot_scene(
         batch_size=batch_size,
         ros_package="lbr_description",
         xacro_path="urdf/med7/med7.xacro",
         root_link_name="lbr_link_0",
         end_link_name="lbr_link_7",
-        camera_info_files={
-            camera_name: "test/data/lbr_med7/zed2i/left_camera_info.yaml"
-        },
-        extrinsics_files={camera_name: "test/data/lbr_med7/zed2i/HT_hydra_robust.npy"},
+        cameras=camera,
+        device=device,
     )
 
     # for each batch element, configure a unique camera pose...

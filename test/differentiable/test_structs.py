@@ -175,5 +175,5 @@ def test_batched_virtual_camera() -> None:
 
 if __name__ == "__main__":
     test_torch_mesh_container()
-    # test_batched_camera()
-    # test_batched_virtual_camera()
+    test_batched_camera()
+    test_batched_virtual_camera()

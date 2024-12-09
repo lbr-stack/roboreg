@@ -10,10 +10,10 @@ import rich
 import rich.progress
 import torch
 
-from roboreg import differentiable as rrd
 from roboreg.io import find_files
 from roboreg.losses import soft_dice_loss
 from roboreg.util import mask_exponential_distance_transform, overlay_mask
+from roboreg.util.factories import create_robot_scene, create_virtual_camera
 
 
 def args_factory() -> argparse.Namespace:
@@ -236,49 +236,62 @@ def main() -> None:
         sigma=args.sigma,
         device=device,
     )
-    scene = rrd.robot_scene_factory(
-        device=device,
+
+    # instantiate:
+    #   - left camera with default identity extrinsics because we optimize for robot pose instead
+    #   - right camera with transformation to left camera frame
+    cameras = {
+        "left": create_virtual_camera(
+            camera_info_file=args.left_camera_info_file,
+            device=device,
+        ),
+        "right": create_virtual_camera(
+            camera_info_file=args.right_camera_info_file,
+            extrinsics_file=args.right_extrinsics_file,
+            device=device,
+        ),
+    }
+
+    # instantiate robot scene
+    scene = create_robot_scene(
         batch_size=joint_states.shape[0],
         ros_package=args.ros_package,
         xacro_path=args.xacro_path,
         root_link_name=args.root_link_name,
         end_link_name=args.end_link_name,
-        camera_info_files={
-            "left": args.left_camera_info_file,
-            "right": args.right_camera_info_file,
-        },
-        extrinsics_files={
-            "left": args.left_extrinsics_file,
-            "right": args.right_extrinsics_file,
-        },
+        cameras=cameras,
+        device=device,
         visual=args.visual_meshes,
     )
 
-    # configure scene
-    scene.robot.configure(joint_states)
+    # load extrinscis estimate......
+    left_extrinsics = torch.tensor(
+        np.load(args.left_extrinsics_file), dtype=torch.float32, device=device
+    )
+    left_extrinsics_inv = torch.linalg.inv(left_extrinsics)
 
     # enable gradient tracking and instantiate optimizer
-    extrinsics_lie = pk.matrix44_to_se3_9d(scene.cameras["left"].extrinsics)
-    extrinsics_lie.requires_grad = True
+    left_extrinsics_inv_lie = pk.matrix44_to_se3_9d(left_extrinsics_inv)
+    left_extrinsics_inv_lie.requires_grad = True
     optimizer = getattr(importlib.import_module("torch.optim"), args.optimizer)(
-        [extrinsics_lie], lr=args.lr
+        [left_extrinsics_inv_lie], lr=args.lr
     )
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, step_size=args.step_size, gamma=args.gamma
     )
-    best_extrinsics = scene.cameras["left"].extrinsics
+    best_left_extrinsics = left_extrinsics
     best_loss = float("inf")
 
-    for _ in rich.progress.track(range(args.max_iterations), "Optimizing..."):
-        if not extrinsics_lie.requires_grad:
+    for iteration in rich.progress.track(range(1, args.max_iterations + 1), "Optimizing..."):
+        if not left_extrinsics_inv_lie.requires_grad:
             raise ValueError("Lie extrinsics require gradients.")
         if not torch.is_grad_enabled():
             raise ValueError("Gradients must be enabled.")
-        extrinsics = pk.se3_9d_to_matrix44(extrinsics_lie)
-        scene.cameras["left"].extrinsics = extrinsics
+        left_extrinsics_inv = pk.se3_9d_to_matrix44(left_extrinsics_inv_lie)
+        scene.robot.configure(joint_states, left_extrinsics_inv)
         renders = {
             "left": scene.observe_from("left"),
-            "right": scene.observe_from("right", scene.cameras["left"].extrinsics),
+            "right": scene.observe_from("right"),
         }
         loss = (
             soft_dice_loss(renders["left"], left_masks).mean()
@@ -290,12 +303,12 @@ def main() -> None:
         scheduler.step()
 
         rich.print(
-            f"Loss: {np.round(loss.item(), 3)}, best loss: {np.round(best_loss, 3)}, lr: {scheduler.get_last_lr().pop()}"
+            f"Step [{iteration} / {args.max_iterations}], loss: {np.round(loss.item(), 3)}, best loss: {np.round(best_loss, 3)}, lr: {scheduler.get_last_lr().pop()}"
         )
 
         if loss.item() < best_loss:
             best_loss = loss.item()
-            best_extrinsics = scene.cameras["left"].extrinsics.detach().clone()
+            best_left_extrinsics = torch.linalg.inv(left_extrinsics_inv.detach().clone())
 
         # display optimization progress
         if args.display_progress:
@@ -373,12 +386,12 @@ def main() -> None:
             )
             cv2.waitKey(1)
 
+    # render final results and save extrinsics
     with torch.no_grad():
-        # render final results and save extrinsics
-        scene.cameras["left"].extrinsics = best_extrinsics
+        scene.robot.configure(joint_states, best_left_extrinsics)
         renders = {
             "left": scene.observe_from("left"),
-            "right": scene.observe_from("right", scene.cameras["left"].extrinsics),
+            "right": scene.observe_from("right"),
         }
 
     for i, (left_render, right_render) in enumerate(
@@ -408,11 +421,11 @@ def main() -> None:
 
     np.save(
         os.path.join(args.path, args.left_output_file),
-        scene.cameras["left"].extrinsics.detach().cpu().numpy(),
+        best_left_extrinsics.cpu().numpy(),
     )
     np.save(
         os.path.join(args.path, args.right_output_file),
-        scene.cameras["left"].extrinsics.detach().cpu().numpy()
+        best_left_extrinsics.cpu().numpy()
         @ scene.cameras["right"].extrinsics.detach().cpu().numpy(),
     )
 

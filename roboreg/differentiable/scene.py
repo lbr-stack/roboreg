@@ -1,10 +1,6 @@
 from typing import Dict
 
-import numpy as np
-import rich
 import torch
-
-from roboreg.io import URDFParser, parse_camera_info
 
 from .rendering import NVDiffRastRenderer
 from .robot import Robot
@@ -21,7 +17,7 @@ class RobotScene:
     def __init__(
         self,
         cameras: Dict[str, VirtualCamera],
-        robot: Robot,  # TODO: ideally this is any combinations of TorchMeshContainers, i.e. Dict[str, TorchMeshContainer] (future work)
+        robot: Robot,  # TODO: ideally this would be any combinations of TorchMeshContainers, i.e. Dict[str, TorchMeshContainer] (future work: RobotScene -> Scene, robot -> objects)
         renderer: NVDiffRastRenderer,
     ) -> None:
         self._cameras = cameras
@@ -85,69 +81,3 @@ class RobotScene:
     @property
     def renderer(self) -> NVDiffRastRenderer:
         return self._renderer
-
-
-def robot_scene_factory(
-    device: str,
-    batch_size: int,
-    ros_package: str,
-    xacro_path: str,
-    root_link_name: str,
-    end_link_name: str,
-    camera_info_files: Dict[str, str],
-    extrinsics_files: Dict[str, str],
-    visual: bool = False,
-) -> RobotScene:
-    # create URDF parser
-    urdf_parser = URDFParser()
-    urdf_parser.from_ros_xacro(ros_package=ros_package, xacro_path=xacro_path)
-    if root_link_name == "":
-        root_link_name = urdf_parser.link_names_with_meshes(visual=visual)[0]
-        rich.print(
-            f"Root link name not provided. Using the first link with mesh: '{root_link_name}'."
-        )
-    if end_link_name == "":
-        end_link_name = urdf_parser.link_names_with_meshes(visual=visual)[-1]
-        rich.print(
-            f"End link name not provided. Using the last link with mesh: '{end_link_name}'."
-        )
-
-    # instantiate robot
-    robot = Robot(
-        urdf_parser=urdf_parser,
-        root_link_name=root_link_name,
-        end_link_name=end_link_name,
-        visual=visual,
-        batch_size=batch_size,
-        device=device,
-        target_reduction=0.0,
-    )
-
-    # instantiate renderer
-    renderer = NVDiffRastRenderer(device=device)
-
-    # instantiate camera
-    if list(camera_info_files.keys()) != list(extrinsics_files.keys()):
-        raise ValueError(
-            "Camera names for camera_info_files and extrinsics_files do not match."
-        )
-
-    cameras = {}
-    for camera_name in camera_info_files.keys():
-        height, width, intrinsics = parse_camera_info(
-            camera_info_file=camera_info_files[camera_name]
-        )
-        extrinsics = np.load(extrinsics_files[camera_name])
-        cameras[camera_name] = VirtualCamera(
-            resolution=[height, width],
-            intrinsics=intrinsics,
-            extrinsics=extrinsics,
-            device=device,
-        )
-
-    # instantiate and return scene
-    return RobotScene(
-        cameras=cameras,
-        robot=robot,
-        renderer=renderer,
-    )
