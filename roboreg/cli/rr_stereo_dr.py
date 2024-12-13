@@ -271,10 +271,10 @@ def main() -> None:
     left_extrinsics_inv = torch.linalg.inv(left_extrinsics)
 
     # enable gradient tracking and instantiate optimizer
-    left_extrinsics_inv_lie = pk.matrix44_to_se3_9d(left_extrinsics_inv)
-    left_extrinsics_inv_lie.requires_grad = True
+    left_extrinsics_9d_inv = pk.matrix44_to_se3_9d(left_extrinsics_inv)
+    left_extrinsics_9d_inv.requires_grad = True
     optimizer = getattr(importlib.import_module("torch.optim"), args.optimizer)(
-        [left_extrinsics_inv_lie], lr=args.lr
+        [left_extrinsics_9d_inv], lr=args.lr
     )
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, step_size=args.step_size, gamma=args.gamma
@@ -286,11 +286,11 @@ def main() -> None:
     for iteration in rich.progress.track(
         range(1, args.max_iterations + 1), "Optimizing..."
     ):
-        if not left_extrinsics_inv_lie.requires_grad:
-            raise ValueError("Lie extrinsics require gradients.")
+        if not left_extrinsics_9d_inv.requires_grad:
+            raise ValueError("Extrinsics require gradients.")
         if not torch.is_grad_enabled():
             raise ValueError("Gradients must be enabled.")
-        left_extrinsics_inv = pk.se3_9d_to_matrix44(left_extrinsics_inv_lie)
+        left_extrinsics_inv = pk.se3_9d_to_matrix44(left_extrinsics_9d_inv)
         scene.robot.configure(joint_states, left_extrinsics_inv)
         renders = {
             "left": scene.observe_from("left"),
