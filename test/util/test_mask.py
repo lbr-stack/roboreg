@@ -8,7 +8,7 @@ import cv2
 from roboreg.util import (
     mask_dilate_with_kernel,
     mask_erode_with_kernel,
-    mask_exponential_distance_transform,
+    mask_exponential_inverse_distance_transform,
     mask_extract_boundary,
     overlay_mask,
 )
@@ -38,12 +38,12 @@ def test_erode_with_kernel() -> None:
     cv2.destroyAllWindows()
 
 
-def test_exponential_distance_transform() -> None:
+def test_exponential_inverse_distance_transform() -> None:
     idx = 1
     mask = cv2.imread(
         f"test/data/lbr_med7/zed2i/high_res/mask_{idx}.png", cv2.IMREAD_GRAYSCALE
     )
-    exponential_distance_map = mask_exponential_distance_transform(mask)
+    exponential_distance_map = mask_exponential_inverse_distance_transform(mask)
     cv2.imshow("mask", mask)
     cv2.imshow("exponential_distance_map", exponential_distance_map)
     cv2.waitKey(0)
@@ -68,5 +68,5 @@ def test_extract_boundary() -> None:
 if __name__ == "__main__":
     # test_dilate_with_kernel()
     # test_erode_with_kernel()
-    test_exponential_distance_transform()
+    test_exponential_inverse_distance_transform()
     # test_extract_boundary()

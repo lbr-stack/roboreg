@@ -14,7 +14,7 @@ from roboreg.losses import soft_dice_loss
 from roboreg.optim import LinearParticleSwarm, ParticleSwarmOptimizer
 from roboreg.util import (
     look_at_from_angle,
-    mask_exponential_distance_transform,
+    mask_exponential_inverse_distance_transform,
     overlay_mask,
     random_fov_eye_space_coordinates,
 )
@@ -202,7 +202,7 @@ def parse_data(
         cv2.imread(os.path.join(path, file), cv2.IMREAD_COLOR) for file in image_files
     ]
     masks = [
-        mask_exponential_distance_transform(
+        mask_exponential_inverse_distance_transform(
             cv2.imread(os.path.join(path, file), cv2.IMREAD_GRAYSCALE)
         )
         for file in mask_files

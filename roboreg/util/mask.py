@@ -26,12 +26,14 @@ def mask_extract_boundary(
     return boundary_mask
 
 
-def mask_exponential_distance_transform(
+def mask_distance_transform(mask: np.ndarray) -> np.ndarray:
+    return cv2.distanceTransform(mask, cv2.DIST_L2, cv2.DIST_MASK_PRECISE)
+
+
+def mask_exponential_inverse_distance_transform(
     mask: np.ndarray, sigma: float = 2.0
 ) -> np.ndarray:
     inverse_mask = np.where(mask > 0.0, 0.0, 1.0).astype(np.uint8)
-    distance_map = cv2.distanceTransform(
-        inverse_mask, cv2.DIST_L2, cv2.DIST_MASK_PRECISE
-    )
+    distance_map = mask_distance_transform(inverse_mask)
     distance_map = np.exp(-distance_map / sigma)
     return distance_map

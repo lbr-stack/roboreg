@@ -12,7 +12,7 @@ import torch
 
 from roboreg.io import find_files
 from roboreg.losses import soft_dice_loss
-from roboreg.util import mask_exponential_distance_transform, overlay_mask
+from roboreg.util import mask_exponential_inverse_distance_transform, overlay_mask
 from roboreg.util.factories import create_robot_scene, create_virtual_camera
 
 
@@ -153,7 +153,7 @@ def parse_data(
     images = [cv2.imread(os.path.join(path, file)) for file in image_files]
     joint_states = [np.load(os.path.join(path, file)) for file in joint_states_files]
     masks = [
-        mask_exponential_distance_transform(
+        mask_exponential_inverse_distance_transform(
             cv2.imread(os.path.join(path, file), cv2.IMREAD_GRAYSCALE), sigma=sigma
         )
         for file in left_mask_files
