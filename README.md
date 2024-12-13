@@ -165,7 +165,7 @@ rr-cam-swarm \
     --w 0.7 \
     --c1 1.5 \
     --c2 1.5 \
-    --max-iterations 200 \
+    --max-iterations 100 \
     --display-progress \
     --ros-package lbr_description \
     --xacro-path urdf/med7/med7.xacro \

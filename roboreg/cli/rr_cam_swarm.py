@@ -14,6 +14,7 @@ from roboreg.losses import soft_dice_loss
 from roboreg.optim import LinearParticleSwarm, ParticleSwarmOptimizer
 from roboreg.util import (
     look_at_from_angle,
+    mask_exponential_distance_transform,
     overlay_mask,
     random_fov_eye_space_coordinates,
 )
@@ -67,10 +68,16 @@ def args_factory() -> argparse.Namespace:
         help="The maximum number of iterations.",
     )
     parser.add_argument(
-        "--min-velocity",
+        "--min-fitness-change",
         type=float,
-        default=1e-4,
-        help="The minimum velocity for early convergence.",
+        default=2.0e-3,
+        help="The minimum fitness change for early convergence.",
+    )
+    parser.add_argument(
+        "--max-iterations-below-min-fitness-change",
+        type=int,
+        default=20,
+        help="The maximum number of iterations below the minimum fitness change before early convergence.",
     )
     parser.add_argument(
         "--display-progress",
@@ -195,12 +202,14 @@ def parse_data(
         cv2.imread(os.path.join(path, file), cv2.IMREAD_COLOR) for file in image_files
     ]
     masks = [
-        cv2.imread(os.path.join(path, file), cv2.IMREAD_GRAYSCALE)
+        mask_exponential_distance_transform(
+            cv2.imread(os.path.join(path, file), cv2.IMREAD_GRAYSCALE)
+        )
         for file in mask_files
     ]
     joint_states = [np.load(os.path.join(path, file)) for file in joint_states_files]
 
-    masks = torch.tensor(np.array(masks), dtype=torch.float32, device=device) / 255.0
+    masks = torch.tensor(np.array(masks), dtype=torch.float32, device=device)
     joint_states = torch.tensor(
         np.array(joint_states), dtype=torch.float32, device=device
     )
@@ -313,16 +322,6 @@ def main() -> None:
     )
 
     # instantiate scene for fitness evaluation
-    urdf_parser = rrd.URDFParser()
-    urdf_parser.from_ros_xacro(ros_package=args.ros_package, xacro_path=args.xacro_path)
-
-    kinematics = rrd.TorchKinematics(
-        urdf_parser=urdf_parser,
-        root_link_name=args.root_link_name,
-        end_link_name=args.end_link_name,
-        device=device,
-    )
-
     batch_size = (
         n_joint_states * args.n_cameras
     )  # (each camera observes n_joint_states joint states)
@@ -334,6 +333,8 @@ def main() -> None:
         device=device,
     )
 
+    urdf_parser = rrd.URDFParser()
+    urdf_parser.from_ros_xacro(ros_package=args.ros_package, xacro_path=args.xacro_path)
     robot = rrd.Robot(
         urdf_parser=urdf_parser,
         root_link_name=args.root_link_name,
@@ -399,10 +400,11 @@ def main() -> None:
     )
 
     # optimize
-    best_particle = particle_swarm_optimizer(
+    best_particle, _ = particle_swarm_optimizer(
         fitness_function=fitness_closure,
         max_iterations=args.max_iterations,
-        min_velocity=args.min_velocity,
+        min_fitness_change=args.min_fitness_change,
+        max_iterations_below_min_fitness_change=args.max_iterations_below_min_fitness_change,
     )
 
     # save results
