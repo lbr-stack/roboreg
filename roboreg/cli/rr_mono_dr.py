@@ -208,10 +208,10 @@ def main() -> None:
     extrinsics_inv = torch.linalg.inv(extrinsics)
 
     # enable gradient tracking and instantiate optimizer
-    extrinsics_inv_lie = pk.matrix44_to_se3_9d(extrinsics_inv)
-    extrinsics_inv_lie.requires_grad = True
+    extrinsics_9d_inv = pk.matrix44_to_se3_9d(extrinsics_inv)
+    extrinsics_9d_inv.requires_grad = True
     optimizer = getattr(importlib.import_module("torch.optim"), args.optimizer)(
-        [extrinsics_inv_lie], lr=args.lr
+        [extrinsics_9d_inv], lr=args.lr
     )
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, step_size=args.step_size, gamma=args.gamma
@@ -223,11 +223,11 @@ def main() -> None:
     for iteration in rich.progress.track(
         range(1, args.max_iterations + 1), "Optimizing..."
     ):
-        if not extrinsics_inv_lie.requires_grad:
-            raise ValueError("Lie extrinsics require gradients.")
+        if not extrinsics_9d_inv.requires_grad:
+            raise ValueError("Extrinsics require gradients.")
         if not torch.is_grad_enabled():
             raise ValueError("Gradients must be enabled.")
-        extrinsics_inv = pk.se3_9d_to_matrix44(extrinsics_inv_lie)
+        extrinsics_inv = pk.se3_9d_to_matrix44(extrinsics_9d_inv)
         scene.robot.configure(joint_states, extrinsics_inv)
         renders = {
             "camera": scene.observe_from("camera"),
