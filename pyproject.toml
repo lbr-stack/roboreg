@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "roboreg"
-version = "0.4.3"
+version = "0.4.4"
 authors = [
   { name="mhubii", email="m.huber_1994@hotmail.de" },
 ]
