@@ -7,8 +7,8 @@ def depth_to_xyz(
     depth: torch.FloatTensor,
     intrinsics: torch.FloatTensor,
     z_min: float = 0.01,
-    z_max: float = 2,
-    conversion_factor: float = 1.0e3,
+    z_max: float = 2.0,
+    conversion_factor: float = 1.0,
 ) -> torch.FloatTensor:
     r"""Converts a depth image to a point cloud. Note that this function uses the OpenCV convention.
 
@@ -17,7 +17,7 @@ def depth_to_xyz(
         intrinsics (torch.FloatTensor): Camera intrinsics of shape 3x3 or Bx3x3.
         z_min (float): Minimum depth value.
         z_max (float): Maximum depth value.
-        conversion_factor (float): Conversion factor for depth. Computes z = depth / conversion_factor.
+        conversion_factor (float): Conversion factor for depth. Computes z = depth / conversion_factor e.g. to covert from millimeter to meter.
 
     Returns:
         Point cloud of shape HxWx3 or BxHxWx3.

@@ -149,6 +149,6 @@ def test_look_at_from_angle() -> None:
 
 
 if __name__ == "__main__":
-    # test_depth_to_xyz()
-    # test_realsense_depth_to_xyz()
+    test_depth_to_xyz()
+    test_realsense_depth_to_xyz()
     test_look_at_from_angle()

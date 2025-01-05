@@ -339,7 +339,9 @@ def parse_hydra_data(
     if len(joint_state_files) != len(mask_files) or len(joint_state_files) != len(
         depth_files
     ):
-        raise ValueError("Number of files do not match.")
+        raise ValueError(
+            f"Number of files do not match. Got {len(joint_state_files)} joint state files, {len(mask_files)} mask files, and {len(depth_files)} depth files."
+        )
 
     rich.print("Found the following files:")
     rich.print(f"Joint states: {joint_state_files}")

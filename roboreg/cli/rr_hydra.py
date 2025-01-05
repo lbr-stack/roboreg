@@ -77,6 +77,24 @@ def args_factory() -> argparse.Namespace:
         help="If set, visual meshes will be used instead of collision meshes.",
     )
     parser.add_argument(
+        "--depth-conversion-factor",
+        type=float,
+        default=1.0,
+        help="Conversion factor for depth. Computes z = depth / conversion_factor e.g. to covert from millimeter to meter.",
+    )
+    parser.add_argument(
+        "--z-min",
+        type=float,
+        default=0.01,
+        help="Minimum depth value.",
+    )
+    parser.add_argument(
+        "--z-max",
+        type=float,
+        default=2.0,
+        help="Maximum depth value.",
+    )
+    parser.add_argument(
         "--number-of-points",
         type=int,
         default=5000,
@@ -196,7 +214,13 @@ def main():
     # turn depths into xyzs
     intrinsics = torch.tensor(intrinsics, dtype=torch.float32, device=device)
     depths = torch.tensor(np.array(depths), dtype=torch.float32, device=device)
-    xyzs = depth_to_xyz(depth=depths, intrinsics=intrinsics, z_max=1.5)
+    xyzs = depth_to_xyz(
+        depth=depths,
+        intrinsics=intrinsics,
+        z_min=args.z_min,
+        z_max=args.z_max,
+        conversion_factor=args.depth_conversion_factor,
+    )
 
     # flatten BxHxWx3 -> Bx(H*W)x3
     xyzs = xyzs.view(-1, height * width, 3)
