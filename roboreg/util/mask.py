@@ -26,6 +26,17 @@ def mask_extract_boundary(
     return boundary_mask
 
 
+def mask_extract_extended_boundary(
+    mask: np.ndarray,
+    erosion_kernel: np.ndarray = np.ones([10, 10]),
+    dilation_kernel: np.ndarray = np.ones([10, 10]),
+) -> np.ndarray:
+    extended_boundary_mask = mask_dilate_with_kernel(
+        mask=mask, kernel=dilation_kernel
+    ) - mask_erode_with_kernel(mask=mask, kernel=erosion_kernel)
+    return extended_boundary_mask
+
+
 def mask_exponential_distance_transform(
     mask: np.ndarray, sigma: float = 2.0
 ) -> np.ndarray:
