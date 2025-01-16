@@ -91,6 +91,13 @@ def args_factory() -> argparse.Namespace:
         required=True,
         help="Output path.",
     )
+    parser.add_argument(
+        "--color",
+        type=str,
+        choices=["r", "g", "b"],
+        default="b",
+        help="Color channel to overlay the render.",
+    )
     return parser.parse_args()
 
 
@@ -155,7 +162,7 @@ def main():
                     str(output_path.absolute()),
                     f"overlay_render_{image_stem + image_suffix}",
                 ),
-                overlay_mask(image, render, "b", scale=1.0),
+                overlay_mask(image, render, args.color, scale=1.0),
             )
 
 
