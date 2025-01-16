@@ -13,7 +13,9 @@ from roboreg.util import overlay_mask
 
 
 def args_factory() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument("--path", type=str, required=True, help="Path to the images.")
     parser.add_argument(
         "--pattern", type=str, default="image_*.png", help="Image file pattern."

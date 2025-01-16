@@ -17,7 +17,9 @@ from roboreg.util.factories import create_robot_scene, create_virtual_camera
 
 
 def args_factory() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument(
         "--optimizer",
         type=str,

@@ -21,7 +21,9 @@ from roboreg.util import (
 
 
 def args_factory() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument(
         "--camera-info-file",
         type=str,
