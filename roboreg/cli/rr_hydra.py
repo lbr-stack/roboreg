@@ -15,7 +15,7 @@ from roboreg.util import (
     depth_to_xyz,
     from_homogeneous,
     generate_ht_optical,
-    mask_extract_boundary,
+    mask_extract_extended_boundary,
     to_homogeneous,
 )
 
@@ -127,9 +127,15 @@ def args_factory() -> argparse.Namespace:
         help="Output file name. Relative to the path.",
     )
     parser.add_argument(
-        "--without-erosion",
+        "--no-boundary",
         action="store_true",
-        help="Do not apply erosion to the mask boundary.",
+        help="Do not apply dilation / erosion to the mask.",
+    )
+    parser.add_argument(
+        "--dilation-kernel-size",
+        type=int,
+        default=3,
+        help="Dilation kernel size for mask boundary. Larger value will result in larger boundary.",
     )
     parser.add_argument(
         "--erosion-kernel-size",
@@ -251,9 +257,12 @@ def main():
                 xyz=xyz,
                 mask=(
                     mask
-                    if args.without_erosion
-                    else mask_extract_boundary(
+                    if args.no_boundary
+                    else mask_extract_extended_boundary(
                         mask,
+                        dilation_kernel=np.ones(
+                            [args.dilation_kernel_size, args.dilation_kernel_size]
+                        ),
                         erosion_kernel=np.ones(
                             [args.erosion_kernel_size, args.erosion_kernel_size]
                         ),

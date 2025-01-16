@@ -4,6 +4,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 
 import cv2
+import numpy as np
 
 from roboreg.util import (
     mask_dilate_with_kernel,
@@ -72,7 +73,9 @@ def test_extract_extended_boundary() -> None:
     mask = cv2.imread(
         f"test/data/lbr_med7/zed2i/mask_sam2_left_image_{idx}.png", cv2.IMREAD_GRAYSCALE
     )
-    extended_boundary_mask = mask_extract_extended_boundary(mask)
+    extended_boundary_mask = mask_extract_extended_boundary(
+        mask, dilation_kernel=np.ones([2, 2]), erosion_kernel=np.ones([10, 10])
+    )
     overlay = overlay_mask(img, extended_boundary_mask, mode="b", alpha=1.0, scale=1.0)
     cv2.imshow("mask", mask)
     cv2.imshow("extended_boundary_mask", extended_boundary_mask)

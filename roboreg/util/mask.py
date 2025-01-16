@@ -28,8 +28,8 @@ def mask_extract_boundary(
 
 def mask_extract_extended_boundary(
     mask: np.ndarray,
-    erosion_kernel: np.ndarray = np.ones([10, 10]),
     dilation_kernel: np.ndarray = np.ones([10, 10]),
+    erosion_kernel: np.ndarray = np.ones([10, 10]),
 ) -> np.ndarray:
     extended_boundary_mask = mask_dilate_with_kernel(
         mask=mask, kernel=dilation_kernel
