@@ -38,8 +38,6 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: POSIX :: Linux",
 ]
-license = "Apache 2.0"
-license-files = ["LICENSE", "NOTICE"]
 
 [project.urls]
 Homepage = "https://github.com/lbr-stack/roboreg"
