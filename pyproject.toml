@@ -8,6 +8,9 @@ version = "0.4.4"
 authors = [
   { name="mhubii", email="m.huber_1994@hotmail.de" },
 ]
+maintainers = [
+  {name = "mhubii", email = "m.huber_1994@hotmail.de"},
+]
 description = "Unified eye-in-hand / eye-to-hand calibration from RGB-D images using robot mesh as calibration target."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -32,9 +35,11 @@ dependencies = [
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: CC BY-NC 4.0 Deed",
-    "Operating System :: OS Independent",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX :: Linux",
 ]
+license = "Apache 2.0"
+license-files = ["LICENSE", "NOTICE"]
 
 [project.urls]
 Homepage = "https://github.com/lbr-stack/roboreg"
