@@ -3,7 +3,6 @@ from typing import Any
 import numpy as np
 import torch
 from sam2.sam2_image_predictor import SAM2ImagePredictor
-from segment_anything import SamPredictor, sam_model_registry
 
 
 class Segmentor(object):
@@ -39,29 +38,6 @@ class Sam2Segmentor(Segmentor):
     ) -> np.ndarray:
         self._model.set_image(img)
         with torch.inference_mode(), torch.autocast(self._device, dtype=torch.bfloat16):
-            mask_logits, _, _ = self._model.predict(
-                point_coords=input_points,
-                point_labels=input_labels,
-                multimask_output=False,
-                return_logits=True,
-            )
-        return self._sigmoid(mask_logits[0])
-
-
-class SamSegmentor(Segmentor):
-    def __init__(
-        self, checkpoint: str, model_type: str, pth: float = 0.5, device: str = "cuda"
-    ) -> None:
-        super().__init__(pth=pth, device=device)
-        self._sam = sam_model_registry[model_type](checkpoint=checkpoint)
-        self._sam.to(device=device)
-        self._model: SamPredictor = SamPredictor(self._sam)
-
-    def __call__(
-        self, img: np.ndarray, input_points: np.ndarray, input_labels: np.ndarray
-    ) -> np.ndarray:
-        self._model.set_image(img)
-        with torch.no_grad():
             mask_logits, _, _ = self._model.predict(
                 point_coords=input_points,
                 point_labels=input_labels,
