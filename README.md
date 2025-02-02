@@ -124,7 +124,7 @@ This is a required step to generate robot masks.
 ```shell
 rr-sam2 \
     --path test/data/lbr_med7/zed2i \
-    --pattern "*_image_*.png" \
+    --pattern "left_image_*.png" \
     --n-positive-samples 5 \
     --n-negative-samples 5 \
     --device cuda
