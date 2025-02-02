@@ -21,11 +21,15 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: cache
+        uses: actions/cache@v4
+        with:
+          key: test_env_${{ matrix.python-version }}
+
       - uses: Jimver/cuda-toolkit@v0.2.21
         id: cuda-toolkit
         with:
           cuda: '12.1.0'
-          method: network
 
       # Upgrade pip and install your package (and its dependencies from pyproject.toml).
       - name: Install package and dependencies
