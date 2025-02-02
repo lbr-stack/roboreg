@@ -8,7 +8,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: [3.10, 3.11, 3.12]
+        python-version: ["3.10", "3.11", "3.12"]
 
     steps:
       # Check out the repository.
@@ -21,11 +21,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      # Set up the CUDA toolkit.
-      - name: Set up CUDA
-        uses: nvidia/setup-cuda@v2
+      - uses: Jimver/cuda-toolkit@v0.2.21
+        id: cuda-toolkit
         with:
-          cuda-version: "11.8"  # Adjust the version as needed.
+          cuda: '12.1'
 
       # Upgrade pip and install your package (and its dependencies from pyproject.toml).
       - name: Install package and dependencies
