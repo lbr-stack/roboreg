@@ -27,12 +27,13 @@ jobs:
           path: .
           key: test_env_${{ matrix.python-version }}
 
-      - uses: Jimver/cuda-toolkit@v0.2.21
-        id: cuda-toolkit
-        with:
-          cuda: '12.1.0'
-          use-github-cache: false
-          use-local-cache: false
+      # ToDo: cuda dedicated needed? or enough via torch?
+      # - uses: Jimver/cuda-toolkit@v0.2.21
+      #   id: cuda-toolkit
+      #   with:
+      #     cuda: '12.1.0'
+      #     use-github-cache: false
+      #     use-local-cache: false
 
       # Upgrade pip and install your package (and its dependencies from pyproject.toml).
       - name: Install package and dependencies
