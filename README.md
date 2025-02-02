@@ -45,8 +45,7 @@ Three install options are provided:
 To `pip` intall `roboreg`, simply run
 
 ```shell
-git clone git@github.com:lbr-stack/roboreg.git && \
-pip3 install roboreg/
+pip3 install roboreg
 ```
 
 ### Conda (Installs CUDA Toolkit)
@@ -124,7 +123,7 @@ This is a required step to generate robot masks.
 ```shell
 rr-sam2 \
     --path test/data/lbr_med7/zed2i \
-    --pattern "*_image_*.png" \
+    --pattern "left_image_*.png" \
     --n-positive-samples 5 \
     --n-negative-samples 5 \
     --device cuda
