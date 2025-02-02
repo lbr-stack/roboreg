@@ -25,6 +25,7 @@ jobs:
         id: cuda-toolkit
         with:
           cuda: '12.1.0'
+          method: network
 
       # Upgrade pip and install your package (and its dependencies from pyproject.toml).
       - name: Install package and dependencies
