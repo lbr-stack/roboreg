@@ -32,7 +32,7 @@ jobs:
         with:
           cuda: '12.1.0'
           use-github-cache: false
-          use-local-cache: true
+          use-local-cache: false
 
       # Upgrade pip and install your package (and its dependencies from pyproject.toml).
       - name: Install package and dependencies
