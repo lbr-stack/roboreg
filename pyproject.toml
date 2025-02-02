@@ -6,15 +6,18 @@ build-backend = "setuptools.build_meta"
 name = "roboreg"
 version = "0.4.4"
 authors = [
-  { name="mhubii", email="m.huber_1994@hotmail.de" },
+  {name="mhubii", email="m.huber_1994@hotmail.de"},
+  {name="haydnspass", email="lucasraphael.mueller@gmail.com"},
 ]
 maintainers = [
   {name = "mhubii", email = "m.huber_1994@hotmail.de"},
+  {name="haydnspass", email="lucasraphael.mueller@gmail.com"},
 ]
 description = "Unified eye-in-hand / eye-to-hand calibration from RGB-D images using robot mesh as calibration target."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+  "diffrp-nvdiffrast",
   "fast_simplification",
   "huggingface_hub",
   "pycollada",
@@ -23,10 +26,9 @@ dependencies = [
   "pyvista",
   "ninja",
   "numpy",
-  "nvdiffrast@git+https://github.com/NVlabs/nvdiffrast.git",
   "opencv-python",
   "rich",
-  "SAM-2@git+https://github.com/facebookresearch/segment-anything-2.git",
+  "sam2",
   "torch",
   "transformations",
   "trimesh",
