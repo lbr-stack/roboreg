@@ -119,7 +119,7 @@ Next:
 > In these examples, the [lbr_fri_ros2_stack](https://github.com/lbr-stack/lbr_fri_ros2_stack/) is used. Make sure to follow [Quick Start](https://github.com/lbr-stack/lbr_fri_ros2_stack/#quick-start) first. However, you can also use your own robot description files.
 
 ### Segment
-This is a required step to generate robot masks (also supports SAM: `rr-sam`).
+This is a required step to generate robot masks.
 
 ```shell
 rr-sam2 \
