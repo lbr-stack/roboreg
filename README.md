@@ -45,8 +45,7 @@ Three install options are provided:
 To `pip` intall `roboreg`, simply run
 
 ```shell
-git clone git@github.com:lbr-stack/roboreg.git && \
-pip3 install roboreg/
+pip3 install roboreg
 ```
 
 ### Conda (Installs CUDA Toolkit)
