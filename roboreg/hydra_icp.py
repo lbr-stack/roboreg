@@ -5,10 +5,10 @@ from rich import print
 from rich.progress import track
 
 
-def kabsh_register(
+def kabsch_register(
     input: torch.Tensor, target: torch.Tensor
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    r"""Kabsh algorithm: https://en.wikipedia.org/wiki/Kabsch_algorithm.
+    r"""Kabsch algorithm: https://en.wikipedia.org/wiki/Kabsch_algorithm.
     Computes rotation and translation such that input @ R + t = target.
 
     Args:
@@ -88,7 +88,7 @@ def hydra_centroid_alignment(
     Ys_centroids = [torch.mean(mesh, dim=-2) for mesh in Ys]
 
     # estimate transform
-    R, t = kabsh_register(
+    R, t = kabsch_register(
         torch.stack(Xs_centroids).unsqueeze(0),
         torch.stack(Ys_centroids).unsqueeze(0),
     )
@@ -145,7 +145,7 @@ def hydra_icp(
         (
             R,
             t,
-        ) = kabsh_register(
+        ) = kabsch_register(
             observation_corr,
             mesh_corr,
         )
