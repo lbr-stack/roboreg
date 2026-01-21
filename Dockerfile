@@ -1,17 +1,26 @@
-FROM nvcr.io/nvidia/pytorch:24.12-py3
-
-# add ubuntu to sudoers: https://code.visualstudio.com/remote/advancedcontainers/add-nonroot-user#_creating-a-nonroot-user
-RUN apt-get update \
-    && apt-get install -y sudo \
-    && echo ubuntu ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/ubuntu \
-    && chmod 0440 /etc/sudoers.d/ubuntu
-
-# change default shell
-SHELL ["/bin/bash", "-c"]
+FROM nvidia/cuda:13.1.0-devel-ubuntu24.04
 
 # update, upgrade
 RUN apt-get update && \
     apt-get upgrade -y
+
+# add ubuntu to sudoers: https://code.visualstudio.com/remote/advancedcontainers/add-nonroot-user#_creating-a-nonroot-user
+RUN apt-get install -y sudo \
+    && echo ubuntu ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/ubuntu \
+    && chmod 0440 /etc/sudoers.d/ubuntu
+
+# install tools (unavailable in base image)
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get install \
+        git \
+        cmake \
+        python3 \
+        python3-pip \
+        ninja-build \
+        libgl1 -y
+
+# change default shell
+SHELL ["/bin/bash", "-c"]
 
 # add ROS 2 Jazzy sources, see e.g. https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debians.html
 ENV ROS_DISTRO=jazzy
@@ -67,7 +76,7 @@ ENV PYTHONPATH="/home/ubuntu/.local/lib/python3.12/site-packages"
 ENV PATH="$PATH:/home/ubuntu/.local/bin"
 
 # install roboreg
-RUN pip3 install roboreg/
+RUN pip3 install roboreg/ --break-system-packages
 
 # limit concurrent compilation for ninja, refer https://github.com/NVlabs/nvdiffrast/issues/201
 ENV MAX_JOBS=2
