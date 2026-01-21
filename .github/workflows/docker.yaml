@@ -26,9 +26,9 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          file: .docker/headless.Dockerfile
+          file: .docker/runtime.Dockerfile
           platforms: linux/amd64
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: |
-            roboreg:latest
-            ghcr.io/lbr-stack/roboreg:latest
+            roboreg:hydra
+            ghcr.io/lbr-stack/roboreg:hydra

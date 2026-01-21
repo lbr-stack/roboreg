@@ -89,7 +89,7 @@ Next:
 
     ```shell
     cd roboreg
-    docker build -t roboreg -f .docker/Dockerfile .
+    docker build -t roboreg -f .docker/devel.Dockerfile .
     ```
 
 3. Run container
