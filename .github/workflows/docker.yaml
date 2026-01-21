@@ -26,6 +26,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
+          file: .docker/headless.Dockerfile
           platforms: linux/amd64
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: |

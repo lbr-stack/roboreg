@@ -14,9 +14,7 @@ RUN apt-get install \
         git \
         cmake \
         python3 \
-        python3-pip \
-        ninja-build \
-        libgl1 -y
+        python3-pip -y
 
 # change default shell
 SHELL ["/bin/bash", "-c"]
@@ -73,11 +71,26 @@ RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /home/ubuntu/.bashrc && \
     echo "source /workspace/ros2_ws/install/local_setup.bash" >> /home/ubuntu/.bashrc
 
 # extend PYTHONPATH and PATH (for CLI)
-ENV PYTHONPATH="/home/ubuntu/.local/lib/python3.12/site-packages"
-ENV PATH="$PATH:/home/ubuntu/.local/bin"
+ENV PYTHONPATH="/home/ubuntu/roboreg"
+ENV PATH="$PATH:/home/ubuntu/roboreg/roboreg/cli"
 
 # install roboreg
-RUN pip3 install roboreg/ --break-system-packages
+RUN pip3 install \
+    diffrp-nvdiffrast \
+    fast_simplification \
+    pycollada \
+    pytest \
+    pytorch-kinematics>=0.7.4 \
+    ninja \
+    numpy \
+    opencv-python-headless \
+    rich \
+    sam2 \
+    torch \
+    transformations \
+    trimesh \
+    xacro \
+    --break-system-packages
 
 # limit concurrent compilation for ninja, refer https://github.com/NVlabs/nvdiffrast/issues/201
 ENV MAX_JOBS=2
