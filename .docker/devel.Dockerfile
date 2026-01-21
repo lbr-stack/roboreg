@@ -70,7 +70,7 @@ RUN cd ros2_ws && \
 
 # source ROS 2 workspace
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /home/ubuntu/.bashrc && \
-    echo "source /workspace/ros2_ws/install/local_setup.bash" >> /home/ubuntu/.bashrc
+    echo "source /home/ubuntu/ros2_ws/install/local_setup.bash" >> /home/ubuntu/.bashrc
 
 # extend PYTHONPATH and PATH (for CLI)
 ENV PYTHONPATH="/home/ubuntu/.local/lib/python3.12/site-packages"
