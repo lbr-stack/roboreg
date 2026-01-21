@@ -1,9 +1,9 @@
 FROM nvcr.io/nvidia/pytorch:23.07-py3
 
 # Build arguments
-ARG USER_ID
-ARG GROUP_ID
-ARG USER
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+ARG USER=roboreg
 
 # Create non-root user: https://code.visualstudio.com/remote/advancedcontainers/add-nonroot-user#_creating-a-nonroot-user
 RUN groupadd --gid $GROUP_ID $USER \
