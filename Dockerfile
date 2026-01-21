@@ -1,8 +1,7 @@
 FROM nvidia/cuda:13.1.0-devel-ubuntu24.04
 
-# update, upgrade
-RUN apt-get update && \
-    apt-get upgrade -y
+# update
+RUN apt-get update
 
 # add ubuntu to sudoers: https://code.visualstudio.com/remote/advancedcontainers/add-nonroot-user#_creating-a-nonroot-user
 RUN apt-get install -y sudo \
@@ -43,6 +42,7 @@ RUN apt-get install python3-colcon-common-extensions \
         ros-${ROS_DISTRO}-xacro -y
 
 # clone the LBR-Stack and xarm source code for robot description only
+WORKDIR /home/ubuntu
 RUN mkdir -p ros2_ws/src && \
     cd ros2_ws/src && \
     git clone https://github.com/lbr-stack/lbr_fri_ros2_stack.git -b $ROS_DISTRO && \
@@ -65,7 +65,8 @@ RUN cd ros2_ws && \
         --cmake-args -DBUILD_TESTING=0 \
         --packages-select \
             xarm_description \
-            lbr_description
+            lbr_description && \
+    rm -r src
 
 # source ROS 2 workspace
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /home/ubuntu/.bashrc && \
@@ -82,5 +83,5 @@ RUN pip3 install roboreg/ --break-system-packages
 ENV MAX_JOBS=2
 
 # run inside the roboreg folder (where data is located)
-WORKDIR /workspace/roboreg
+WORKDIR /home/ubuntu/roboreg
 CMD ["/bin/bash"]
