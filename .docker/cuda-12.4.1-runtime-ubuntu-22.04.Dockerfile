@@ -1,8 +1,12 @@
-FROM nvidia/cuda:13.1.0-runtime-ubuntu24.04 AS builder
+FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04 AS builder
+
+# create ubuntu user
+RUN groupadd --gid 1000 ubuntu \
+    && useradd --uid 1000 --gid 1000 -m ubuntu
 
 # add ROS 2 Jazzy sources, see e.g. https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debians.html
 ENV DEBIAN_FRONTEND=noninteractive
-ENV ROS_DISTRO=jazzy
+ENV ROS_DISTRO=humble
 RUN apt-get update && \
     apt-get install software-properties-common -y && \
     add-apt-repository universe &&\
@@ -65,17 +69,19 @@ RUN cd roboreg-deployment && \
             xarm_description \
             lbr_description
 
-FROM nvidia/cuda:13.1.0-runtime-ubuntu24.04
+FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
 
-# add ubuntu to sudoers: https://code.visualstudio.com/remote/advancedcontainers/add-nonroot-user#_creating-a-nonroot-user
-RUN apt-get update && \
-    apt-get install -y sudo && \
-    echo ubuntu ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/ubuntu && \
-    chmod 0440 /etc/sudoers.d/ubuntu
+# create ubuntu user
+RUN groupadd --gid 1000 ubuntu \
+    && useradd --uid 1000 --gid 1000 -m ubuntu \
+    && apt-get update \
+    && apt-get install -y sudo \
+    && echo ubuntu ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/ubuntu \
+    && chmod 0440 /etc/sudoers.d/ubuntu
 
 # add ROS 2 Jazzy sources, see e.g. https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debians.html
 ENV DEBIAN_FRONTEND=noninteractive
-ENV ROS_DISTRO=jazzy
+ENV ROS_DISTRO=humble
 RUN apt-get update && \
     apt-get install software-properties-common -y && \
     add-apt-repository universe &&\
@@ -87,6 +93,7 @@ RUN apt-get update && \
 # install minimal runtime utilities
 RUN apt-get install \
         python3 \
+        python3-setuptools \
         ros-${ROS_DISTRO}-ament-index-python \
         ros-${ROS_DISTRO}-xacro \
         libgl1 -y
@@ -105,6 +112,7 @@ COPY --from=builder /home/ubuntu/roboreg/test/assets /home/ubuntu/sample-data
 
 # source ROS 2 workspace
 RUN echo "source /home/ubuntu/roboreg-deployment/install/setup.bash" >> /home/ubuntu/.bashrc
+RUN echo "source /home/ubuntu/roboreg-deployment/roboreg-venv/bin/activate" >> /home/ubuntu/.bashrc
 
 # extend PATH (for CLI)
 ENV PATH="$PATH:/home/ubuntu/roboreg-deployment/roboreg-venv/bin"
