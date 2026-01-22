@@ -89,7 +89,8 @@ RUN apt-get install \
         python3 \
         ros-${ROS_DISTRO}-ament-index-python \
         ros-${ROS_DISTRO}-xacro \
-        libgl1 -y
+        libgl1 \
+        libxrender1 -y
 
 # change default shell (for ROS sourcing)
 SHELL ["/bin/bash", "-c"]
