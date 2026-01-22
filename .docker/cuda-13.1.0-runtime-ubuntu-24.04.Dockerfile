@@ -116,12 +116,6 @@ RUN apt-get update && \
         libxrender1 \
     && rm -rf /var/lib/apt/lists/*
 
-# non-root user
-USER ubuntu
-
-# change default shell
-SHELL ["/bin/bash", "-c"]
-
 # copy roboreg-deployment from builder stage
 COPY --from=builder /home/ubuntu/roboreg-deployment/roboreg-venv /home/ubuntu/roboreg-deployment/roboreg-venv
 COPY --from=builder /home/ubuntu/roboreg-deployment/install /home/ubuntu/roboreg-deployment/install
@@ -130,6 +124,9 @@ COPY --from=builder /home/ubuntu/roboreg/test/assets /home/ubuntu/sample-data
 # source ROS 2 workspace
 RUN echo "source /home/ubuntu/roboreg-deployment/install/setup.bash" >> /home/ubuntu/.bashrc
 RUN echo "source /home/ubuntu/roboreg-deployment/roboreg-venv/bin/activate" >> /home/ubuntu/.bashrc
+
+# non-root user
+USER ubuntu
 
 # extend PATH (for CLI)
 ENV PATH="$PATH:/home/ubuntu/roboreg-deployment/roboreg-venv/bin"
