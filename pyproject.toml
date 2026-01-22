@@ -19,9 +19,7 @@ requires-python = ">=3.10"
 dependencies = [
   "fast_simplification",
   "pycollada",
-  "pytest",
   "pytorch-kinematics>=0.7.4",
-  "ninja",
   "numpy",
   "opencv-python-headless",
   "rich",
