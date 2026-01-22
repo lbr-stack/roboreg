@@ -17,16 +17,22 @@ description = "Unified eye-in-hand / eye-to-hand calibration from RGB-D images u
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+  "diffrp-nvdiffrast",
   "fast_simplification",
+  "huggingface_hub",
   "pycollada",
+  "pytest",
   "pytorch-kinematics>=0.7.4",
+  "pyvista",
+  "ninja",
   "numpy",
-  "opencv-python-headless",
+  "opencv-python",
   "rich",
-  "sam3",
+  "sam2",
   "torch",
   "transformations",
   "trimesh",
+  "xacro",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
