@@ -10,8 +10,8 @@ COPY . ./roboreg
 # change default shell
 SHELL ["/bin/bash", "-c"]
 
-# add ROS 2 Jazzy sources, see e.g. https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debians.html
 RUN apt-get update \
+    # add ROS 2 Jazzy sources, see e.g. https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debians.html
     && apt-get install -y \
         software-properties-common \
     && add-apt-repository universe \
@@ -20,10 +20,7 @@ RUN apt-get update \
         curl \
     && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
-    && rm -rf /var/lib/apt/lists/*
-
-# install build tools (unavailable in base image and only required for builder stage)
-RUN apt-get update \
+    # install build tools (unavailable in base image and only required for builder stage)
     && apt-get install -y \
         git \
         cmake \
@@ -32,10 +29,10 @@ RUN apt-get update \
         python3-pip \
     # install minimal ROS 2 build utilities
     # remove ament_cmake_pytest on https://github.com/lbr-stack/lbr_fri_ros2_stack/issues/372
-    && apt-get install \
+    && apt-get install -y \
         python3-colcon-common-extensions \
         ros-${ROS_DISTRO}-ament-cmake \
-        ros-${ROS_DISTRO}-ament-cmake-pytest -y \
+        ros-${ROS_DISTRO}-ament-cmake-pytest \
     && rm -rf /var/lib/apt/lists/*
 
 # clone the LBR-Stack and xarm source code for robot description only
@@ -96,8 +93,8 @@ RUN apt-get update \
     && chmod 0440 /etc/sudoers.d/ubuntu \
     && rm -rf /var/lib/apt/lists/*
 
-# add ROS 2 Jazzy sources, see e.g. https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debians.html
 RUN apt-get update \
+    # add ROS 2 Jazzy sources, see e.g. https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debians.html
     && apt-get install -y \
         software-properties-common \
     && add-apt-repository universe \
@@ -106,10 +103,7 @@ RUN apt-get update \
         curl \
     && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
-    && rm -rf /var/lib/apt/lists/*
-
-# install minimal runtime utilities
-RUN apt-get update \
+    # install minimal runtime utilities
     && apt-get install -y \
         python3 \
         ros-${ROS_DISTRO}-ament-index-python \
