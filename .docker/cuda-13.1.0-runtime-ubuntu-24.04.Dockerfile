@@ -52,9 +52,9 @@ RUN cd roboreg-deployment && \
 # change default shell
 SHELL ["/bin/bash", "-c"]
 
-# install roboreg into the venv
-RUN source roboreg-deployment/roboreg-venv/bin/activate && \
-    pip3 install roboreg/
+# # install roboreg into the venv
+# RUN source roboreg-deployment/roboreg-venv/bin/activate && \
+#     pip3 install roboreg/
 
 # install robot description files (xarm dependencies little intertwined, require some manual installation, done above)
 RUN cd roboreg-deployment && \
@@ -89,8 +89,7 @@ RUN apt-get install \
         python3 \
         ros-${ROS_DISTRO}-ament-index-python \
         ros-${ROS_DISTRO}-xacro \
-        libgl1 \
-        libxrender1 -y
+        libgl1 -y
 
 # change default shell (for ROS sourcing)
 SHELL ["/bin/bash", "-c"]
@@ -100,13 +99,13 @@ USER ubuntu
 WORKDIR /home/ubuntu
 
 # copy roboreg-deployment from builder stage
-COPY --from=builder /home/ubuntu/roboreg-deployment/roboreg-venv /home/ubuntu/roboreg-deployment/roboreg-venv
+# COPY --from=builder /home/ubuntu/roboreg-deployment/roboreg-venv /home/ubuntu/roboreg-deployment/roboreg-venv
 COPY --from=builder /home/ubuntu/roboreg-deployment/install /home/ubuntu/roboreg-deployment/install
-COPY --from=builder /home/ubuntu/roboreg/test/assets /home/ubuntu/sample-data
+# COPY --from=builder /home/ubuntu/roboreg/test/assets /home/ubuntu/sample-data
 
 # source ROS 2 workspace
 RUN echo "source /home/ubuntu/roboreg-deployment/install/setup.bash" >> /home/ubuntu/.bashrc
-RUN echo "source /home/ubuntu/roboreg-deployment/roboreg-venv/bin/activate" >> /home/ubuntu/.bashrc
+# RUN echo "source /home/ubuntu/roboreg-deployment/roboreg-venv/bin/activate" >> /home/ubuntu/.bashrc
 
 # extend PATH (for CLI)
 ENV PATH="$PATH:/home/ubuntu/roboreg-deployment/roboreg-venv/bin"
