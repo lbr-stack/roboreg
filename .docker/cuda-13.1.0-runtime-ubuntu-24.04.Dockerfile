@@ -10,19 +10,20 @@ COPY . ./roboreg
 # change default shell
 SHELL ["/bin/bash", "-c"]
 
-# install build-step requirements
-RUN apt-get update && \
-    apt-get install -y \
+# add ROS 2 Jazzy sources, see e.g. https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debians.html
+RUN apt-get update \
+    && apt-get install -y \
         software-properties-common \
     && add-apt-repository universe \
     && apt-get update \ 
     && apt-get install -y \
         curl \
-    # add ROS 2 Jazzy sources, see e.g. https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debians.html
-    && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null && \
-    apt-get update \
-    # install build tools (unavailable in base image and only required for builder stage)
+    && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
+    && rm -rf /var/lib/apt/lists/*
+
+# install build tools (unavailable in base image and only required for builder stage)
+RUN apt-get update \
     && apt-get install -y \
         git \
         cmake \
@@ -57,15 +58,19 @@ RUN mkdir -p roboreg-deployment/src \
 # non-root user installation stuff
 USER ubuntu
 
-# create a virtual environment
-RUN cd roboreg-deployment && \
-    python3 -m venv roboreg-venv && \
-    touch roboreg-venv/COLCON_IGNORE
+# create a virtual environment and install roboreg
+RUN cd roboreg-deployment \
+    && python3 -m venv roboreg-venv \
+    && touch roboreg-venv/COLCON_IGNORE \
+    && cd .. \
+    && source roboreg-deployment/roboreg-venv/bin/activate \
+    && pip3 install roboreg/ \
+    && rm -rf /home/ubuntu/.cache/pip
 
 # install robot description files
-RUN cd roboreg-deployment && \
-    source /opt/ros/${ROS_DISTRO}/setup.bash && \
-    colcon build \
+RUN cd roboreg-deployment \
+    && source /opt/ros/${ROS_DISTRO}/setup.bash \
+    && colcon build \
         --cmake-args -DBUILD_TESTING=0 \
         --packages-select \
             xarm_description \
@@ -77,11 +82,6 @@ RUN cd roboreg-deployment && \
         /home/ubuntu/.cache \
         /tmp/*
 
-# install roboreg into the venv
-RUN source roboreg-deployment/roboreg-venv/bin/activate && \
-    pip3 install roboreg/ \
-    && rm -rf /home/ubuntu/.cache/pip
-
 FROM nvidia/cuda:13.1.0-base-ubuntu24.04
 
 # setup
@@ -90,24 +90,26 @@ ENV ROS_DISTRO=jazzy
 WORKDIR /home/ubuntu
 
 # add ubuntu to sudoers: https://code.visualstudio.com/remote/advancedcontainers/add-nonroot-user#_creating-a-nonroot-user
-RUN apt-get update && \
-    apt-get install -y sudo && \
-    echo ubuntu ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/ubuntu && \
-    chmod 0440 /etc/sudoers.d/ubuntu
+RUN apt-get update \
+    && apt-get install -y sudo \
+    && echo ubuntu ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/ubuntu \
+    && chmod 0440 /etc/sudoers.d/ubuntu \
+    && rm -rf /var/lib/apt/lists/*
 
-# install runtime requirements
-RUN apt-get update && \
-    apt-get install -y \
+# add ROS 2 Jazzy sources, see e.g. https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debians.html
+RUN apt-get update \
+    && apt-get install -y \
         software-properties-common \
     && add-apt-repository universe \
     && apt-get update \ 
     && apt-get install -y \
         curl \
-    # add ROS 2 Jazzy sources, see e.g. https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debians.html
-    && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null && \
-    apt-get update \
-    # install minimal runtime utilities
+    && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
+    && rm -rf /var/lib/apt/lists/*
+
+# install minimal runtime utilities
+RUN apt-get update \
     && apt-get install -y \
         python3 \
         ros-${ROS_DISTRO}-ament-index-python \
