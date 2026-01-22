@@ -52,9 +52,9 @@ RUN cd roboreg-deployment && \
 # change default shell
 SHELL ["/bin/bash", "-c"]
 
-# # install roboreg into the venv
-# RUN source roboreg-deployment/roboreg-venv/bin/activate && \
-#     pip3 install roboreg/
+# install roboreg into the venv
+RUN source roboreg-deployment/roboreg-venv/bin/activate && \
+    pip3 install roboreg/
 
 # install robot description files (xarm dependencies little intertwined, require some manual installation, done above)
 RUN cd roboreg-deployment && \
@@ -99,7 +99,7 @@ USER ubuntu
 WORKDIR /home/ubuntu
 
 # copy roboreg-deployment from builder stage
-# COPY --from=builder /home/ubuntu/roboreg-deployment/roboreg-venv /home/ubuntu/roboreg-deployment/roboreg-venv
+COPY --from=builder /home/ubuntu/roboreg-deployment/roboreg-venv /home/ubuntu/roboreg-deployment/roboreg-venv
 COPY --from=builder /home/ubuntu/roboreg-deployment/install /home/ubuntu/roboreg-deployment/install
 COPY --from=builder /home/ubuntu/roboreg/test/assets/lbr_med7/zed2i /home/ubuntu/sample-data
 
