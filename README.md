@@ -85,15 +85,11 @@ Next:
     git clone git@github.com:lbr-stack/roboreg.git
     ```
 
-2. Build the Docker image
+2. Build the Docker image (currently only runtime support, i.e. no rendering)
 
     ```shell
     cd roboreg
-    docker build . \
-        --tag roboreg \
-        --build-arg USER_ID=$(id -u) \
-        --build-arg GROUP_ID=$(id -g) \
-        --build-arg USER=$USER
+    docker build -t roboreg-hydra-icp -f .docker/hydra-icp.Dockerfile .
     ```
 
 3. Run container
