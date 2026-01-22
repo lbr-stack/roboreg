@@ -85,17 +85,16 @@ Next:
     git clone git@github.com:lbr-stack/roboreg.git
     ```
 
-2. Build the Docker image (currently only runtime support, i.e. no rendering)
+2. Build the Docker image (currently only runtime support, i.e. no rendering via compiled kernels)
 
     ```shell
     cd roboreg
-    docker build -t roboreg-hydra-icp -f .docker/hydra-icp.Dockerfile .
+    docker build -t roboreg:cuda-13.1.0-runtime-ubuntu24.04 -f .docker/cuda-13.1.0-runtime-ubuntu24.04.Dockerfile .
     ```
 
-3. Run container
+3. Run container (on Linux host with [NVIDIA Container Toolkit](#docker-comes-with-cuda-toolkit))
 
     ```shell
-    docker remove roboreg-container
     docker run -it \
         --gpus all \
         --network host \
@@ -105,8 +104,7 @@ Next:
         --volume /dev:/dev --privileged \
         --env DISPLAY \
         --env QT_X11_NO_MITSHM=1 \
-        --name roboreg-container \
-        roboreg
+        roboreg:cuda-13.1.0-runtime-ubuntu24.04
     ```
 
 ## Command Line Interface
