@@ -89,9 +89,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV ROS_DISTRO=jazzy
 WORKDIR /home/ubuntu
 
-# change default shell
-SHELL ["/bin/bash", "-c"]
-
 # add ubuntu to sudoers: https://code.visualstudio.com/remote/advancedcontainers/add-nonroot-user#_creating-a-nonroot-user
 RUN apt-get update && \
     apt-get install -y sudo && \
@@ -121,6 +118,9 @@ RUN apt-get update && \
 
 # non-root user
 USER ubuntu
+
+# change default shell
+SHELL ["/bin/bash", "-c"]
 
 # copy roboreg-deployment from builder stage
 COPY --from=builder /home/ubuntu/roboreg-deployment/roboreg-venv /home/ubuntu/roboreg-deployment/roboreg-venv

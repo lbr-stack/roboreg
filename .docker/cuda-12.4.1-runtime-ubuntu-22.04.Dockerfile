@@ -7,9 +7,6 @@ ENV PIP_NO_CACHE_DIR=1
 WORKDIR /home/ubuntu
 COPY . ./roboreg
 
-# change default shell
-SHELL ["/bin/bash", "-c"]
-
 # create ubuntu user
 RUN groupadd --gid 1000 ubuntu \
     && useradd --uid 1000 --gid 1000 -m ubuntu
@@ -61,6 +58,9 @@ RUN mkdir -p roboreg-deployment/src \
 # non-root user installation stuff
 USER ubuntu
 
+# change default shell
+SHELL ["/bin/bash", "-c"]
+
 # create a virtual environment
 RUN cd roboreg-deployment && \
     python3 -m venv roboreg-venv && \
@@ -92,9 +92,6 @@ FROM nvidia/cuda:12.4.1-base-ubuntu22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ROS_DISTRO=humble
 WORKDIR /home/ubuntu
-
-# change default shell
-SHELL ["/bin/bash", "-c"]
 
 # create ubuntu user
 RUN groupadd --gid 1000 ubuntu \
@@ -128,6 +125,9 @@ RUN apt-get update && \
 
 # non-root user
 USER ubuntu
+
+# change default shell
+SHELL ["/bin/bash", "-c"]
 
 # copy roboreg-deployment from builder stage
 COPY --from=builder /home/ubuntu/roboreg-deployment/roboreg-venv /home/ubuntu/roboreg-deployment/roboreg-venv
