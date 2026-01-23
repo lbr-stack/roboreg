@@ -107,7 +107,7 @@ Next:
         --volume /dev:/dev --privileged \
         --env DISPLAY \
         --env QT_X11_NO_MITSHM=1 \
-        roboreg/cuda-13.1.0:latest
+        roboreg:latest
     ```
 
 ## Command Line Interface
