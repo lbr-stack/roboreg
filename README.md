@@ -89,7 +89,10 @@ Next:
 
     ```shell
     cd roboreg
-    docker build -t roboreg:cuda-13.1.0-runtime-ubuntu-24.04 -f .docker/cuda-13.1.0-runtime-ubuntu-24.04.Dockerfile .
+    docker build \
+        -t roboreg:latest \
+        -f .docker/cuda-13.1.0-ubuntu-24.04.Dockerfile \
+        .
     ```
 
 3. Run container (on Linux host with [NVIDIA Container Toolkit](#docker-comes-with-cuda-toolkit))
@@ -104,7 +107,7 @@ Next:
         --volume /dev:/dev --privileged \
         --env DISPLAY \
         --env QT_X11_NO_MITSHM=1 \
-        roboreg:cuda-13.1.0-runtime-ubuntu-24.04
+        roboreg/cuda-13.1.0:latest
     ```
 
 ## Command Line Interface

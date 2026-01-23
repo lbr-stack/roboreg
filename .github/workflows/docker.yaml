@@ -27,8 +27,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           platforms: linux/amd64
-          file: .docker/cuda-13.1.0-runtime-ubuntu-24.04.Dockerfile
+          file: .docker/cuda-13.1.0-ubuntu-24.04.Dockerfile
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: |
-            roboreg:cuda-13.1.0-runtime-ubuntu-24.04
-            ghcr.io/lbr-stack/roboreg:cuda-13.1.0-runtime-ubuntu-24.04
+            roboreg:latest
+            ghcr.io/lbr-stack/roboreg:latest
