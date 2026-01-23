@@ -1,18 +1,12 @@
-FROM ubuntu:22.04 AS builder
+FROM ubuntu:24.04 AS builder
 
 # setup
 ENV DEBIAN_FRONTEND=noninteractive
-ENV ROS_DISTRO=humble
-ENV PIP_NO_CACHE_DIR=1
-WORKDIR /home/ubuntu
-COPY . ./roboreg
+ENV ROS_DISTRO=jazzy
 
-# create ubuntu user
-RUN groupadd --gid 1000 ubuntu \
-    && useradd --uid 1000 --gid 1000 -m ubuntu
-
+# install build dependencies
 RUN apt-get update \
-    # add ROS 2 Humble sources, see e.g. https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html
+    # add ROS 2 Jazzy sources, see e.g. https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debians.html
     && apt-get install -y \
         software-properties-common \
     && add-apt-repository universe \
@@ -37,6 +31,15 @@ RUN apt-get update \
         ros-${ROS_DISTRO}-ament-cmake-pytest \
     && rm -rf /var/lib/apt/lists/*
 
+# non-root user installation stuff
+USER ubuntu
+WORKDIR /home/ubuntu
+
+# setup
+COPY --chown=ubuntu:ubuntu . ./roboreg
+ENV PIP_NO_CACHE_DIR=1
+SHELL ["/bin/bash", "-c"]
+
 # clone the LBR-Stack and xarm source code for robot description only
 RUN mkdir -p roboreg-deployment/src \
     && git clone \
@@ -48,17 +51,7 @@ RUN mkdir -p roboreg-deployment/src \
         -b $ROS_DISTRO \
         --recursive \
         --shallow-submodules \
-        https://github.com/xArm-Developer/xarm_ros2.git roboreg-deployment/src/xarm_ros2 \
-    # change permissions for install
-    && chmod -R 777 \
-        roboreg-deployment \
-        roboreg
-
-# non-root user installation stuff
-USER ubuntu
-
-# change default shell
-SHELL ["/bin/bash", "-c"]
+        https://github.com/xArm-Developer/xarm_ros2.git roboreg-deployment/src/xarm_ros2
 
 # create a virtual environment and install roboreg
 RUN cd roboreg-deployment \
@@ -84,23 +77,22 @@ RUN cd roboreg-deployment \
         /home/ubuntu/.cache \
         /tmp/*
 
-FROM nvidia/cuda:12.4.1-base-ubuntu22.04
+FROM nvidia/cuda:13.1.0-base-ubuntu24.04 AS runtime
 
 # setup
 ENV DEBIAN_FRONTEND=noninteractive
-ENV ROS_DISTRO=humble
-WORKDIR /home/ubuntu
+ENV ROS_DISTRO=jazzy
 
-# create ubuntu user
-RUN groupadd --gid 1000 ubuntu \
-    && useradd --uid 1000 --gid 1000 -m ubuntu \
-    && apt-get update \
+# add ubuntu to sudoers: https://code.visualstudio.com/remote/advancedcontainers/add-nonroot-user#_creating-a-nonroot-user
+RUN apt-get update \
     && apt-get install -y sudo \
     && echo ubuntu ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/ubuntu \
-    && chmod 0440 /etc/sudoers.d/ubuntu
+    && chmod 0440 /etc/sudoers.d/ubuntu \
+    && rm -rf /var/lib/apt/lists/*
 
+# install runtime dependencies
 RUN apt-get update \
-    # add ROS 2 Humble sources, see e.g. https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html
+    # add ROS 2 Jazzy sources, see e.g. https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debians.html
     && apt-get install -y \
         software-properties-common \
     && add-apt-repository universe \
@@ -113,7 +105,6 @@ RUN apt-get update \
     # install minimal runtime utilities
     && apt-get install -y \
         python3 \
-        python3-setuptools \
         ros-${ROS_DISTRO}-ament-index-python \
         ros-${ROS_DISTRO}-xacro \
         libgl1 \
@@ -121,16 +112,17 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # copy roboreg-deployment from builder stage
-COPY --from=builder /home/ubuntu/roboreg-deployment/roboreg-venv /home/ubuntu/roboreg-deployment/roboreg-venv
-COPY --from=builder /home/ubuntu/roboreg-deployment/install /home/ubuntu/roboreg-deployment/install
-COPY --from=builder /home/ubuntu/roboreg/test/assets /home/ubuntu/sample-data
-
-# source ROS 2 workspace
-RUN echo "source /home/ubuntu/roboreg-deployment/install/setup.bash" >> /home/ubuntu/.bashrc
-RUN echo "source /home/ubuntu/roboreg-deployment/roboreg-venv/bin/activate" >> /home/ubuntu/.bashrc
+COPY --chown=ubuntu:ubuntu --from=builder /home/ubuntu/roboreg-deployment/roboreg-venv /home/ubuntu/roboreg-deployment/roboreg-venv
+COPY --chown=ubuntu:ubuntu --from=builder /home/ubuntu/roboreg-deployment/install /home/ubuntu/roboreg-deployment/install
+COPY --chown=ubuntu:ubuntu --from=builder /home/ubuntu/roboreg/test/assets /home/ubuntu/sample-data
 
 # non-root user
 USER ubuntu
+WORKDIR /home/ubuntu
+
+# source ROS 2 workspace
+RUN echo "source /home/ubuntu/roboreg-deployment/install/setup.bash" >> .bashrc
+RUN echo "source /home/ubuntu/roboreg-deployment/roboreg-venv/bin/activate" >> .bashrc
 
 # extend PATH (for CLI)
 ENV PATH="$PATH:/home/ubuntu/roboreg-deployment/roboreg-venv/bin"
