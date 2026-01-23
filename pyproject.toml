@@ -10,7 +10,7 @@ authors = [
   {name="haydnspass", email="lucasraphael.mueller@gmail.com"},
 ]
 maintainers = [
-  {name = "mhubii", email = "m.huber_1994@hotmail.de"},
+  {name="mhubii", email="m.huber_1994@hotmail.de"},
   {name="haydnspass", email="lucasraphael.mueller@gmail.com"},
 ]
 description = "Unified eye-in-hand / eye-to-hand calibration from RGB-D images using robot mesh as calibration target."
@@ -45,9 +45,14 @@ Homepage = "https://github.com/lbr-stack/roboreg"
 Issues = "https://github.com/lbr-stack/roboreg/issues"
 
 [project.scripts]
-rr-cam-swarm = "roboreg.cli.rr_cam_swarm:main"
-rr-hydra = "roboreg.cli.rr_hydra:main"
-rr-mono-dr = "roboreg.cli.rr_mono_dr:main"
-rr-render = "roboreg.cli.rr_render:main"
-rr-sam2 = "roboreg.cli.rr_sam2:main"
-rr-stereo-dr = "roboreg.cli.rr_stereo_dr:main"
+rr-cam-swarm = "cli.rr_cam_swarm:main"
+rr-hydra = "cli.rr_hydra:main"
+rr-mono-dr = "cli.rr_mono_dr:main"
+rr-render = "cli.rr_render:main"
+rr-sam2 = "cli.rr_sam2:main"
+rr-stereo-dr = "cli.rr_stereo_dr:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["roboreg*", "cli*"]
+exclude = ["test*"]
