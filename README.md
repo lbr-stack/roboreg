@@ -91,7 +91,22 @@ Next:
     cd roboreg
     docker build \
         -t roboreg:latest \
-        -f .docker/cuda-13.1.0-ubuntu-24.04.Dockerfile \
+        -f .docker/Dockerfile \
+        --build-arg UBUNTU_VERSION=24.04 \
+        --build-arg CUDA_VERSION=13.1.0 \
+        --build-arg ROS_DISTRO=jazzy \
+        .
+    ```
+
+    For Ubuntu 22.04 with ROS 2 Humble and CUDA 12.4.1, use:
+
+    ```shell
+    docker build \
+        -t roboreg:latest \
+        -f .docker/Dockerfile \
+        --build-arg UBUNTU_VERSION=22.04 \
+        --build-arg CUDA_VERSION=12.4.1 \
+        --build-arg ROS_DISTRO=humble \
         .
     ```
 

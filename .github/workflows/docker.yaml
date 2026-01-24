@@ -27,7 +27,11 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           platforms: linux/amd64
-          file: .docker/cuda-13.1.0-ubuntu-24.04.Dockerfile
+          file: .docker/Dockerfile
+          build-args: |
+            UBUNTU_VERSION=24.04
+            CUDA_VERSION=13.1.0
+            ROS_DISTRO=jazzy
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: |
             roboreg:latest
