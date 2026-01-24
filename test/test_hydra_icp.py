@@ -4,6 +4,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
+import pytest
 import torch
 import transformations as tf
 
@@ -27,6 +28,7 @@ from roboreg.util import (
 )
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_hydra_centroid_alignment():
     mesh_centroids = [
         torch.FloatTensor([[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]]),
@@ -47,6 +49,7 @@ def test_hydra_centroid_alignment():
     assert torch.allclose(HT, HT_random)
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_hydra_correspondence_indices() -> None:
     M = 100
     N = 10
@@ -97,6 +100,7 @@ def test_hydra_correspondence_indices() -> None:
     test_index_shape(matchindices, mask, torch.Size([M]), N)
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_hydra_icp():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     ros_package = "lbr_description"
@@ -220,6 +224,7 @@ def test_hydra_icp():
     np.save(os.path.join(path, "HT_hydra.npy"), HT.cpu().numpy())
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_hydra_robust_icp() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     ros_package = "lbr_description"

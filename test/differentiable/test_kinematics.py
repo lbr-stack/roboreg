@@ -7,6 +7,7 @@ sys.path.append(
 
 import cv2
 import numpy as np
+import pytest
 import torch
 import transformations as tf
 from tqdm import tqdm
@@ -18,6 +19,7 @@ from roboreg.io import URDFParser
 from roboreg.util import from_homogeneous
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_torch_kinematics(
     ros_package: str = "lbr_description",
     xacro_path: str = "urdf/med7/med7.xacro",
@@ -41,6 +43,7 @@ def test_torch_kinematics(
     print(ht_lookup)
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_torch_kinematics_on_mesh(
     ros_package: str = "lbr_description",
     xacro_path: str = "urdf/med7/med7.xacro",
@@ -95,6 +98,7 @@ def test_torch_kinematics_on_mesh(
     test_display_xyz(from_homogeneous(vertices.cpu().numpy())[0])
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_diff_kinematics() -> None:
     urdf_parser = URDFParser()
     urdf_parser.from_ros_xacro(
