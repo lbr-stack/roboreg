@@ -1,10 +1,3 @@
-import os
-import sys
-
-sys.path.append(
-    os.path.dirname((os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-)
-
 import numpy as np
 import pytest
 import torch
@@ -63,7 +56,6 @@ def test_torch_mesh_container() -> None:
         raise ValueError("Expected target reduction")
 
 
-@pytest.mark.skip(reason="To be fixed.")
 def test_batched_camera() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     resolution = (480, 640)
@@ -75,12 +67,18 @@ def test_batched_camera() -> None:
         device=device,
     )
 
-    if camera.intrinsics.shape != (3, 3):
-        raise ValueError(f"Expected shape (3, 3), got {camera.intrinsics.shape}")
-    if camera.extrinsics.shape != (4, 4):
-        raise ValueError(f"Expected shape (4, 4), got {camera.extrinsics.shape}")
-    if camera.ht_optical.shape != (4, 4):
-        raise ValueError(f"Expected shape (4, 4), got {camera.ht_optical.shape}")
+    assert camera.intrinsics.shape == (
+        3,
+        3,
+    ), f"Expected shape (3, 3), got {camera.intrinsics.shape}"
+    assert camera.extrinsics.shape == (
+        4,
+        4,
+    ), f"Expected shape (4, 4), got {camera.extrinsics.shape}"
+    assert camera.ht_optical.shape == (
+        4,
+        4,
+    ), f"Expected shape (4, 4), got {camera.ht_optical.shape}"
 
     # construct invalid dim
     try:
@@ -90,8 +88,8 @@ def test_batched_camera() -> None:
             extrinsics=torch.zeros(3, 3, device=device),
             device=device,
         )
-    except ValueError as e:
-        print(f"Expected and got error: {e}")
+    except ValueError:
+        pass
     else:
         raise ValueError("Expected ValueError")
 
@@ -104,8 +102,8 @@ def test_batched_camera() -> None:
             extrinsics=extrinsics,
             device=device,
         )
-    except ValueError as e:
-        print(f"Expected and got error: {e}")
+    except ValueError:
+        pass
     else:
         raise ValueError("Expected ValueError")
 
@@ -120,12 +118,21 @@ def test_batched_camera() -> None:
         device=device,
     )
 
-    if camera.intrinsics.shape != (1, 3, 3):
-        raise ValueError(f"Expected shape (1, 3, 3), got {camera.intrinsics.shape}")
-    if camera.extrinsics.shape != (1, 4, 4):
-        raise ValueError(f"Expected shape (1, 4, 4), got {camera.extrinsics.shape}")
-    if camera.ht_optical.shape != (1, 4, 4):
-        raise ValueError(f"Expected shape (1, 4, 4), got {camera.ht_optical.shape}")
+    assert camera.intrinsics.shape == (
+        1,
+        3,
+        3,
+    ), f"Expected shape (1, 3, 3), got {camera.intrinsics.shape}"
+    assert camera.extrinsics.shape == (
+        1,
+        4,
+        4,
+    ), f"Expected shape (1, 4, 4), got {camera.extrinsics.shape}"
+    assert camera.ht_optical.shape == (
+        1,
+        4,
+        4,
+    ), f"Expected shape (1, 4, 4), got {camera.ht_optical.shape}"
 
     # take a point in homogeneous coordinates of shape Bx4xN and project it
     # using the camera extrinsics / intrinsics
@@ -136,18 +143,17 @@ def test_batched_camera() -> None:
 
     # project the point
     p_prime = camera.extrinsics @ p
-    if p_prime.shape != shape:
-        raise ValueError(f"Expected shape {shape}, got {p_prime.shape}")
+    assert p_prime.shape == shape, f"Expected shape {shape}, got {p_prime.shape}"
 
     p_prime = p_prime[:, :3, :] / p_prime[:, 3, :]  # to homogeneous coordinates
 
     projected_shape = (batch_size, 3, samples)
     p_prime = camera.intrinsics @ p_prime
-    if p_prime.shape != projected_shape:
-        raise ValueError(f"Expected shape {projected_shape}, got {p_prime.shape}")
+    assert (
+        p_prime.shape == projected_shape
+    ), f"Expected shape {projected_shape}, got {p_prime.shape}"
 
 
-@pytest.mark.skip(reason="To be fixed.")
 def test_batched_virtual_camera() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     resolution = (480, 640)
@@ -158,10 +164,10 @@ def test_batched_virtual_camera() -> None:
         device=device,
     )
 
-    if virtual_camera.perspective_projection.shape != (4, 4):
-        raise ValueError(
-            f"Expected shape (3, 4), got {virtual_camera.perspective_projection.shape}"
-        )
+    assert virtual_camera.perspective_projection.shape == (
+        4,
+        4,
+    ), f"Expected shape (3, 4), got {virtual_camera.perspective_projection.shape}"
 
     # construct with batch size
     intrinsics = torch.zeros(1, 3, 3, device=device)
@@ -171,13 +177,20 @@ def test_batched_virtual_camera() -> None:
         device=device,
     )
 
-    if virtual_camera.perspective_projection.shape != (1, 4, 4):
-        raise ValueError(
-            f"Expected shape (1, 4, 4), got {virtual_camera.perspective_projection.shape}"
-        )
+    assert virtual_camera.perspective_projection.shape == (
+        1,
+        4,
+        4,
+    ), f"Expected shape (1, 4, 4), got {virtual_camera.perspective_projection.shape}"
 
 
 if __name__ == "__main__":
+    import os
+    import sys
+
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
     test_torch_mesh_container()
     test_batched_camera()
     test_batched_virtual_camera()
