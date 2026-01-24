@@ -249,7 +249,6 @@ def main() -> None:
     mask_files = np.array(mask_files)[random_indices].tolist()
     joint_states_files = np.array(joint_states_files)[random_indices].tolist()
     images, joint_states, masks = parse_mono_data(
-        path=args.path,
         image_files=image_files,
         mask_files=mask_files,
         joint_states_files=joint_states_files,

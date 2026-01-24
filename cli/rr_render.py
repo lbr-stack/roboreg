@@ -1,6 +1,6 @@
 import argparse
 import os
-import pathlib
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -142,7 +142,7 @@ def main():
         num_workers=args.num_workers,
     )
 
-    output_path = pathlib.Path(args.output_path)
+    output_path = Path(args.output_path)
     if not output_path.exists():
         output_path.mkdir(parents=True)
 
@@ -162,13 +162,12 @@ def main():
         images = images.numpy()
         renders = (renders * 255.0).squeeze(-1).cpu().numpy().astype(np.uint8)
         for render, image, image_file in zip(renders, images, image_files):
-            image_stem = pathlib.Path(image_file).stem
-            image_suffix = pathlib.Path(image_file).suffix
+            image_file = Path(image_file)
+            output_file = (
+                output_path / f"overlay_render_{image_file.stem + image_file.suffix}"
+            )
             cv2.imwrite(
-                os.path.join(
-                    str(output_path.absolute()),
-                    f"overlay_render_{image_stem + image_suffix}",
-                ),
+                output_file,
                 overlay_mask(image, render, args.color, scale=1.0),
             )
 

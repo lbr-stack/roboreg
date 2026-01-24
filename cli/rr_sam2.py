@@ -1,6 +1,4 @@
 import argparse
-import os
-import pathlib
 
 import cv2
 import numpy as np
@@ -48,8 +46,7 @@ def args_factory() -> argparse.Namespace:
 
 def main():
     args = args_factory()
-    path = pathlib.Path(args.path)
-    image_names = find_files(path.absolute(), args.pattern)
+    image_files = find_files(args.path, args.pattern)
 
     # detect
     detector = OpenCVDetector(
@@ -60,15 +57,13 @@ def main():
     # segment
     segmentor = Sam2Segmentor(model_id=args.model_id, device=args.device)
 
-    for image_name in progress.track(image_names, description="Generating masks..."):
-        image_stem = pathlib.Path(image_name).stem
-        image_suffix = pathlib.Path(image_name).suffix
-        img = cv2.imread(os.path.join(path.absolute(), image_name))
+    for image_file in progress.track(image_files, description="Generating masks..."):
+        img = cv2.imread(image_file)
         annotations = False
         if args.pre_annotated:
             try:
                 samples, labels = detector.read(
-                    path=os.path.join(path.absolute(), f"{image_stem}_samples.csv")
+                    path=image_file.parent / f"{image_file.stem}_samples.csv"
                 )
                 annotations = True
             except FileNotFoundError:
@@ -76,7 +71,7 @@ def main():
         if not annotations:
             samples, labels = detector.detect(img)
             detector.write(
-                path=os.path.join(path.absolute(), f"{image_stem}_samples.csv"),
+                path=image_file.parent / f"{image_file.stem}_samples.csv",
                 samples=samples,
                 labels=labels,
             )
@@ -86,15 +81,9 @@ def main():
         overlay = overlay_mask(img, mask, mode="g", scale=1.0)
 
         # write probability and mask
-        probability_path = os.path.join(
-            path.absolute(), f"probability_sam2_{image_stem + image_suffix}"
-        )
-        mask_path = os.path.join(
-            path.absolute(), f"mask_sam2_{image_stem + image_suffix}"
-        )
-        overlay_path = os.path.join(
-            path.absolute(), f"overlay_sam2_{image_stem + image_suffix}"
-        )
+        probability_path = image_file.parent / f"probability_sam2_{image_file.name}"
+        mask_path = image_file.parent / f"mask_sam2_{image_file.name}"
+        overlay_path = image_file.parent / f"overlay_sam2_{image_file.name}"
         cv2.imwrite(probability_path, (probability * 255.0).astype(np.uint8))
         cv2.imwrite(mask_path, mask)
         cv2.imwrite(overlay_path, overlay)

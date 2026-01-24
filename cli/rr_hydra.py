@@ -155,7 +155,6 @@ def main():
     mask_files = find_files(args.path, args.mask_pattern)
     depth_files = find_files(args.path, args.depth_pattern)
     joint_states, masks, depths = parse_hydra_data(
-        path=args.path,
         joint_states_files=joint_states_files,
         mask_files=mask_files,
         depth_files=depth_files,
