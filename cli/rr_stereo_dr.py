@@ -186,7 +186,6 @@ def main() -> None:
     right_mask_files = find_files(args.path, args.right_mask_pattern)
     left_images, right_images, joint_states, left_masks, right_masks = (
         parse_stereo_data(
-            path=args.path,
             left_image_files=left_image_files,
             right_image_files=right_image_files,
             joint_states_files=joint_states_files,
