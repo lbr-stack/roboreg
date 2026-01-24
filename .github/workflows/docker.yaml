@@ -9,6 +9,15 @@ on:
 jobs:
   docker:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - ubuntu_version: "22.04"
+            cuda_version: "12.4.1"
+            ros_distro: "humble"
+          - ubuntu_version: "24.04"
+            cuda_version: "13.1.0"
+            ros_distro: "jazzy"
     steps:
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -27,8 +36,12 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           platforms: linux/amd64
-          file: .docker/cuda-13.1.0-ubuntu-24.04.Dockerfile
+          file: .docker/Dockerfile
+          build-args: |
+            UBUNTU_VERSION=${{ matrix.ubuntu_version }}
+            CUDA_VERSION=${{ matrix.cuda_version }}
+            ROS_DISTRO=${{ matrix.ros_distro }}
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: |
-            roboreg:latest
-            ghcr.io/lbr-stack/roboreg:latest
+            roboreg:${{ matrix.ubuntu_version }}
+            ghcr.io/lbr-stack/roboreg:${{ matrix.ubuntu_version }}

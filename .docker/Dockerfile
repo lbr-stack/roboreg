@@ -1,12 +1,21 @@
-FROM ubuntu:24.04 AS builder
+# Build arguments for version configuration
+ARG UBUNTU_VERSION=24.04
+ARG CUDA_VERSION=13.1.0
+ARG ROS_DISTRO=jazzy
+
+FROM ubuntu:${UBUNTU_VERSION} AS builder
+
+# Re-declare ARG after FROM to make it available in this stage
+ARG ROS_DISTRO
+ARG UBUNTU_VERSION
 
 # setup
 ENV DEBIAN_FRONTEND=noninteractive
-ENV ROS_DISTRO=jazzy
+ENV ROS_DISTRO=${ROS_DISTRO}
 
 # install build dependencies
 RUN apt-get update \
-    # add ROS 2 Jazzy sources, see e.g. https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debians.html
+    # add ROS 2 sources, see e.g. https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html
     && apt-get install -y \
         software-properties-common \
     && add-apt-repository universe \
@@ -30,6 +39,13 @@ RUN apt-get update \
         ros-${ROS_DISTRO}-ament-cmake \
         ros-${ROS_DISTRO}-ament-cmake-pytest \
     && rm -rf /var/lib/apt/lists/*
+
+# create ubuntu user (only needed for Ubuntu 22.04 as it doesn't exist in base image)
+# Note: Ubuntu 24.04 base images already include the ubuntu user with uid=1000, gid=1000
+RUN if [ "$UBUNTU_VERSION" = "22.04" ]; then \
+        groupadd --gid 1000 ubuntu \
+        && useradd --uid 1000 --gid 1000 -m ubuntu; \
+    fi
 
 # non-root user installation stuff
 USER ubuntu
@@ -77,14 +93,24 @@ RUN cd roboreg-deployment \
         /home/ubuntu/.cache \
         /tmp/*
 
-FROM nvidia/cuda:13.1.0-base-ubuntu24.04 AS runtime
+FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu${UBUNTU_VERSION} AS runtime
+
+# Re-declare ARGs after FROM to make them available in this stage
+ARG CUDA_VERSION
+ARG UBUNTU_VERSION
+ARG ROS_DISTRO
 
 # setup
 ENV DEBIAN_FRONTEND=noninteractive
-ENV ROS_DISTRO=jazzy
-
-# add ubuntu to sudoers: https://code.visualstudio.com/remote/advancedcontainers/add-nonroot-user#_creating-a-nonroot-user
-RUN apt-get update \
+ENV ROS_DISTRO=${ROS_DISTRO}
+# create ubuntu user and add to sudoers (only needed for Ubuntu 22.04 as it doesn't exist in base image)
+# Note: Ubuntu 24.04 CUDA base images already include the ubuntu user with uid=1000, gid=1000
+RUN if [ "$UBUNTU_VERSION" = "22.04" ]; then \
+        groupadd --gid 1000 ubuntu \
+        && useradd --uid 1000 --gid 1000 -m ubuntu; \
+    fi \
+    # add ubuntu to sudoers: https://code.visualstudio.com/remote/advancedcontainers/add-nonroot-user#_creating-a-nonroot-user
+    && apt-get update \
     && apt-get install -y sudo \
     && echo ubuntu ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/ubuntu \
     && chmod 0440 /etc/sudoers.d/ubuntu \
@@ -92,7 +118,7 @@ RUN apt-get update \
 
 # install runtime dependencies
 RUN apt-get update \
-    # add ROS 2 Jazzy sources, see e.g. https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debians.html
+    # add ROS 2 sources, see e.g. https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html
     && apt-get install -y \
         software-properties-common \
     && add-apt-repository universe \
@@ -109,6 +135,10 @@ RUN apt-get update \
         ros-${ROS_DISTRO}-xacro \
         libgl1 \
         libxrender1 \
+    # python3-setuptools only needed for Ubuntu 22.04
+    && if [ "$UBUNTU_VERSION" = "22.04" ]; then \
+        apt-get install -y python3-setuptools; \
+    fi \
     && rm -rf /var/lib/apt/lists/*
 
 # copy roboreg-deployment from builder stage
