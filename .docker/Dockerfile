@@ -40,7 +40,8 @@ RUN apt-get update \
         ros-${ROS_DISTRO}-ament-cmake-pytest \
     && rm -rf /var/lib/apt/lists/*
 
-# create ubuntu user (only needed for Ubuntu 22.04)
+# create ubuntu user (only needed for Ubuntu 22.04 as it doesn't exist in base image)
+# Note: Ubuntu 24.04 base images already include the ubuntu user with uid=1000, gid=1000
 RUN if [ "$UBUNTU_VERSION" = "22.04" ]; then \
         groupadd --gid 1000 ubuntu \
         && useradd --uid 1000 --gid 1000 -m ubuntu; \
@@ -102,6 +103,8 @@ ARG ROS_DISTRO
 # setup
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ROS_DISTRO=${ROS_DISTRO}
+# create ubuntu user and add to sudoers (only needed for Ubuntu 22.04 as it doesn't exist in base image)
+# Note: Ubuntu 24.04 CUDA base images already include the ubuntu user with uid=1000, gid=1000
 RUN if [ "$UBUNTU_VERSION" = "22.04" ]; then \
         groupadd --gid 1000 ubuntu \
         && useradd --uid 1000 --gid 1000 -m ubuntu; \
