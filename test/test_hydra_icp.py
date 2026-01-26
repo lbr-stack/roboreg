@@ -1,7 +1,4 @@
-import os
-import sys
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -15,7 +12,13 @@ from roboreg.hydra_icp import (
     hydra_icp,
     hydra_robust_icp,
 )
-from roboreg.io import URDFParser, parse_camera_info, parse_hydra_data
+from roboreg.io import (
+    URDFParser,
+    find_files,
+    load_meshes,
+    parse_camera_info,
+    parse_hydra_data,
+)
 from roboreg.util import (
     RegistrationVisualizer,
     clean_xyz,
@@ -107,7 +110,7 @@ def test_hydra_icp():
     xacro_path = "urdf/med7/med7.xacro"
     root_link_name = "lbr_link_0"
     end_link_name = "lbr_link_7"
-    path = "test/assets/lbr_med7/zed2i"
+    path = Path("test/assets/lbr_med7/zed2i")
     camera_info_file = "left_camera_info.yaml"
     joint_states_pattern = "joint_states_*.npy"
     mask_pattern = "mask_sam2_left_*.png"
@@ -115,13 +118,12 @@ def test_hydra_icp():
 
     # load data
     joint_states, masks, depths = parse_hydra_data(
-        path=path,
-        joint_states_pattern=joint_states_pattern,
-        mask_pattern=mask_pattern,
-        depth_pattern=depth_pattern,
+        joint_states_files=find_files(path, joint_states_pattern),
+        mask_files=find_files(path, mask_pattern),
+        depth_files=find_files(path, depth_pattern),
     )
     height, width, intrinsics = parse_camera_info(
-        camera_info_file=os.path.join(path, camera_info_file)
+        camera_info_file=path / camera_info_file
     )
 
     # instantiate kinematics
@@ -137,8 +139,10 @@ def test_hydra_icp():
     # instantiate mesh
     batch_size = len(joint_states)
     meshes = TorchMeshContainer(
-        mesh_paths=urdf_parser.ros_package_mesh_paths(
-            root_link_name=root_link_name, end_link_name=end_link_name
+        meshes=load_meshes(
+            urdf_parser.ros_package_mesh_paths(
+                root_link_name=root_link_name, end_link_name=end_link_name
+            )
         ),
         batch_size=batch_size,
         device=device,
@@ -231,7 +235,7 @@ def test_hydra_robust_icp() -> None:
     xacro_path = "urdf/med7/med7.xacro"
     root_link_name = "lbr_link_0"
     end_link_name = "lbr_link_7"
-    path = "test/assets/lbr_med7/zed2i"
+    path = Path("test/assets/lbr_med7/zed2i")
     camera_info_file = "left_camera_info.yaml"
     joint_states_pattern = "joint_states_*.npy"
     mask_pattern = "mask_sam2_left_*.png"
@@ -239,13 +243,12 @@ def test_hydra_robust_icp() -> None:
 
     # load data
     joint_states, masks, depths = parse_hydra_data(
-        path=path,
-        joint_states_pattern=joint_states_pattern,
-        mask_pattern=mask_pattern,
-        depth_pattern=depth_pattern,
+        joint_states_files=find_files(path, joint_states_pattern),
+        mask_files=find_files(path, mask_pattern),
+        depth_files=find_files(path, depth_pattern),
     )
     height, width, intrinsics = parse_camera_info(
-        camera_info_file=os.path.join(path, camera_info_file)
+        camera_info_file=path / camera_info_file
     )
 
     # instantiate kinematics
@@ -261,8 +264,10 @@ def test_hydra_robust_icp() -> None:
     # instantiate mesh
     batch_size = len(joint_states)
     meshes = TorchMeshContainer(
-        mesh_paths=urdf_parser.ros_package_mesh_paths(
-            root_link_name=root_link_name, end_link_name=end_link_name
+        meshes=load_meshes(
+            urdf_parser.ros_package_mesh_paths(
+                root_link_name=root_link_name, end_link_name=end_link_name
+            )
         ),
         batch_size=batch_size,
         device=device,
@@ -357,6 +362,12 @@ def test_hydra_robust_icp() -> None:
 
 
 if __name__ == "__main__":
+    import os
+    import sys
+
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
     # test_hydra_centroid_alignment()
     # test_hydra_correspondence_indices()
     # test_hydra_icp()

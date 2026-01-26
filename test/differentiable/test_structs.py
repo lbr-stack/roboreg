@@ -1,59 +1,33 @@
-import numpy as np
-import pytest
 import torch
 
 from roboreg.differentiable.structs import Camera, TorchMeshContainer, VirtualCamera
+from roboreg.io import load_meshes
 
 
-@pytest.mark.skip(reason="To be fixed.")
 def test_torch_mesh_container() -> None:
-    # test load simple meshes
-    torch_robot_mesh = TorchMeshContainer(
-        mesh_paths={
-            "link_0": "test/assets/lbr_med7/mesh/link_0.stl",
-            "link_1": "test/assets/lbr_med7/mesh/link_1.stl",
-        }
-    )
-    print(torch_robot_mesh.per_mesh_vertex_count)
-    print(torch_robot_mesh.lower_vertex_index_lookup)
-    print(torch_robot_mesh.upper_vertex_index_lookup)
-    print(torch_robot_mesh.lower_face_index_lookup)
-    print(torch_robot_mesh.upper_face_index_lookup)
-
-    # test load visual meshes
-    torch_robot_mesh = TorchMeshContainer(
-        mesh_paths={
-            "link_0": "test/assets/lbr_med7/mesh/link_0.dae",
-            "link_1": "test/assets/lbr_med7/mesh/link_1.dae",
-        }
-    )
-    print(torch_robot_mesh.per_mesh_vertex_count)
-    print(torch_robot_mesh.lower_vertex_index_lookup)
-    print(torch_robot_mesh.upper_vertex_index_lookup)
-    print(torch_robot_mesh.lower_face_index_lookup)
-    print(torch_robot_mesh.upper_face_index_lookup)
-
-    n_vertices = torch_robot_mesh.vertices.shape[1]
-    print(n_vertices)
-
-    # test taret reduction
-    target_reduction = 0.6
-    torch_robot_mesh = TorchMeshContainer(
-        mesh_paths={
-            "link_0": "test/assets/lbr_med7/mesh/link_0.dae",
-            "link_1": "test/assets/lbr_med7/mesh/link_1.dae",
-        },
-        target_reduction=target_reduction,
+    paths = {
+        "link_0": "test/assets/lbr_med7/mesh/link_0.stl",
+        "link_1": "test/assets/lbr_med7/mesh/link_1.stl",
+    }
+    device = "cpu"
+    container = TorchMeshContainer(
+        meshes=load_meshes(
+            paths=paths,
+        ),
+        device=device,
     )
 
-    reduced_n_vertices = torch_robot_mesh.vertices.shape[1]
-    print(reduced_n_vertices)
-    print(1.0 - np.round(reduced_n_vertices / n_vertices, 1))
-
-    if not np.isclose(
-        1.0 - np.round(reduced_n_vertices / n_vertices, 1), target_reduction
-    ):
-        raise ValueError("Expected target reduction")
+    assert container.names == list(paths.keys()), "Expected same mesh names."
+    assert container.vertices.size()[1] == sum(
+        list(container.per_mesh_vertex_count.values())
+    ), "Expected vertex count to match."
+    assert container.device == device, f"Expected container on '{device}' device."
+    assert (
+        container.vertices[list(paths.keys())[0]].device == device
+    ), f"Expected vertices on '{device}' device."
+    assert (
+        container.faces[list(paths.keys())[0]].device == device
+    ), f"Expected faces on '{device}' device."
 
 
 def test_batched_camera() -> None:

@@ -1,10 +1,3 @@
-import os
-import sys
-
-sys.path.append(
-    os.path.dirname((os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-)
-
 import cv2
 import numpy as np
 import pytest
@@ -15,7 +8,7 @@ from tqdm import tqdm
 from roboreg.differentiable.kinematics import TorchKinematics
 from roboreg.differentiable.rendering import NVDiffRastRenderer
 from roboreg.differentiable.structs import TorchMeshContainer
-from roboreg.io import URDFParser
+from roboreg.io import URDFParser, load_meshes
 from roboreg.util import from_homogeneous
 
 
@@ -60,7 +53,10 @@ def test_torch_kinematics_on_mesh(
         device=device,
     )
     meshes = TorchMeshContainer(
-        urdf_parser.ros_package_mesh_paths(root_link_name, end_link_name), device=device
+        meshes=load_meshes(
+            urdf_parser.ros_package_mesh_paths(root_link_name, end_link_name)
+        ),
+        device=device,
     )
 
     # compute forward kinematics and apply transforms to the meshes
@@ -112,7 +108,10 @@ def test_diff_kinematics() -> None:
         device=device,
     )
     meshes = TorchMeshContainer(
-        urdf_parser.ros_package_mesh_paths("lbr_link_0", "lbr_link_7"), device=device
+        meshes=load_meshes(
+            urdf_parser.ros_package_mesh_paths("lbr_link_0", "lbr_link_7")
+        ),
+        device=device,
     )
 
     # compute forward kinematics and apply transforms to the meshes
@@ -220,22 +219,28 @@ def test_diff_kinematics() -> None:
 
 
 if __name__ == "__main__":
-    # test_torch_kinematics(
-    #     ros_package="lbr_description",
-    #     xacro_path="urdf/med7/med7.xacro",
-    #     root_link_name="lbr_link_0",
-    #     end_link_name="lbr_link_7",
-    # )
-    test_torch_kinematics_on_mesh(
+    import os
+    import sys
+
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+    test_torch_kinematics(
         ros_package="lbr_description",
         xacro_path="urdf/med7/med7.xacro",
         root_link_name="lbr_link_0",
         end_link_name="lbr_link_7",
     )
     test_torch_kinematics_on_mesh(
-        ros_package="xarm_description",
-        xacro_path="urdf/xarm_device.urdf.xacro",
-        root_link_name="link_base",
-        end_link_name="link7",
+        ros_package="lbr_description",
+        xacro_path="urdf/med7/med7.xacro",
+        root_link_name="lbr_link_0",
+        end_link_name="lbr_link_7",
     )
+    # test_torch_kinematics_on_mesh(
+    #     ros_package="xarm_description",
+    #     xacro_path="urdf/xarm_device.urdf.xacro",
+    #     root_link_name="link_base",
+    #     end_link_name="link7",
+    # )
     # test_diff_kinematics()
