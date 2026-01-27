@@ -1,45 +1,55 @@
 import os
-import pathlib
-from typing import Dict, List, Tuple
+from pathlib import Path
+from typing import Dict, List, Tuple, Union
 
 import cv2
 import numpy as np
 import rich
 import yaml
 from pytorch_kinematics import urdf_parser_py
-from torch.utils.data import Dataset
 
 
 class URDFParser:
     __slots__ = ["_urdf", "_robot"]
 
-    def __init__(self) -> None:
-        self._urdf = None
-        self._robot = None
-
-    def from_urdf(self, urdf: str) -> None:
-        r"""Instantiate URDF parser from URDF string.
-
-        Args:
-            urdf (str): URDF string.
-        """
+    def __init__(self, urdf: str) -> None:
         self._urdf = urdf
         self._robot = urdf_parser_py.urdf.Robot.from_xml_string(urdf)
 
-    def from_ros_xacro(self, ros_package: str, xacro_path: str) -> None:
+    @classmethod
+    def from_file(cls, path: Union[Path, str]) -> None:
+        r"""Instantiate URDF parser path to URDF file.
+
+        Args:
+            path (Union[Path, str]): Path to URDF file.
+        """
+        path = Path(path)
+        if not path.exists():
+            raise FileNotFoundError(f"URDF file {path} does not exist.")
+        if not path.suffix == ".urdf":
+            raise ValueError(f"URDF file {path} must have .urdf extension.")
+
+        with open(path, "r") as f:
+            urdf = f.read()
+
+        return cls(urdf=urdf)
+
+    @classmethod
+    def from_ros_xacro(cls, ros_package: str, xacro_path: str) -> None:
         r"""Instantiate URDF parser from ROS xacro file.
 
         Args:
             ros_package (str): Internally finds the path to ros_package.
             xacro_path (str): Path to xacro file relative to ros_package.
         """
-        self.from_urdf(
-            urdf=self.urdf_from_ros_xacro(
+        return cls(
+            urdf=cls._urdf_from_ros_xacro(
                 ros_package=ros_package, xacro_path=xacro_path
             )
         )
 
-    def urdf_from_ros_xacro(self, ros_package: str, xacro_path: str) -> str:
+    @staticmethod
+    def _urdf_from_ros_xacro(ros_package: str, xacro_path: str) -> str:
         r"""Convert ROS xacro file to URDF.
 
         Args:
@@ -53,10 +63,9 @@ class URDFParser:
         import xacro
         from ament_index_python import get_package_share_directory
 
-        self._urdf = xacro.process(
+        return xacro.process(
             os.path.join(get_package_share_directory(ros_package), xacro_path)
         )
-        return self._urdf
 
     def chain_link_names(self, root_link_name: str, end_link_name: str) -> List[str]:
         r"""Get link names in chain from root to end link.
@@ -222,79 +231,13 @@ class URDFParser:
         return self._robot
 
 
-def find_files(path: str, pattern: str = "image_*.png") -> List[str]:
-    r"""Find files in a directory.
-
-    Args:
-        path (str): Path to the directory.
-        pattern (str): Pattern to match. Warn: The sorting key strictly assumes that pattern includes '_{number}.ext'.
-
-    Returns:
-        List[str]: File names.
-    """
-    path = pathlib.Path(path)
-    image_paths = list(path.glob(pattern))
-    return sorted(
-        [image_path.name for image_path in image_paths],
-        key=lambda x: int(x.split("_")[-1].split(".")[0]),
-    )
-
-
-class MonocularDataset(Dataset):
-    def __init__(
-        self,
-        images_path: str,
-        image_pattern: str,
-        joint_states_path: str,
-        joint_states_pattern: str,
-    ):
-        self._images_path = images_path
-        self._image_files = find_files(images_path, image_pattern)
-        self._joint_states_path = joint_states_path
-        self._joint_states_files = find_files(joint_states_path, joint_states_pattern)
-
-        rich.print("Found the following files:")
-        rich.print(f"Images: {self._image_files}")
-        rich.print(f"Joint states: {self._joint_states_files}")
-
-        if len(self._image_files) != len(self._joint_states_files):
-            raise ValueError(
-                f"Number of images '{len(self._image_files)}' and joint states '{len(self._joint_states_files)}' do not match."
-            )
-
-        if len(self._image_files) == 0:
-            raise ValueError("No images found.")
-
-        if len(self._joint_states_files) == 0:
-            raise ValueError("No joint states found.")
-
-        for image_file, joint_states_file in zip(
-            self._image_files, self._joint_states_files
-        ):
-            if (
-                image_file.split("_")[-1].split(".")[0]
-                != joint_states_file.split("_")[-1].split(".")[0]
-            ):
-                raise ValueError(
-                    f"Image file index '{image_file}' and joint states file index '{joint_states_file}' do not match."
-                )
-
-    def __len__(self):
-        return len(self._image_files)
-
-    def __getitem__(self, idx: int) -> Tuple[np.ndarray, np.ndarray, str]:
-        image_file = self._image_files[idx]
-        joint_states_file = self._joint_states_files[idx]
-        image = cv2.imread(os.path.join(self._images_path, image_file))
-        joint_states = np.load(os.path.join(self._joint_states_path, joint_states_file))
-        return image, joint_states, image_file
-
-
-def parse_camera_info(camera_info_file: str) -> Tuple[int, int, np.ndarray]:
+def parse_camera_info(
+    camera_info_file: Union[Path, str],
+) -> Tuple[int, int, np.ndarray]:
     r"""Parse camera info file.
 
     Args:
-        camera_info_file (str): Absolute path to the camera info file.
+        camera_info_file (Union[Path, str]): Absolute path to the camera info file.
 
     Returns:
         Tuple[int,int,np.ndarray]:
@@ -302,6 +245,7 @@ def parse_camera_info(camera_info_file: str) -> Tuple[int, int, np.ndarray]:
             - Width of the image.
             - Intrinsic matrix of shape 3x3.
     """
+    camera_info_file = Path(camera_info_file)
     with open(camera_info_file, "r") as f:
         camera_info = yaml.load(f, Loader=yaml.FullLoader)
     height = camera_info["height"]
@@ -313,18 +257,16 @@ def parse_camera_info(camera_info_file: str) -> Tuple[int, int, np.ndarray]:
 
 
 def parse_hydra_data(
-    path: str,
-    joint_states_files: List[str],
-    mask_files: List[str],
-    depth_files: List[str],
+    joint_states_files: List[Path],
+    mask_files: List[Path],
+    depth_files: List[Path],
 ) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
     r"""Parse data for Hydra registration.
 
     Args:
-        path (str): Path to the data.
-        joint_states_files (List[str]): Joint states files.
-        mask_files (List[str]): Mask files.
-        depth_files (List[str]): Depth files. Note that depth values are expected in meters.
+        joint_states_files (List[Path]): Joint states files.
+        mask_files (List[Path]): Mask files.
+        depth_files (List[Path]): Depth files. Note that depth values are expected in meters.
 
     Returns:
         Tuple[List[np.ndarray],List[np.ndarray],List[np.ndarray]]:
@@ -342,20 +284,14 @@ def parse_hydra_data(
         )
 
     rich.print("Parsing the following files:")
-    rich.print(f"Joint states: {joint_states_files}")
-    rich.print(f"Masks: {mask_files}")
-    rich.print(f"Depths: {depth_files}")
+    rich.print(f"Joint states: {[f.name for f in joint_states_files]}")
+    rich.print(f"Masks: {[f.name for f in mask_files]}")
+    rich.print(f"Depths: {[f.name for f in depth_files]}")
 
     # load data
-    joint_states = [
-        np.load(os.path.join(path, joint_state_file))
-        for joint_state_file in joint_states_files
-    ]
-    masks = [
-        cv2.imread(os.path.join(path, mask_file), cv2.IMREAD_GRAYSCALE)
-        for mask_file in mask_files
-    ]
-    depths = [np.load(os.path.join(path, depth_file)) for depth_file in depth_files]
+    joint_states = [np.load(f) for f in joint_states_files]
+    masks = [cv2.imread(f, cv2.IMREAD_GRAYSCALE) for f in mask_files]
+    depths = [np.load(f) for f in depth_files]
     if not all([mask.dtype == np.uint8 for mask in masks]):
         raise ValueError("Masks must be of type np.uint8.")
     if not all([np.all(mask >= 0) and np.all(mask <= 255) for mask in masks]):
@@ -372,18 +308,16 @@ def parse_hydra_data(
 
 
 def parse_mono_data(
-    path: str,
-    image_files: List[str],
-    joint_states_files: List[str],
-    mask_files: List[str],
+    image_files: List[Path],
+    joint_states_files: List[Path],
+    mask_files: List[Path],
 ) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
     r"""Parse monocular data.
 
     Args:
-        path (str): Path to the data.
-        image_files (List[str]): Image files.
-        joint_states_files (List[str]): Joint states files.
-        mask_files (List[str]): Mask files.
+        image_files (List[Path]): Image files.
+        joint_states_files (List[Path]): Joint states files.
+        mask_files (List[Path]): Mask files.
 
     Returns:
         Tuple[List[np.ndarray],List[np.ndarray],List[np.ndarray]]:
@@ -397,16 +331,13 @@ def parse_mono_data(
         raise ValueError("Number of images, joint states, masks do not match.")
 
     rich.print("Parsing the following files:")
-    rich.print(f"Images: {image_files}")
-    rich.print(f"Joint states: {joint_states_files}")
-    rich.print(f"Masks: {mask_files}")
+    rich.print(f"Images: {[f.name for f in image_files]}")
+    rich.print(f"Joint states: {[f.name for f in joint_states_files]}")
+    rich.print(f"Masks: {[f.name for f in mask_files]}")
 
-    images = [cv2.imread(os.path.join(path, file)) for file in image_files]
-    joint_states = [np.load(os.path.join(path, file)) for file in joint_states_files]
-    masks = [
-        cv2.imread(os.path.join(path, file), cv2.IMREAD_GRAYSCALE)
-        for file in mask_files
-    ]
+    images = [cv2.imread(f) for f in image_files]
+    joint_states = [np.load(f) for f in joint_states_files]
+    masks = [cv2.imread(f, cv2.IMREAD_GRAYSCALE) for f in mask_files]
     if not all([mask.dtype == np.uint8 for mask in masks]):
         raise ValueError("Masks must be of type np.uint8.")
     if not all([np.all(mask >= 0) and np.all(mask <= 255) for mask in masks]):
@@ -425,12 +356,11 @@ def parse_mono_data(
 
 
 def parse_stereo_data(
-    path: str,
-    left_image_files: List[str],
-    right_image_files: List[str],
-    joint_states_files: List[str],
-    left_mask_files: List[str],
-    right_mask_files: List[str],
+    left_image_files: List[Path],
+    right_image_files: List[Path],
+    joint_states_files: List[Path],
+    left_mask_files: List[Path],
+    right_mask_files: List[Path],
 ) -> Tuple[
     List[np.ndarray],
     List[np.ndarray],
@@ -441,12 +371,11 @@ def parse_stereo_data(
     r"""Parse stereo data.
 
     Args:
-        path (str): Path to the data.
-        left_image_files (List[str]): Left image files.
-        right_image_files (List[str]): Right image files.
-        joint_states_files (List[str]): Joint states files.
-        left_mask_files (List[str]): Left mask files.
-        right_mask_files (List[str]): Right mask files.
+        left_image_files (List[Path]): Left image files.
+        right_image_files (List[Path]): Right image files.
+        joint_states_files (List[Path]): Joint states files.
+        left_mask_files (List[Path]): Left mask files.
+        right_mask_files (List[Path]): Right mask files.
 
     Returns:
         Tuple[List[np.ndarray],List[np.ndarray],List[np.ndarray],List[np.ndarray],List[np.ndarray]]:
@@ -467,23 +396,17 @@ def parse_stereo_data(
         )
 
     rich.print("Parsing the following files:")
-    rich.print(f"Left images: {left_image_files}")
-    rich.print(f"Right images: {right_image_files}")
-    rich.print(f"Joint states: {joint_states_files}")
-    rich.print(f"Left masks: {left_mask_files}")
-    rich.print(f"Right masks: {right_mask_files}")
+    rich.print(f"Left images: {[f.name for f in left_image_files]}")
+    rich.print(f"Right images: {[f.name for f in right_image_files]}")
+    rich.print(f"Joint states: {[f.name for f in joint_states_files]}")
+    rich.print(f"Left masks: {[f.name for f in left_mask_files]}")
+    rich.print(f"Right masks: {[f.name for f in right_mask_files]}")
 
-    left_images = [cv2.imread(os.path.join(path, file)) for file in left_image_files]
-    right_images = [cv2.imread(os.path.join(path, file)) for file in right_image_files]
-    joint_states = [np.load(os.path.join(path, file)) for file in joint_states_files]
-    left_masks = [
-        cv2.imread(os.path.join(path, file), cv2.IMREAD_GRAYSCALE)
-        for file in left_mask_files
-    ]
-    right_masks = [
-        cv2.imread(os.path.join(path, file), cv2.IMREAD_GRAYSCALE)
-        for file in right_mask_files
-    ]
+    left_images = [cv2.imread(f) for f in left_image_files]
+    right_images = [cv2.imread(f) for f in right_image_files]
+    joint_states = [np.load(f) for f in joint_states_files]
+    left_masks = [cv2.imread(f, cv2.IMREAD_GRAYSCALE) for f in left_mask_files]
+    right_masks = [cv2.imread(f, cv2.IMREAD_GRAYSCALE) for f in right_mask_files]
     if not all([mask.dtype == np.uint8 for mask in left_masks]):
         raise ValueError("Left masks must be of type np.uint8.")
     if not all([np.all(mask >= 0) and np.all(mask <= 255) for mask in left_masks]):

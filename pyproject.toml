@@ -32,7 +32,6 @@ dependencies = [
   "torch",
   "transformations",
   "trimesh",
-  "xacro",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",

@@ -2,10 +2,10 @@ import abc
 from collections import OrderedDict
 from typing import Dict, List, Optional, Tuple, Union
 
-import fast_simplification
 import numpy as np
 import torch
-import trimesh
+
+from roboreg.io import Mesh
 
 
 class TorchMeshContainer:
@@ -17,7 +17,7 @@ class TorchMeshContainer:
     """
 
     __slots__ = [
-        "_mesh_names",
+        "_names",
         "_vertices",  # tensor of shape (B, N, 4) -> homogeneous coordinates
         "_faces",  # tensor of shape (B, N, 3)
         "_per_mesh_vertex_count",
@@ -32,12 +32,11 @@ class TorchMeshContainer:
 
     def __init__(
         self,
-        mesh_paths: Dict[str, str],
+        meshes: Dict[str, Mesh],
         batch_size: int = 1,
-        device: torch.device = "cuda",
-        target_reduction: float = 0.0,
+        device: Union[torch.device, str] = "cuda",
     ) -> None:
-        self._mesh_names = []
+        self._names = []
         self._vertices = []
         self._faces = []
         self._per_mesh_vertex_count = OrderedDict()
@@ -47,8 +46,8 @@ class TorchMeshContainer:
         self._lower_face_index_lookup = {}
         self._upper_face_index_lookup = {}
 
-        # load meshes
-        self._populate_meshes(mesh_paths, device, target_reduction)
+        # populate this container
+        self._populate_container(meshes, device=device)
 
         # add batch dim
         self._batch_size = batch_size
@@ -57,45 +56,25 @@ class TorchMeshContainer:
         # populate index lookups
         self._populate_index_lookups()
 
-        self._device = device
+        self._device = torch.device(device) if isinstance(device, str) else device
 
     @abc.abstractmethod
-    def _load_mesh(self, mesh_path: str) -> trimesh.Trimesh:
-        return trimesh.load(mesh_path)
-
-    @abc.abstractmethod
-    def _populate_meshes(
+    def _populate_container(
         self,
-        mesh_paths: Dict[str, str],
-        device: torch.device = "cuda",
-        target_reduction: float = 0.0,
+        meshes: Dict[str, Mesh],
+        device: Union[torch.device, str] = "cuda",
     ) -> None:
         offset = 0
-        for mesh_name, mesh_path in mesh_paths.items():
+        for name, mesh in meshes.items():
             # populate mesh names
-            self._mesh_names.append(mesh_name)
-
-            # load mesh
-            m = self._load_mesh(mesh_path)
-
-            if isinstance(m, trimesh.Scene):
-                m = m.dump(concatenate=True)
-
-            vertices = m.vertices
-            faces = m.faces
-
-            vertices, faces = fast_simplification.simplify(
-                points=vertices,
-                triangles=faces,
-                target_reduction=target_reduction,
-            )
+            self._names.append(name)
 
             # populate mesh vertex count
-            self._per_mesh_vertex_count[mesh_name] = len(vertices)
+            self._per_mesh_vertex_count[name] = len(mesh.vertices)
 
             # populate vertices
             self._vertices.append(
-                torch.tensor(vertices, dtype=torch.float32, device=device)
+                torch.tensor(mesh.vertices, dtype=torch.float32, device=device)
             )
             self._vertices[-1] = torch.cat(
                 [
@@ -106,22 +85,22 @@ class TorchMeshContainer:
             )  # (x,y,z) -> (x,y,z,1): homogeneous coordinates
 
             # populate mesh face count
-            self._per_mesh_face_count[mesh_name] = len(faces)
+            self._per_mesh_face_count[name] = len(mesh.faces)
 
             # populate faces (also add an offset to the point ids)
             self._faces.append(
                 torch.add(
-                    torch.tensor(faces, dtype=torch.int32, device=device),
+                    torch.tensor(mesh.faces, dtype=torch.int32, device=device),
                     offset,
                 )
             )
-            offset += len(vertices)
+            offset += len(mesh.vertices)
 
         self._vertices = torch.cat(self._vertices, dim=0)
         self._faces = torch.cat(self._faces, dim=0)
 
     def _populate_index_lookups(self) -> None:
-        if len(self._mesh_names) == 0:
+        if len(self._names) == 0:
             raise ValueError("No meshes loaded.")
         if len(self._per_mesh_vertex_count) == 0:
             raise ValueError("No vertex counts populated.")
@@ -131,16 +110,16 @@ class TorchMeshContainer:
         # crucial: self._per_mesh_vertex_count sorted same as self._vertices! Same for faces.
         running_vertex_index = 0
         running_face_index = 0
-        for mesh_name in self._mesh_names:
+        for name in self._names:
             # vertex index lookup
-            self._lower_vertex_index_lookup[mesh_name] = running_vertex_index
-            running_vertex_index += self._per_mesh_vertex_count[mesh_name]
-            self._upper_vertex_index_lookup[mesh_name] = running_vertex_index
+            self._lower_vertex_index_lookup[name] = running_vertex_index
+            running_vertex_index += self._per_mesh_vertex_count[name]
+            self._upper_vertex_index_lookup[name] = running_vertex_index
 
             # face index lookup
-            self._lower_face_index_lookup[mesh_name] = running_face_index
-            running_face_index += self._per_mesh_face_count[mesh_name]
-            self._upper_face_index_lookup[mesh_name] = running_face_index
+            self._lower_face_index_lookup[name] = running_face_index
+            running_face_index += self._per_mesh_face_count[name]
+            self._upper_face_index_lookup[name] = running_face_index
 
     @property
     def vertices(self) -> torch.FloatTensor:
@@ -171,8 +150,8 @@ class TorchMeshContainer:
         return self._upper_face_index_lookup
 
     @property
-    def mesh_names(self) -> List[str]:
-        return self._mesh_names
+    def names(self) -> List[str]:
+        return self._names
 
     @property
     def device(self) -> torch.device:
@@ -182,10 +161,10 @@ class TorchMeshContainer:
     def batch_size(self) -> int:
         return self._batch_size
 
-    def to(self, device: torch.device) -> None:
+    def to(self, device: Union[torch.device, str]) -> None:
         self._vertices = self._vertices.to(device=device)
         self._faces = self._faces.to(device=device)
-        self._device = device
+        self._device = torch.device(device) if isinstance(device, str) else device
 
 
 class Camera:
@@ -205,7 +184,7 @@ class Camera:
         resolution: Tuple[int, int],
         intrinsics: Optional[Union[torch.FloatTensor, np.ndarray]] = None,
         extrinsics: Optional[Union[torch.FloatTensor, np.ndarray]] = None,
-        device: torch.device = "cuda",
+        device: Union[torch.device, str] = "cuda",
         name: str = "camera",
     ) -> None:
         if intrinsics is None:
@@ -232,7 +211,7 @@ class Camera:
         self._intrinsics = intrinsics
         self._extrinsics = extrinsics
         self._resolution = resolution
-        self._device = device
+        self._device = torch.device(device) if isinstance(device, str) else device
         ht_optical_shape = (
             (1,) + extrinsics.shape[-2:]
             if extrinsics.dim() == 3
@@ -250,11 +229,11 @@ class Camera:
         self._name = name
 
     @abc.abstractmethod
-    def to(self, device: torch.device) -> None:
+    def to(self, device: Union[torch.device, str]) -> None:
         self._intrinsics = self._intrinsics.to(device=device)
         self._extrinsics = self._extrinsics.to(device=device)
         self._ht_optical = self._ht_optical.to(device=device)
-        self._device = device
+        self._device = torch.device(device) if isinstance(device, str) else device
 
     @property
     def intrinsics(self) -> torch.FloatTensor:
@@ -333,7 +312,7 @@ class VirtualCamera(Camera):
         extrinsics: Optional[Union[torch.FloatTensor, np.ndarray]] = None,
         zmin: float = 0.1,
         zmax: float = 100.0,
-        device: torch.device = "cuda",
+        device: Union[torch.device, str] = "cuda",
     ) -> None:
         super().__init__(resolution, intrinsics, extrinsics, device)
 
@@ -368,7 +347,7 @@ class VirtualCamera(Camera):
         self._perspective_projection[..., 2, 3] = 2.0 * zmax * zmin / (zmin - zmax)
         self._perspective_projection[..., 3, 2] = 1.0
 
-    def to(self, device: torch.device) -> None:
+    def to(self, device: Union[torch.device, str]) -> None:
         self._perspective_projection = self._perspective_projection.to(device=device)
         super().to(device=device)
 

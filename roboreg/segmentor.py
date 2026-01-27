@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Union
 
 import numpy as np
 import torch
@@ -8,9 +8,11 @@ from sam2.sam2_image_predictor import SAM2ImagePredictor
 class Segmentor(object):
     __slots__ = ["_model", "_pth", "_device"]
 
-    def __init__(self, pth: float = 0.5, device: str = "cuda") -> None:
+    def __init__(
+        self, pth: float = 0.5, device: Union[torch.device, str] = "cuda"
+    ) -> None:
         self._pth = pth
-        self._device = device
+        self._device = torch.device(device) if isinstance(device, str) else device
 
     @property
     def pth(self) -> float:
@@ -28,7 +30,7 @@ class Sam2Segmentor(Segmentor):
         self,
         model_id: str = "facebook/sam2-hiera-large",
         pth: float = 0.5,
-        device: str = "cuda",
+        device: Union[torch.device, str] = "cuda",
     ) -> None:
         super().__init__(pth=pth, device=device)
         self._model: SAM2ImagePredictor = SAM2ImagePredictor.from_pretrained(model_id)
@@ -37,7 +39,10 @@ class Sam2Segmentor(Segmentor):
         self, img: np.ndarray, input_points: np.ndarray, input_labels: np.ndarray
     ) -> np.ndarray:
         self._model.set_image(img)
-        with torch.inference_mode(), torch.autocast(self._device, dtype=torch.bfloat16):
+        with (
+            torch.inference_mode(),
+            torch.autocast(device_type=self._device.type, dtype=torch.bfloat16),
+        ):
             mask_logits, _, _ = self._model.predict(
                 point_coords=input_points,
                 point_labels=input_labels,

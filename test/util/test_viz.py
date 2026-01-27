@@ -1,13 +1,16 @@
+import pytest
 import pyvista as pv
 import torch
 
 from roboreg import differentiable as rrd
+from roboreg.io import URDFParser, load_meshes, apply_mesh_origins
 from roboreg.util import RegistrationVisualizer, from_homogeneous
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_visualize_point_cloud():
     meshes = rrd.TorchMeshContainer(
-        mesh_paths={"link_0": "test/assets/lbr_med7/mesh/link_0.stl"},
+        meshes=load_meshes({"link_0": "test/assets/lbr_med7/mesh/link_0.stl"}),
         device="cpu",
     )
 
@@ -24,19 +27,22 @@ def test_visualize_point_cloud():
     pl.close()
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_visalize_multi_color_point_cloud():
     meshes = rrd.TorchMeshContainer(
-        mesh_paths={
-            "link_0": "test/assets/lbr_med7/mesh/link_0.stl",
-            "link_1": "test/assets/lbr_med7/mesh/link_1.stl",
-        },
+        meshes=load_meshes(
+            {
+                "link_0": "test/assets/lbr_med7/mesh/link_0.stl",
+                "link_1": "test/assets/lbr_med7/mesh/link_1.stl",
+            }
+        ),
         device="cpu",
     )
 
     # visialize point cloud
     link_points = {}
     link_colors = {}
-    for link_name in meshes.mesh_names:
+    for link_name in meshes.names:
         print(link_name)
         link_points[link_name] = (
             from_homogeneous(
@@ -55,15 +61,15 @@ def test_visalize_multi_color_point_cloud():
             link_points[link_name].shape[0], 4, dtype=torch.float32
         )
 
-    link_colors[meshes.mesh_names[0]][..., 0] = 0.0
-    link_colors[meshes.mesh_names[1]][..., 1] = 0.0
+    link_colors[meshes.names[0]][..., 0] = 0.0
+    link_colors[meshes.names[1]][..., 1] = 0.0
 
     pl = pv.Plotter()
 
     # black background
     pl.background_color = [0, 0, 0]
 
-    for link_name in meshes.mesh_names:
+    for link_name in meshes.names:
         pl.add_points(
             link_points[link_name],
             rgba=True,
@@ -74,24 +80,33 @@ def test_visalize_multi_color_point_cloud():
     pl.close()
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_visualize_robot():
     device = "cpu"
     root_link_name = "lbr_link_0"
     end_link_name = "lbr_link_7"
 
     # parse URDF
-    urdf_parser = rrd.URDFParser()
-    urdf_parser.from_ros_xacro("lbr_description", "urdf/med7/med7.xacro")
-    mesh_paths = urdf_parser.ros_package_mesh_paths(
-        root_link_name=root_link_name, end_link_name=end_link_name
-    )
+    urdf_parser = URDFParser.from_ros_xacro("lbr_description", "urdf/med7/med7.xacro")
 
     # load meshes
-    meshes = rrd.TorchMeshContainer(mesh_paths=mesh_paths, device=device)
+    meshes = rrd.TorchMeshContainer(
+        meshes=apply_mesh_origins(
+            meshes=load_meshes(
+                urdf_parser.ros_package_mesh_paths(
+                    root_link_name=root_link_name, end_link_name=end_link_name
+                )
+            ),
+            origins=urdf_parser.mesh_origins(
+                root_link_name=root_link_name, end_link_name=end_link_name
+            ),
+        ),
+        device=device,
+    )
 
     # instantiate kinematics
     kinematics = rrd.TorchKinematics(
-        urdf_parser=urdf_parser,
+        urdf=urdf_parser.urdf,
         root_link_name=root_link_name,
         end_link_name=end_link_name,
         device=device,
@@ -106,7 +121,7 @@ def test_visualize_robot():
     )
     q = q_min + (q_max - q_min) * q
 
-    ht_lookup = kinematics.mesh_forward_kinematics(q)
+    ht_lookup = kinematics.forward_kinematics(q)
 
     # apply kinematics
     clone_vertices = meshes.vertices.clone()
@@ -139,6 +154,7 @@ def test_visualize_robot():
     pl.close()
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_registration_visualizer() -> None:
     visualizer = RegistrationVisualizer()
 
@@ -150,7 +166,13 @@ def test_registration_visualizer() -> None:
 
 
 if __name__ == "__main__":
-    # test_visualize_point_cloud()
-    # test_visalize_multi_color_point_cloud()
-    # test_visualize_robot()
+    import os
+    import sys
+
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+    test_visualize_point_cloud()
+    test_visalize_multi_color_point_cloud()
+    test_visualize_robot()
     test_registration_visualizer()

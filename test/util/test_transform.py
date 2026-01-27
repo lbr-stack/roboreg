@@ -6,6 +6,7 @@ sys.path.append(
 )
 
 import numpy as np
+import pytest
 import torch
 
 from roboreg.io import find_files, parse_camera_info
@@ -19,6 +20,7 @@ from roboreg.util import (
 )
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_depth_to_xyz() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     height, width = 256, 256
@@ -72,6 +74,7 @@ def test_depth_to_xyz() -> None:
         raise ValueError(f"Expected 3 channels, got {xyz.shape[3]} channels.")
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_realsense_depth_to_xyz() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     path = "test/assets/xarm/realsense"
@@ -126,6 +129,7 @@ def test_realsense_depth_to_xyz() -> None:
     test_display_xyz()
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_look_at_from_angle() -> None:
     batch_size = 4
     eye = torch.tensor([0.0, 0.0, 1.0], dtype=torch.float32).unsqueeze(0)

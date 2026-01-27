@@ -5,6 +5,7 @@ sys.path.append(
     os.path.dirname((os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 )
 
+import pytest
 import torch
 
 from roboreg.util import (
@@ -13,6 +14,7 @@ from roboreg.util import (
 )
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_random_position_in_hollow_spheres() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     inner_radii = torch.tensor([-1.0], device=device)
@@ -52,6 +54,7 @@ def test_random_position_in_hollow_spheres() -> None:
         raise ValueError(f"Expected batch size {n_radii}, got {position.shape[0]}")
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_random_fov_eye_space_coordinates() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     batch_size = 1

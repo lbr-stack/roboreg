@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 import nvdiffrast.torch as dr
 import torch
@@ -13,11 +13,11 @@ class NVDiffRastRenderer:
 
     __slots__ = ["_device", "_ctx"]
 
-    def __init__(self, device: torch.device = "cuda") -> None:
+    def __init__(self, device: Union[torch.device, str] = "cuda") -> None:
         super().__init__()
         if not torch.cuda.is_available():
             raise ValueError("CUDA is not available.")
-        self._device = device
+        self._device = torch.device(device) if isinstance(device, str) else device
         self._ctx = dr.RasterizeCudaContext(device=self._device)
 
     def scale_clip_vertices(

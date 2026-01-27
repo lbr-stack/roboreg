@@ -153,7 +153,6 @@ def main() -> None:
     joint_states_files = find_files(args.path, args.joint_states_pattern)
     mask_files = find_files(args.path, args.mask_pattern)
     images, joint_states, masks = parse_mono_data(
-        path=args.path,
         image_files=image_files,
         joint_states_files=joint_states_files,
         mask_files=mask_files,
