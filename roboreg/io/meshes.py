@@ -31,7 +31,7 @@ def load_mesh(path: Union[Path, str]) -> Mesh:
         raise FileNotFoundError(f"Mesh file {path} does not exist.")
     m = trimesh.load(path)
     if isinstance(m, trimesh.Scene):
-        m = m.dump(concatenate=True)
+        m = m.to_geometry()
     vertices, faces = m.vertices, m.faces
     if vertices.size == 0 or faces.size == 0:
         raise ValueError(f"Mesh is empty: {path.name}")
