@@ -1,10 +1,3 @@
-import os
-import sys
-
-sys.path.append(
-    os.path.dirname((os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-)
-
 import pytest
 import torch
 
@@ -21,7 +14,7 @@ def test_robot() -> None:
     collision = True
     batch_size = 2
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    robot = Robot(
+    robot = Robot.from_urdf_parser(
         urdf_parser=urdf_parser,
         root_link_name=urdf_parser.link_names_with_meshes(collision=collision)[0],
         end_link_name=urdf_parser.link_names_with_meshes(collision=collision)[-1],
@@ -37,4 +30,10 @@ def test_robot() -> None:
 
 
 if __name__ == "__main__":
+    import os
+    import sys
+
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
     test_robot()

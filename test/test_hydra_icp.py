@@ -17,6 +17,7 @@ from roboreg.io import (
     find_files,
     load_meshes,
     parse_camera_info,
+    apply_mesh_origins,
     parse_hydra_data,
 )
 from roboreg.util import (
@@ -130,19 +131,24 @@ def test_hydra_icp():
     urdf_parser = URDFParser()
     urdf_parser.from_ros_xacro(ros_package=ros_package, xacro_path=xacro_path)
     kinematics = TorchKinematics(
-        urdf_parser=urdf_parser,
-        device=device,
+        urdf=urdf_parser.urdf,
         root_link_name=root_link_name,
         end_link_name=end_link_name,
+        device=device,
     )
 
     # instantiate mesh
     batch_size = len(joint_states)
     meshes = TorchMeshContainer(
-        meshes=load_meshes(
-            urdf_parser.ros_package_mesh_paths(
+        meshes=apply_mesh_origins(
+            meshes=load_meshes(
+                urdf_parser.ros_package_mesh_paths(
+                    root_link_name=root_link_name, end_link_name=end_link_name
+                )
+            ),
+            origins=urdf_parser.mesh_origins(
                 root_link_name=root_link_name, end_link_name=end_link_name
-            )
+            ),
         ),
         batch_size=batch_size,
         device=device,
@@ -255,19 +261,24 @@ def test_hydra_robust_icp() -> None:
     urdf_parser = URDFParser()
     urdf_parser.from_ros_xacro(ros_package=ros_package, xacro_path=xacro_path)
     kinematics = TorchKinematics(
-        urdf_parser=urdf_parser,
-        device=device,
+        urdf=urdf_parser.urdf,
         root_link_name=root_link_name,
         end_link_name=end_link_name,
+        device=device,
     )
 
     # instantiate mesh
     batch_size = len(joint_states)
     meshes = TorchMeshContainer(
-        meshes=load_meshes(
-            urdf_parser.ros_package_mesh_paths(
+        meshes=apply_mesh_origins(
+            meshes=load_meshes(
+                urdf_parser.ros_package_mesh_paths(
+                    root_link_name=root_link_name, end_link_name=end_link_name
+                )
+            ),
+            origins=urdf_parser.mesh_origins(
                 root_link_name=root_link_name, end_link_name=end_link_name
-            )
+            ),
         ),
         batch_size=batch_size,
         device=device,
@@ -278,7 +289,7 @@ def test_hydra_robust_icp() -> None:
     joint_states = torch.tensor(
         np.array(joint_states), dtype=torch.float32, device=device
     )
-    ht_lookup = kinematics.mesh_forward_kinematics(joint_states)
+    ht_lookup = kinematics.forward_kinematics(joint_states)
     for link_name, ht in ht_lookup.items():
         mesh_vertices[
             :,

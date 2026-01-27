@@ -64,6 +64,8 @@ def simplify_mesh(mesh: Mesh, target_reduction: float = 0.0) -> Mesh:
     Returns:
         Mesh: The simplified mesh.
     """
+    if target_reduction == 0.0:
+        return mesh
     if 0.0 > target_reduction > 1.0:
         raise ValueError(
             f"Expected target reduction in [0, 1], got {target_reduction}."
@@ -88,7 +90,41 @@ def simplify_meshes(
     Returns:
         Dict[str, Mesh]: The simplified meshes. 
     """
+    if target_reduction == 0.0:
+        return meshes
     return {
         name: simplify_mesh(mesh, target_reduction=target_reduction)
         for name, mesh in meshes.items()
     }
+
+
+def apply_mesh_origin(vertices: np.ndarray, origin: np.ndarray) -> np.ndarray:
+    r"""Apply a homogeneous transformation to mesh vertices.
+
+    Args:
+        vertices (np.ndarray): The mesh vertices of shape Nx3.
+        origin (np.ndarray): The mesh origin as a homogeneous transform of shape 4x4.
+    Returns:
+        np.ndarray: The transformed mesh vertices of shape Nx3.
+    """
+    return vertices @ origin[:3, :3].T + origin[:3, 3].T
+
+
+def apply_mesh_origins(
+    meshes: Dict[str, Mesh], origins: Dict[str, np.ndarray]
+) -> Dict[str, Mesh]:
+    r"""Apply mesh origins to multiple meshes.
+
+    Args:
+        meshes (Dict[str, Mesh]): The meshes to apply origins to.
+        origins (Dict[str, np.ndarray]): The mesh origins.
+
+    Returns:
+        Dict[str, Mesh]: The meshes with applied origins.
+    """
+    for name in meshes.keys():
+        if name in origins:
+            meshes[name].vertices = apply_mesh_origin(
+                meshes[name].vertices, origins[name]
+            )
+    return meshes

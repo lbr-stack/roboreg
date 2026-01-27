@@ -34,7 +34,7 @@ class TorchMeshContainer:
         self,
         meshes: Dict[str, Mesh],
         batch_size: int = 1,
-        device: torch.device = "cuda",
+        device: torch.device = torch.device("cuda"),
     ) -> None:
         self._names = []
         self._vertices = []
@@ -62,7 +62,7 @@ class TorchMeshContainer:
     def _populate_container(
         self,
         meshes: Dict[str, Mesh],
-        device: torch.device = "cuda",
+        device: torch.device("cuda"),
     ) -> None:
         offset = 0
         for name, mesh in meshes.items():
@@ -184,7 +184,7 @@ class Camera:
         resolution: Tuple[int, int],
         intrinsics: Optional[Union[torch.FloatTensor, np.ndarray]] = None,
         extrinsics: Optional[Union[torch.FloatTensor, np.ndarray]] = None,
-        device: torch.device = "cuda",
+        device: torch.device = torch.device("cuda"),
         name: str = "camera",
     ) -> None:
         if intrinsics is None:
@@ -312,7 +312,7 @@ class VirtualCamera(Camera):
         extrinsics: Optional[Union[torch.FloatTensor, np.ndarray]] = None,
         zmin: float = 0.1,
         zmax: float = 100.0,
-        device: torch.device = "cuda",
+        device: torch.device = torch.device("cuda"),
     ) -> None:
         super().__init__(resolution, intrinsics, extrinsics, device)
 

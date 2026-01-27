@@ -56,7 +56,7 @@ def create_robot_scene(
         )
 
     # instantiate robot
-    robot = Robot(
+    robot = Robot.from_urdf_parser(
         urdf_parser=urdf_parser,
         root_link_name=root_link_name,
         end_link_name=end_link_name,

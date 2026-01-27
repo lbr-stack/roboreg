@@ -3,7 +3,7 @@ import pyvista as pv
 import torch
 
 from roboreg import differentiable as rrd
-from roboreg.io import load_meshes
+from roboreg.io import URDFParser, load_meshes, apply_mesh_origins
 from roboreg.util import RegistrationVisualizer, from_homogeneous
 
 
@@ -87,18 +87,30 @@ def test_visualize_robot():
     end_link_name = "lbr_link_7"
 
     # parse URDF
-    urdf_parser = rrd.URDFParser()
+    urdf_parser = URDFParser()
     urdf_parser.from_ros_xacro("lbr_description", "urdf/med7/med7.xacro")
     paths = urdf_parser.ros_package_mesh_paths(
         root_link_name=root_link_name, end_link_name=end_link_name
     )
 
     # load meshes
-    meshes = rrd.TorchMeshContainer(meshes=load_meshes(paths), device=device)
+    meshes = rrd.TorchMeshContainer(
+        meshes=apply_mesh_origins(
+            meshes=load_meshes(
+                urdf_parser.ros_package_mesh_paths(
+                    root_link_name=root_link_name, end_link_name=end_link_name
+                )
+            ),
+            origins=urdf_parser.mesh_origins(
+                root_link_name=root_link_name, end_link_name=end_link_name
+            ),
+        ),
+        device=device,
+    )
 
     # instantiate kinematics
     kinematics = rrd.TorchKinematics(
-        urdf_parser=urdf_parser,
+        urdf=urdf_parser.urdf,
         root_link_name=root_link_name,
         end_link_name=end_link_name,
         device=device,
@@ -113,7 +125,7 @@ def test_visualize_robot():
     )
     q = q_min + (q_max - q_min) * q
 
-    ht_lookup = kinematics.mesh_forward_kinematics(q)
+    ht_lookup = kinematics.forward_kinematics(q)
 
     # apply kinematics
     clone_vertices = meshes.vertices.clone()

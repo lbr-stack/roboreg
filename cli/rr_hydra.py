@@ -183,7 +183,7 @@ def main():
 
     # instantiate robot
     batch_size = len(joint_states)
-    robot = Robot(
+    robot = Robot.from_urdf_parser(
         urdf_parser=urdf_parser,
         root_link_name=root_link_name,
         end_link_name=end_link_name,

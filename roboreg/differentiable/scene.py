@@ -66,7 +66,7 @@ class RobotScene:
         )
         return self._renderer.constant_color(
             observed_vertices,
-            self._robot.faces,
+            self._robot.mesh_container.faces,
             self._cameras[camera_name].resolution,
         )
 
