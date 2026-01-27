@@ -18,7 +18,7 @@ class URDFParser:
 
     @classmethod
     def from_file(cls, path: Union[Path, str]) -> None:
-        r"""Instantiate URDF parser from URDF string.
+        r"""Instantiate URDF parser path to URDF file.
 
         Args:
             path (Union[Path, str]): Path to URDF file.

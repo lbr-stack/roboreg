@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Union
 
 import pytorch_kinematics as pk
 import torch
@@ -17,7 +17,7 @@ class TorchKinematics:
         urdf: str,
         root_link_name: str,
         end_link_name: str,
-        device: torch.device = torch.device("cuda"),
+        device: Union[torch.device, str] = "cuda",
     ) -> None:
         self._root_link_name = root_link_name
         self._end_link_name = end_link_name
@@ -26,7 +26,7 @@ class TorchKinematics:
             root_link_name=self._root_link_name,
             end_link_name=self._end_link_name,
         )
-        self._device = device
+        self._device = torch.device(device) if isinstance(device, str) else device
         self.to(device=self._device)
 
     def _build_serial_chain_from_urdf(
@@ -36,9 +36,9 @@ class TorchKinematics:
             urdf, end_link_name=end_link_name, root_link_name=root_link_name
         )
 
-    def to(self, device: torch.device) -> None:
+    def to(self, device: Union[torch.device, str]) -> None:
         self._chain.to(device=device)
-        self._device = device
+        self._device = torch.device(device) if isinstance(device, str) else device
 
     def forward_kinematics(self, q: torch.Tensor) -> Dict[str, torch.Tensor]:
         ht_lookup = {

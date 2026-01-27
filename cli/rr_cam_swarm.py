@@ -1,5 +1,6 @@
 import argparse
 import os
+from typing import Union
 
 import cv2
 import numpy as np
@@ -179,7 +180,7 @@ def instantiate_particles(
     eye_min_dist: float,
     eye_max_dist: float,
     angle_interval: float,
-    device: torch.device = torch.device("cuda"),
+    device: Union[torch.device, str] = "cuda",
 ) -> torch.Tensor:
     r"""Instantiate the particles for the optimization randomly under field of view constraints.
     Particles (camera poses) are represented using eye space coordinates (eye, center, angle).
@@ -193,7 +194,7 @@ def instantiate_particles(
         eye_min_dist (float): The minimum distance of the eye from the origin.
         eye_max_dist (float): The maximum distance of the eye from the origin.
         angle_interval (float): The angle interval in which to sample the rotation angle.
-        device (torch.device): The device to instantiate the particles on.
+        device (Union[torch.device, str]): The device to instantiate the particles on.
 
     Returns:
         torch.Tensor: The particles of shape (n_particles, 7).

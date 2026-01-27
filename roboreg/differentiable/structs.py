@@ -34,7 +34,7 @@ class TorchMeshContainer:
         self,
         meshes: Dict[str, Mesh],
         batch_size: int = 1,
-        device: torch.device = torch.device("cuda"),
+        device: Union[torch.device, str] = "cuda",
     ) -> None:
         self._names = []
         self._vertices = []
@@ -47,7 +47,7 @@ class TorchMeshContainer:
         self._upper_face_index_lookup = {}
 
         # populate this container
-        self._populate_container(meshes, device)
+        self._populate_container(meshes, device=device)
 
         # add batch dim
         self._batch_size = batch_size
@@ -56,13 +56,13 @@ class TorchMeshContainer:
         # populate index lookups
         self._populate_index_lookups()
 
-        self._device = device
+        self._device = torch.device(device) if isinstance(device, str) else device
 
     @abc.abstractmethod
     def _populate_container(
         self,
         meshes: Dict[str, Mesh],
-        device: torch.device("cuda"),
+        device: Union[torch.device, str] = "cuda",
     ) -> None:
         offset = 0
         for name, mesh in meshes.items():
@@ -161,10 +161,10 @@ class TorchMeshContainer:
     def batch_size(self) -> int:
         return self._batch_size
 
-    def to(self, device: torch.device) -> None:
+    def to(self, device: Union[torch.device, str]) -> None:
         self._vertices = self._vertices.to(device=device)
         self._faces = self._faces.to(device=device)
-        self._device = device
+        self._device = torch.device(device) if isinstance(device, str) else device
 
 
 class Camera:
@@ -184,7 +184,7 @@ class Camera:
         resolution: Tuple[int, int],
         intrinsics: Optional[Union[torch.FloatTensor, np.ndarray]] = None,
         extrinsics: Optional[Union[torch.FloatTensor, np.ndarray]] = None,
-        device: torch.device = torch.device("cuda"),
+        device: Union[torch.device, str] = "cuda",
         name: str = "camera",
     ) -> None:
         if intrinsics is None:
@@ -211,7 +211,7 @@ class Camera:
         self._intrinsics = intrinsics
         self._extrinsics = extrinsics
         self._resolution = resolution
-        self._device = device
+        self._device = torch.device(device) if isinstance(device, str) else device
         ht_optical_shape = (
             (1,) + extrinsics.shape[-2:]
             if extrinsics.dim() == 3
@@ -229,11 +229,11 @@ class Camera:
         self._name = name
 
     @abc.abstractmethod
-    def to(self, device: torch.device) -> None:
+    def to(self, device: Union[torch.device, str]) -> None:
         self._intrinsics = self._intrinsics.to(device=device)
         self._extrinsics = self._extrinsics.to(device=device)
         self._ht_optical = self._ht_optical.to(device=device)
-        self._device = device
+        self._device = torch.device(device) if isinstance(device, str) else device
 
     @property
     def intrinsics(self) -> torch.FloatTensor:
@@ -312,7 +312,7 @@ class VirtualCamera(Camera):
         extrinsics: Optional[Union[torch.FloatTensor, np.ndarray]] = None,
         zmin: float = 0.1,
         zmax: float = 100.0,
-        device: torch.device = torch.device("cuda"),
+        device: Union[torch.device, str] = "cuda",
     ) -> None:
         super().__init__(resolution, intrinsics, extrinsics, device)
 
@@ -347,7 +347,7 @@ class VirtualCamera(Camera):
         self._perspective_projection[..., 2, 3] = 2.0 * zmax * zmin / (zmin - zmax)
         self._perspective_projection[..., 3, 2] = 1.0
 
-    def to(self, device: torch.device) -> None:
+    def to(self, device: Union[torch.device, str]) -> None:
         self._perspective_projection = self._perspective_projection.to(device=device)
         super().to(device=device)
 

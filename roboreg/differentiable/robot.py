@@ -1,3 +1,5 @@
+from typing import Union
+
 import torch
 
 from roboreg.io import URDFParser
@@ -13,12 +15,12 @@ class Robot:
         self,
         mesh_container: TorchMeshContainer,
         kinematics: TorchKinematics,
-        device: torch.device = torch.device("cuda"),
+        device: Union[torch.device, str] = "cuda",
     ) -> None:
         self._mesh_container = mesh_container
         self._kinematics = kinematics
         self._configured_vertices = self.mesh_container.vertices.clone()
-        self._device = device
+        self._device = torch.device(device) if isinstance(device, str) else device
         self.to(device=self._device)
 
     @classmethod
@@ -29,7 +31,7 @@ class Robot:
         end_link_name: str,
         collision: bool = False,
         batch_size: int = 1,
-        device: torch.device = torch.device("cuda"),
+        device: Union[torch.device, str] = "cuda",
         target_reduction: float = 0.0,
     ) -> "Robot":
         from roboreg.io import apply_mesh_origins, load_meshes, simplify_meshes
@@ -104,11 +106,11 @@ class Robot:
                 ht_root.transpose(-1, -2),
             )
 
-    def to(self, device: torch.device) -> None:
+    def to(self, device: Union[torch.device, str]) -> None:
         self._mesh_container.to(device=device)
         self._kinematics.to(device=device)
         self._configured_vertices = self._configured_vertices.to(device=device)
-        self._device = device
+        self._device = torch.device(device) if isinstance(device, str) else device
 
     @property
     def kinematics(self) -> TorchKinematics:

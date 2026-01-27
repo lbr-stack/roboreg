@@ -21,12 +21,14 @@ def test_torch_mesh_container() -> None:
     assert container.vertices.size()[1] == sum(
         list(container.per_mesh_vertex_count.values())
     ), "Expected vertex count to match."
-    assert container.device == device, f"Expected container on '{device}' device."
-    assert (
-        container.vertices[list(paths.keys())[0]].device == device
+    assert container.device == torch.device(
+        device
+    ), f"Expected container on '{device}' device."
+    assert container.vertices.device == torch.device(
+        device
     ), f"Expected vertices on '{device}' device."
-    assert (
-        container.faces[list(paths.keys())[0]].device == device
+    assert container.faces.device == torch.device(
+        device
     ), f"Expected faces on '{device}' device."
 
 
