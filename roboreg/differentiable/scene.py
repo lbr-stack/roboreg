@@ -50,7 +50,7 @@ class RobotScene:
                 device=self._cameras[camera_name].extrinsics.device,
             )
         observed_vertices = torch.matmul(
-            self._robot.configured_vertices,
+            self._robot.configured_vertices.clone(),
             torch.matmul(
                 torch.linalg.inv(
                     torch.matmul(
