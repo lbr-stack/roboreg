@@ -42,8 +42,9 @@ def create_robot_scene(
     target_reduction: float = 0.0,
 ) -> RobotScene:
     # create URDF parser
-    urdf_parser = URDFParser()
-    urdf_parser.from_ros_xacro(ros_package=ros_package, xacro_path=xacro_path)
+    urdf_parser = URDFParser.from_ros_xacro(
+        ros_package=ros_package, xacro_path=xacro_path
+    )
     if root_link_name == "":
         root_link_name = urdf_parser.link_names_with_meshes(collision=collision)[0]
         rich.print(

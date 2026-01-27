@@ -12,33 +12,44 @@ from pytorch_kinematics import urdf_parser_py
 class URDFParser:
     __slots__ = ["_urdf", "_robot"]
 
-    def __init__(self) -> None:
-        self._urdf = None
-        self._robot = None
-
-    def from_urdf(self, urdf: str) -> None:
-        r"""Instantiate URDF parser from URDF string.
-
-        Args:
-            urdf (str): URDF string.
-        """
+    def __init__(self, urdf: str) -> None:
         self._urdf = urdf
         self._robot = urdf_parser_py.urdf.Robot.from_xml_string(urdf)
 
-    def from_ros_xacro(self, ros_package: str, xacro_path: str) -> None:
+    @classmethod
+    def from_file(cls, path: Union[Path, str]) -> None:
+        r"""Instantiate URDF parser from URDF string.
+
+        Args:
+            path (Union[Path, str]): Path to URDF file.
+        """
+        path = Path(path)
+        if not path.exists():
+            raise FileNotFoundError(f"URDF file {path} does not exist.")
+        if not path.suffix == ".urdf":
+            raise ValueError(f"URDF file {path} must have .urdf extension.")
+
+        with open(path, "r") as f:
+            urdf = f.read()
+
+        return cls(urdf=urdf)
+
+    @classmethod
+    def from_ros_xacro(cls, ros_package: str, xacro_path: str) -> None:
         r"""Instantiate URDF parser from ROS xacro file.
 
         Args:
             ros_package (str): Internally finds the path to ros_package.
             xacro_path (str): Path to xacro file relative to ros_package.
         """
-        self.from_urdf(
-            urdf=self.urdf_from_ros_xacro(
+        return cls(
+            urdf=cls._urdf_from_ros_xacro(
                 ros_package=ros_package, xacro_path=xacro_path
             )
         )
 
-    def urdf_from_ros_xacro(self, ros_package: str, xacro_path: str) -> str:
+    @staticmethod
+    def _urdf_from_ros_xacro(ros_package: str, xacro_path: str) -> str:
         r"""Convert ROS xacro file to URDF.
 
         Args:
@@ -52,10 +63,9 @@ class URDFParser:
         import xacro
         from ament_index_python import get_package_share_directory
 
-        self._urdf = xacro.process(
+        return xacro.process(
             os.path.join(get_package_share_directory(ros_package), xacro_path)
         )
-        return self._urdf
 
     def chain_link_names(self, root_link_name: str, end_link_name: str) -> List[str]:
         r"""Get link names in chain from root to end link.

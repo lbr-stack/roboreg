@@ -19,8 +19,9 @@ def test_torch_kinematics(
     root_link_name: str = "lbr_link_0",
     end_link_name: str = "lbr_link_7",
 ) -> None:
-    urdf_parser = URDFParser()
-    urdf_parser.from_ros_xacro(ros_package=ros_package, xacro_path=xacro_path)
+    urdf_parser = URDFParser.from_ros_xacro(
+        ros_package=ros_package, xacro_path=xacro_path
+    )
     device = "cuda" if torch.cuda.is_available() else "cpu"
     kinematics = TorchKinematics(
         urdf=urdf_parser.urdf,
@@ -43,8 +44,9 @@ def test_torch_kinematics_on_mesh(
     root_link_name: str = "lbr_link_0",
     end_link_name: str = "lbr_link_7",
 ) -> None:
-    urdf_parser = URDFParser()
-    urdf_parser.from_ros_xacro(ros_package=ros_package, xacro_path=xacro_path)
+    urdf_parser = URDFParser.from_ros_xacro(
+        ros_package=ros_package, xacro_path=xacro_path
+    )
     device = "cuda" if torch.cuda.is_available() else "cpu"
     kinematics = TorchKinematics(
         urdf=urdf_parser.urdf,
@@ -103,8 +105,7 @@ def test_torch_kinematics_on_mesh(
 
 @pytest.mark.skip(reason="To be fixed.")
 def test_diff_kinematics() -> None:
-    urdf_parser = URDFParser()
-    urdf_parser.from_ros_xacro(
+    urdf_parser = URDFParser.from_ros_xacro(
         ros_package="lbr_description", xacro_path="urdf/med7/med7.xacro"
     )
     device = "cuda" if torch.cuda.is_available() else "cpu"

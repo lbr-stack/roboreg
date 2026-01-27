@@ -15,8 +15,7 @@ from roboreg.io import (
 
 @pytest.mark.skip(reason="To be fixed.")
 def test_urdf_parser() -> None:
-    urdf_parser = URDFParser()
-    urdf_parser.from_ros_xacro("lbr_description", "urdf/med7/med7.xacro")
+    urdf_parser = URDFParser.from_ros_xacro("lbr_description", "urdf/med7/med7.xacro")
     print(urdf_parser.chain_link_names("lbr_link_0", "lbr_link_ee"))
     print(urdf_parser.raw_mesh_paths("lbr_link_0", "lbr_link_ee"))
     print(urdf_parser.ros_package_mesh_paths("lbr_link_0", "lbr_link_ee"))

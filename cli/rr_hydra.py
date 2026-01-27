@@ -162,8 +162,9 @@ def main():
     height, width, intrinsics = parse_camera_info(args.camera_info_file)
 
     # instantiate kinematics
-    urdf_parser = URDFParser()
-    urdf_parser.from_ros_xacro(ros_package=args.ros_package, xacro_path=args.xacro_path)
+    urdf_parser = URDFParser.from_ros_xacro(
+        ros_package=args.ros_package, xacro_path=args.xacro_path
+    )
     root_link_name = args.root_link_name
     end_link_name = args.end_link_name
     if root_link_name == "":
@@ -225,7 +226,9 @@ def main():
     mesh_normals = []
     for i in range(batch_size):
         mesh_normals.append(
-            compute_vertex_normals(vertices=mesh_vertices[i], faces=robot.faces)
+            compute_vertex_normals(
+                vertices=mesh_vertices[i], faces=robot.mesh_container.faces
+            )
         )
 
     # clean observed vertices and turn into tensor

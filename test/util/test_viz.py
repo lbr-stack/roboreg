@@ -87,11 +87,7 @@ def test_visualize_robot():
     end_link_name = "lbr_link_7"
 
     # parse URDF
-    urdf_parser = URDFParser()
-    urdf_parser.from_ros_xacro("lbr_description", "urdf/med7/med7.xacro")
-    paths = urdf_parser.ros_package_mesh_paths(
-        root_link_name=root_link_name, end_link_name=end_link_name
-    )
+    urdf_parser = URDFParser.from_ros_xacro("lbr_description", "urdf/med7/med7.xacro")
 
     # load meshes
     meshes = rrd.TorchMeshContainer(

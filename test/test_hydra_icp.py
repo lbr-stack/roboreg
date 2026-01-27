@@ -128,8 +128,9 @@ def test_hydra_icp():
     )
 
     # instantiate kinematics
-    urdf_parser = URDFParser()
-    urdf_parser.from_ros_xacro(ros_package=ros_package, xacro_path=xacro_path)
+    urdf_parser = URDFParser.from_ros_xacro(
+        ros_package=ros_package, xacro_path=xacro_path
+    )
     kinematics = TorchKinematics(
         urdf=urdf_parser.urdf,
         root_link_name=root_link_name,
@@ -258,8 +259,9 @@ def test_hydra_robust_icp() -> None:
     )
 
     # instantiate kinematics
-    urdf_parser = URDFParser()
-    urdf_parser.from_ros_xacro(ros_package=ros_package, xacro_path=xacro_path)
+    urdf_parser = URDFParser.from_ros_xacro(
+        ros_package=ros_package, xacro_path=xacro_path
+    )
     kinematics = TorchKinematics(
         urdf=urdf_parser.urdf,
         root_link_name=root_link_name,

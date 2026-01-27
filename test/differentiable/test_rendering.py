@@ -62,8 +62,7 @@ class TestRendering:
             )
 
         # instantiate URDF parser
-        self.urdf_parser = URDFParser()
-        self.urdf_parser.from_ros_xacro(
+        self.urdf_parser = URDFParser.from_ros_xacro(
             ros_package="lbr_description", xacro_path="urdf/med7/med7.xacro"
         )
 

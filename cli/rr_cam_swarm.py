@@ -301,8 +301,9 @@ def main() -> None:
         device=device,
     )
 
-    urdf_parser = URDFParser()
-    urdf_parser.from_ros_xacro(ros_package=args.ros_package, xacro_path=args.xacro_path)
+    urdf_parser = URDFParser.from_ros_xacro(
+        ros_package=args.ros_package, xacro_path=args.xacro_path
+    )
     robot = rrd.Robot.from_urdf_parser(
         urdf_parser=urdf_parser,
         root_link_name=args.root_link_name,
