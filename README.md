@@ -1,4 +1,6 @@
 # Roboreg
+[![Unit tests](https://github.com/lbr-stack/roboreg/actions/workflows/tests.yaml/badge.svg)](https://github.com/lbr-stack/roboreg/actions/workflows/tests.yaml)
+[![PyPI version](https://img.shields.io/pypi/v/roboreg.svg)](https://pypi.org/project/roboreg/)
 [![License: Apache License 2.0](https://img.shields.io/github/license/lbr-stack/roboreg)](https://github.com/lbr-stack/roboreg?tab=Apache-2.0-1-ov-file)
 [![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
