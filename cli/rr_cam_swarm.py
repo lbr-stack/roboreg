@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 from roboreg import differentiable as rrd
-from roboreg.io import find_files, parse_camera_info, parse_mono_data
+from roboreg.io import URDFParser, find_files, parse_camera_info, parse_mono_data
 from roboreg.losses import soft_dice_loss
 from roboreg.optim import LinearParticleSwarm, ParticleSwarmOptimizer
 from roboreg.util import (
@@ -249,7 +249,6 @@ def main() -> None:
     mask_files = np.array(mask_files)[random_indices].tolist()
     joint_states_files = np.array(joint_states_files)[random_indices].tolist()
     images, joint_states, masks = parse_mono_data(
-        path=args.path,
         image_files=image_files,
         mask_files=mask_files,
         joint_states_files=joint_states_files,
@@ -302,9 +301,10 @@ def main() -> None:
         device=device,
     )
 
-    urdf_parser = rrd.URDFParser()
-    urdf_parser.from_ros_xacro(ros_package=args.ros_package, xacro_path=args.xacro_path)
-    robot = rrd.Robot(
+    urdf_parser = URDFParser.from_ros_xacro(
+        ros_package=args.ros_package, xacro_path=args.xacro_path
+    )
+    robot = rrd.Robot.from_urdf_parser(
         urdf_parser=urdf_parser,
         root_link_name=args.root_link_name,
         end_link_name=args.end_link_name,

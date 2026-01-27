@@ -183,7 +183,7 @@ rr-cam-swarm \
     --xacro-path urdf/med7/med7.xacro \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
-    --target-reduction 0.95 \
+    --target-reduction 0.8 \
     --scale 0.1 \
     --n-samples 1 \
     --camera-info-file test/assets/lbr_med7/zed2i/left_camera_info.yaml \

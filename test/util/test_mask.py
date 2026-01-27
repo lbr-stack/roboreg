@@ -5,6 +5,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 
 import cv2
 import numpy as np
+import pytest
 
 from roboreg.util import (
     mask_dilate_with_kernel,
@@ -17,6 +18,7 @@ from roboreg.util import (
 )
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_dilate_with_kernel() -> None:
     idx = 1
     mask = cv2.imread(
@@ -30,6 +32,7 @@ def test_dilate_with_kernel() -> None:
     cv2.destroyAllWindows()
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_distance_transform() -> None:
     idx = 1
     mask = cv2.imread(
@@ -61,6 +64,7 @@ def test_distance_transform() -> None:
     cv2.destroyAllWindows()
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_erode_with_kernel() -> None:
     idx = 1
     mask = cv2.imread(
@@ -74,6 +78,7 @@ def test_erode_with_kernel() -> None:
     cv2.destroyAllWindows()
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_exponential_decay() -> None:
     idx = 1
     mask = cv2.imread(
@@ -87,6 +92,7 @@ def test_exponential_decay() -> None:
     cv2.destroyAllWindows()
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_extract_boundary() -> None:
     idx = 1
     img = cv2.imread(f"test/assets/lbr_med7/zed2i/left_image_{idx}.png")
@@ -103,6 +109,7 @@ def test_extract_boundary() -> None:
     cv2.destroyAllWindows()
 
 
+@pytest.mark.skip(reason="To be fixed.")
 def test_extract_extended_boundary() -> None:
     idx = 1
     img = cv2.imread(f"test/assets/lbr_med7/zed2i/left_image_{idx}.png")

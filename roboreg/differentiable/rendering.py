@@ -13,7 +13,7 @@ class NVDiffRastRenderer:
 
     __slots__ = ["_device", "_ctx"]
 
-    def __init__(self, device: torch.device = "cuda") -> None:
+    def __init__(self, device: torch.device = torch.device("cuda")) -> None:
         super().__init__()
         if not torch.cuda.is_available():
             raise ValueError("CUDA is not available.")

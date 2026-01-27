@@ -155,7 +155,6 @@ def main():
     mask_files = find_files(args.path, args.mask_pattern)
     depth_files = find_files(args.path, args.depth_pattern)
     joint_states, masks, depths = parse_hydra_data(
-        path=args.path,
         joint_states_files=joint_states_files,
         mask_files=mask_files,
         depth_files=depth_files,
@@ -163,8 +162,9 @@ def main():
     height, width, intrinsics = parse_camera_info(args.camera_info_file)
 
     # instantiate kinematics
-    urdf_parser = URDFParser()
-    urdf_parser.from_ros_xacro(ros_package=args.ros_package, xacro_path=args.xacro_path)
+    urdf_parser = URDFParser.from_ros_xacro(
+        ros_package=args.ros_package, xacro_path=args.xacro_path
+    )
     root_link_name = args.root_link_name
     end_link_name = args.end_link_name
     if root_link_name == "":
@@ -184,7 +184,7 @@ def main():
 
     # instantiate robot
     batch_size = len(joint_states)
-    robot = Robot(
+    robot = Robot.from_urdf_parser(
         urdf_parser=urdf_parser,
         root_link_name=root_link_name,
         end_link_name=end_link_name,
@@ -226,7 +226,9 @@ def main():
     mesh_normals = []
     for i in range(batch_size):
         mesh_normals.append(
-            compute_vertex_normals(vertices=mesh_vertices[i], faces=robot.faces)
+            compute_vertex_normals(
+                vertices=mesh_vertices[i], faces=robot.mesh_container.faces
+            )
         )
 
     # clean observed vertices and turn into tensor
