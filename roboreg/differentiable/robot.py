@@ -37,7 +37,7 @@ class Robot:
         from roboreg.io import apply_mesh_origins, load_meshes, simplify_meshes
 
         # parse data from URDF
-        mesh_paths = urdf_parser.ros_package_mesh_paths(
+        mesh_paths = urdf_parser.mesh_paths_from_ros_registry(
             root_link_name=root_link_name,
             end_link_name=end_link_name,
             collision=collision,

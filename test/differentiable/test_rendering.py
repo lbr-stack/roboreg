@@ -68,7 +68,7 @@ class TestRendering:
 
         # instantiate meshes
         self.meshes = rrd.TorchMeshContainer(
-            mesh_paths=self.urdf_parser.ros_package_mesh_paths(
+            mesh_paths=self.urdf_parser.mesh_paths_from_ros_registry(
                 self.root_link_name, self.end_link_name
             ),
             batch_size=self.batch_size,
@@ -269,7 +269,7 @@ def test_multi_config_single_view_rendering() -> None:
 
     # overwrite meshes with batch size
     test_rendering.meshes = rrd.TorchMeshContainer(
-        mesh_paths=test_rendering.urdf_parser.ros_package_mesh_paths(
+        mesh_paths=test_rendering.urdf_parser.mesh_paths_from_ros_registry(
             test_rendering.root_link_name, test_rendering.end_link_name
         ),
         batch_size=q.shape[0],
@@ -331,7 +331,7 @@ def test_multi_config_single_view_pose_optimization() -> None:
 
     # overwrite meshes with batch size
     test_rendering.meshes = rrd.TorchMeshContainer(
-        mesh_paths=test_rendering.urdf_parser.ros_package_mesh_paths(
+        mesh_paths=test_rendering.urdf_parser.mesh_paths_from_ros_registry(
             test_rendering.root_link_name, test_rendering.end_link_name
         ),
         batch_size=q.shape[0],

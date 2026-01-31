@@ -93,7 +93,7 @@ def test_visualize_robot():
     meshes = rrd.TorchMeshContainer(
         meshes=apply_mesh_origins(
             meshes=load_meshes(
-                urdf_parser.ros_package_mesh_paths(
+                urdf_parser.mesh_paths_from_ros_registry(
                     root_link_name=root_link_name, end_link_name=end_link_name
                 )
             ),

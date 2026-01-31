@@ -57,7 +57,7 @@ def test_torch_kinematics_on_mesh(
     meshes = TorchMeshContainer(
         meshes=apply_mesh_origins(
             meshes=load_meshes(
-                urdf_parser.ros_package_mesh_paths(
+                urdf_parser.mesh_paths_from_ros_registry(
                     root_link_name=root_link_name, end_link_name=end_link_name
                 )
             ),
@@ -120,7 +120,7 @@ def test_diff_kinematics() -> None:
     meshes = TorchMeshContainer(
         meshes=apply_mesh_origins(
             meshes=load_meshes(
-                urdf_parser.ros_package_mesh_paths(
+                urdf_parser.mesh_paths_from_ros_registry(
                     root_link_name=root_link_name, end_link_name=end_link_name
                 )
             ),
