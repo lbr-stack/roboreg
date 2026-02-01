@@ -148,11 +148,11 @@ class URDFParser:
             if collision:
                 if link.collision is None:
                     continue
-                paths[link_name] = Path(link.collision.geometry.filename)
+                paths[link_name] = link.collision.geometry.filename
             else:
                 if link.visual is None:
                     continue
-                paths[link_name] = Path(link.visual.geometry.filename)
+                paths[link_name] = link.visual.geometry.filename
         return paths
 
     def mesh_paths_from_ros_registry(
