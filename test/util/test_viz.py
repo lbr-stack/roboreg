@@ -10,7 +10,11 @@ from roboreg.util import RegistrationVisualizer, from_homogeneous
 @pytest.mark.skip(reason="To be fixed.")
 def test_visualize_point_cloud():
     meshes = rrd.TorchMeshContainer(
-        meshes=load_meshes({"link_0": "test/assets/lbr_med7/mesh/link_0.stl"}),
+        meshes=load_meshes(
+            {
+                "link_0": "test/assets/lbr_med7_r800/description/meshes/collision/link_0.stl"
+            }
+        ),
         device="cpu",
     )
 
@@ -32,8 +36,8 @@ def test_visalize_multi_color_point_cloud():
     meshes = rrd.TorchMeshContainer(
         meshes=load_meshes(
             {
-                "link_0": "test/assets/lbr_med7/mesh/link_0.stl",
-                "link_1": "test/assets/lbr_med7/mesh/link_1.stl",
+                "link_0": "test/assets/lbr_med7_r800/description/meshes/collision/link_0.stl",
+                "link_1": "test/assets/lbr_med7_r800/description/meshes/collision/link_1.stl",
             }
         ),
         device="cpu",

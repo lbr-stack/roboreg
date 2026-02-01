@@ -236,8 +236,8 @@ def test_single_camera_multiple_poses() -> None:
     camera_name = "camera"
     camera = {
         camera_name: create_virtual_camera(
-            camera_info_file="test/assets/lbr_med7/zed2i/left_camera_info.yaml",
-            extrinsics_file="test/assets/lbr_med7/zed2i/HT_hydra_robust.npy",
+            camera_info_file="test/assets/lbr_med7_r800/samples/left_camera_info.yaml",
+            extrinsics_file="test/assets/lbr_med7_r800/samples/HT_hydra_robust.npy",
             device=device,
         )
     }

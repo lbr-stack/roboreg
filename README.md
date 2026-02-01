@@ -136,7 +136,7 @@ This is a required step to generate robot masks.
 
 ```shell
 rr-sam2 \
-    --path test/assets/lbr_med7/zed2i \
+    --path test/assets/lbr_med7_r800/samples \
     --pattern "left_image_*.png" \
     --n-positive-samples 5 \
     --n-negative-samples 5 \
@@ -148,8 +148,8 @@ The Hydra robust ICP implements a point-to-plane ICP registration on a Lie algeb
 
 ```shell
 rr-hydra \
-    --camera-info-file test/assets/lbr_med7/zed2i/left_camera_info.yaml \
-    --path test/assets/lbr_med7/zed2i \
+    --camera-info-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
+    --path test/assets/lbr_med7_r800/samples \
     --mask-pattern mask_sam2_left_image_*.png \
     --depth-pattern depth_*.npy \
     --joint-states-pattern joint_states_*.npy \
@@ -188,8 +188,8 @@ rr-cam-swarm \
     --target-reduction 0.8 \
     --scale 0.1 \
     --n-samples 1 \
-    --camera-info-file test/assets/lbr_med7/zed2i/left_camera_info.yaml \
-    --path test/assets/lbr_med7/zed2i \
+    --camera-info-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
+    --path test/assets/lbr_med7_r800/samples \
     --image-pattern left_image_*.png \
     --joint-states-pattern joint_states_*.npy \
     --mask-pattern mask_sam2_left_image_*.png \
@@ -214,9 +214,9 @@ rr-mono-dr \
     --xacro-path urdf/med7/med7.xacro \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
-    --camera-info-file test/assets/lbr_med7/zed2i/left_camera_info.yaml \
-    --extrinsics-file test/assets/lbr_med7/zed2i/HT_hydra_robust.npy \
-    --path test/assets/lbr_med7/zed2i \
+    --camera-info-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
+    --extrinsics-file test/assets/lbr_med7_r800/samples/HT_hydra_robust.npy \
+    --path test/assets/lbr_med7_r800/samples \
     --image-pattern left_image_*.png \
     --joint-states-pattern joint_states_*.npy \
     --mask-pattern mask_sam2_left_image_*.png \
@@ -241,11 +241,11 @@ rr-stereo-dr \
     --xacro-path urdf/med7/med7.xacro \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
-    --left-camera-info-file test/assets/lbr_med7/zed2i/left_camera_info.yaml \
-    --right-camera-info-file test/assets/lbr_med7/zed2i/right_camera_info.yaml \
-    --left-extrinsics-file test/assets/lbr_med7/zed2i/HT_hydra_robust.npy \
-    --right-extrinsics-file test/assets/lbr_med7/zed2i/HT_right_to_left.npy \
-    --path test/assets/lbr_med7/zed2i \
+    --left-camera-info-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
+    --right-camera-info-file test/assets/lbr_med7_r800/samples/right_camera_info.yaml \
+    --left-extrinsics-file test/assets/lbr_med7_r800/samples/HT_hydra_robust.npy \
+    --right-extrinsics-file test/assets/lbr_med7_r800/samples/HT_right_to_left.npy \
+    --path test/assets/lbr_med7_r800/samples \
     --left-image-pattern left_image_*.png \
     --right-image-pattern right_image_*.png \
     --joint-states-pattern joint_states_*.npy \
@@ -271,13 +271,13 @@ rr-render \
     --xacro-path urdf/med7/med7.xacro \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
-    --camera-info-file test/assets/lbr_med7/zed2i/left_camera_info.yaml \
-    --extrinsics-file test/assets/lbr_med7/zed2i/HT_left_dr.npy \
-    --images-path test/assets/lbr_med7/zed2i \
-    --joint-states-path test/assets/lbr_med7/zed2i \
+    --camera-info-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
+    --extrinsics-file test/assets/lbr_med7_r800/samples/HT_left_dr.npy \
+    --images-path test/assets/lbr_med7_r800/samples \
+    --joint-states-path test/assets/lbr_med7_r800/samples \
     --image-pattern left_image_*.png \
     --joint-states-pattern joint_states_*.npy \
-    --output-path test/assets/lbr_med7/zed2i
+    --output-path test/assets/lbr_med7_r800/samples
 ```
 
 ## Testing

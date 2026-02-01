@@ -111,7 +111,7 @@ def test_hydra_icp():
     xacro_path = "urdf/med7/med7.xacro"
     root_link_name = "lbr_link_0"
     end_link_name = "lbr_link_7"
-    path = Path("test/assets/lbr_med7/zed2i")
+    path = Path("test/assets/lbr_med7_r800/samples")
     camera_info_file = "left_camera_info.yaml"
     joint_states_pattern = "joint_states_*.npy"
     mask_pattern = "mask_sam2_left_*.png"
@@ -242,7 +242,7 @@ def test_hydra_robust_icp() -> None:
     xacro_path = "urdf/med7/med7.xacro"
     root_link_name = "lbr_link_0"
     end_link_name = "lbr_link_7"
-    path = Path("test/assets/lbr_med7/zed2i")
+    path = Path("test/assets/lbr_med7_r800/samples")
     camera_info_file = "left_camera_info.yaml"
     joint_states_pattern = "joint_states_*.npy"
     mask_pattern = "mask_sam2_left_*.png"

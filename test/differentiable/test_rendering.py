@@ -407,7 +407,7 @@ def test_multi_camera_pose_rendering() -> None:
 
     # load a sample mesh
     meshes = rrd.TorchMeshContainer(
-        {"link_0": "test/assets/lbr_med7/mesh/link_0.stl"},
+        {"link_0": "test/assets/lbr_med7_r800/description/meshes/collision/link_0.stl"},
         batch_size=batch_size,
         device=device,
     )

@@ -22,7 +22,7 @@ from roboreg.util import (
 def test_dilate_with_kernel() -> None:
     idx = 1
     mask = cv2.imread(
-        f"test/assets/lbr_med7/zed2i/mask_sam2_left_image_{idx}.png",
+        f"test/assets/lbr_med7_r800/samples/mask_sam2_left_image_{idx}.png",
         cv2.IMREAD_GRAYSCALE,
     )
     dilated_mask = mask_dilate_with_kernel(mask)
@@ -36,7 +36,7 @@ def test_dilate_with_kernel() -> None:
 def test_distance_transform() -> None:
     idx = 1
     mask = cv2.imread(
-        f"test/assets/lbr_med7/zed2i/mask_sam2_left_image_{idx}.png",
+        f"test/assets/lbr_med7_r800/samples/mask_sam2_left_image_{idx}.png",
         cv2.IMREAD_GRAYSCALE,
     )
 
@@ -68,7 +68,7 @@ def test_distance_transform() -> None:
 def test_erode_with_kernel() -> None:
     idx = 1
     mask = cv2.imread(
-        f"test/assets/lbr_med7/zed2i/mask_sam2_left_image_{idx}.png",
+        f"test/assets/lbr_med7_r800/samples/mask_sam2_left_image_{idx}.png",
         cv2.IMREAD_GRAYSCALE,
     )
     eroded_mask = mask_erode_with_kernel(mask)
@@ -82,7 +82,7 @@ def test_erode_with_kernel() -> None:
 def test_exponential_decay() -> None:
     idx = 1
     mask = cv2.imread(
-        f"test/assets/lbr_med7/zed2i/mask_sam2_left_image_{idx}.png",
+        f"test/assets/lbr_med7_r800/samples/mask_sam2_left_image_{idx}.png",
         cv2.IMREAD_GRAYSCALE,
     )
     exponential_decay = mask_exponential_decay(mask)
@@ -95,9 +95,9 @@ def test_exponential_decay() -> None:
 @pytest.mark.skip(reason="To be fixed.")
 def test_extract_boundary() -> None:
     idx = 1
-    img = cv2.imread(f"test/assets/lbr_med7/zed2i/left_image_{idx}.png")
+    img = cv2.imread(f"test/assets/lbr_med7_r800/samples/left_image_{idx}.png")
     mask = cv2.imread(
-        f"test/assets/lbr_med7/zed2i/mask_sam2_left_image_{idx}.png",
+        f"test/assets/lbr_med7_r800/samples/mask_sam2_left_image_{idx}.png",
         cv2.IMREAD_GRAYSCALE,
     )
     boundary_mask = mask_extract_boundary(mask)
@@ -112,9 +112,9 @@ def test_extract_boundary() -> None:
 @pytest.mark.skip(reason="To be fixed.")
 def test_extract_extended_boundary() -> None:
     idx = 1
-    img = cv2.imread(f"test/assets/lbr_med7/zed2i/left_image_{idx}.png")
+    img = cv2.imread(f"test/assets/lbr_med7_r800/samples/left_image_{idx}.png")
     mask = cv2.imread(
-        f"test/assets/lbr_med7/zed2i/mask_sam2_left_image_{idx}.png",
+        f"test/assets/lbr_med7_r800/samples/mask_sam2_left_image_{idx}.png",
         cv2.IMREAD_GRAYSCALE,
     )
     extended_boundary_mask = mask_extract_extended_boundary(

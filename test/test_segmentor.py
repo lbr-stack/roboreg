@@ -9,7 +9,7 @@ from roboreg.segmentor import Sam2Segmentor
 
 @pytest.mark.skip(reason="To be fixed.")
 def test_sam2_segmentor() -> None:
-    img = cv2.imread("test/assets/lbr_med7/zed2i/high_res/image_1.png")
+    img = cv2.imread("test/assets/lbr_med7_r800/samples/left_image_1.png")
 
     # detect
     detector = OpenCVDetector(n_positive_samples=5)  # number of detected samples

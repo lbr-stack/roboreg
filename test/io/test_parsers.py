@@ -25,7 +25,7 @@ def test_urdf_parser() -> None:
 
 
 def test_find_files() -> None:
-    path = "test/assets/lbr_med7/zed2i"
+    path = "test/assets/lbr_med7_r800/samples"
     mask_files = find_files(path, "mask_sam2_left_*.png")
 
     assert len(mask_files) > 0, "Should find at least one mask file."
@@ -37,7 +37,7 @@ def test_find_files() -> None:
 
 
 def test_parse_camera_info() -> None:
-    path = Path("test/assets/lbr_med7/zed2i")
+    path = Path("test/assets/lbr_med7_r800/samples")
     file = "left_camera_info.yaml"
     height, width, intrinsic_matrix = parse_camera_info(path / file)
 
@@ -50,7 +50,7 @@ def test_parse_camera_info() -> None:
 
 
 def test_parse_hydra_data() -> None:
-    path = "test/assets/lbr_med7/zed2i"
+    path = "test/assets/lbr_med7_r800/samples"
     joint_states, masks, depths = parse_hydra_data(
         joint_states_files=find_files(path, "joint_states_*.npy"),
         mask_files=find_files(path, "mask_sam2_left_*.png"),
@@ -70,7 +70,7 @@ def test_parse_hydra_data() -> None:
 
 
 def test_parse_mono_data() -> None:
-    path = "test/assets/lbr_med7/zed2i"
+    path = "test/assets/lbr_med7_r800/samples"
     images, joint_states, masks = parse_mono_data(
         image_files=find_files(path, "left_image_*.png"),
         joint_states_files=find_files(path, "joint_states_*.npy"),
@@ -94,7 +94,7 @@ def test_parse_mono_data() -> None:
 
 
 def test_parse_stereo_data() -> None:
-    path = "test/assets/lbr_med7/zed2i"
+    path = "test/assets/lbr_med7_r800/samples"
     left_images, right_images, joint_states, left_masks, right_masks = (
         parse_stereo_data(
             left_image_files=find_files(path, "left_image_*.png"),
