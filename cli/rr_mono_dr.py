@@ -10,10 +10,11 @@ import rich
 import rich.progress
 import torch
 
+from roboreg.differentiable import VirtualCamera
 from roboreg.io import find_files, parse_mono_data
 from roboreg.losses import soft_dice_loss
 from roboreg.util import mask_distance_transform, mask_exponential_decay, overlay_mask
-from roboreg.util.factories import create_robot_scene, create_virtual_camera
+from roboreg.util.factories import create_robot_scene
 
 
 class REGISTRATION_MODE(Enum):
@@ -174,7 +175,7 @@ def main() -> None:
 
     # instantiate camera with default identity extrinsics because we optimize for robot pose instead
     camera = {
-        "camera": create_virtual_camera(
+        "camera": VirtualCamera.from_camera_configs(
             camera_info_file=args.camera_info_file,
             device=device,
         )

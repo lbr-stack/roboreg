@@ -8,9 +8,10 @@ import torch
 from rich import progress
 from torch.utils.data import DataLoader
 
+from roboreg.differentiable import VirtualCamera
 from roboreg.io import MonocularDataset
 from roboreg.util import overlay_mask
-from roboreg.util.factories import create_robot_scene, create_virtual_camera
+from roboreg.util.factories import create_robot_scene
 
 
 def args_factory() -> argparse.Namespace:
@@ -112,7 +113,7 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     os.environ["MAX_JOBS"] = str(args.max_jobs)  # limit number of concurrent jobs
     camera = {
-        "camera": create_virtual_camera(
+        "camera": VirtualCamera.from_camera_configs(
             camera_info_file=args.camera_info_file,
             extrinsics_file=args.extrinsics_file,
             device=device,

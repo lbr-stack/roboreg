@@ -25,21 +25,6 @@ class RobotScene:
         self._renderer = renderer
         self._verify_devices()
 
-    def _verify_devices(self) -> None:
-        for camera_name in self._cameras.keys():
-            if not all(
-                [
-                    self._cameras[camera_name].device == self._robot.device,
-                    self._robot.device == self._renderer.device,
-                ]
-            ):
-                raise ValueError(
-                    "All devices must be the same. Got:\n"
-                    f"Camera '{camera_name}' on: {self._cameras[camera_name].device}\n"
-                    f"Robot on: {self._robot.device}\n"
-                    f"Renderer on: {self._renderer.device}"
-                )
-
     def observe_from(
         self, camera_name: str, reference_transform: torch.FloatTensor = None
     ) -> torch.Tensor:
@@ -69,6 +54,21 @@ class RobotScene:
             self._robot.mesh_container.faces,
             self._cameras[camera_name].resolution,
         )
+
+    def _verify_devices(self) -> None:
+        for camera_name in self._cameras.keys():
+            if not all(
+                [
+                    self._cameras[camera_name].device == self._robot.device,
+                    self._robot.device == self._renderer.device,
+                ]
+            ):
+                raise ValueError(
+                    "All devices must be the same. Got:\n"
+                    f"Camera '{camera_name}' on: {self._cameras[camera_name].device}\n"
+                    f"Robot on: {self._robot.device}\n"
+                    f"Renderer on: {self._renderer.device}"
+                )
 
     @property
     def cameras(self) -> Dict[str, VirtualCamera]:

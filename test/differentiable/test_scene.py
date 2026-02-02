@@ -11,9 +11,10 @@ import pytest
 import torch
 from tqdm import tqdm
 
+from roboreg.differentiable import VirtualCamera
 from roboreg.io import find_files
 from roboreg.util import overlay_mask
-from roboreg.util.factories import create_robot_scene, create_virtual_camera
+from roboreg.util.factories import create_robot_scene
 
 
 class TestScene:
@@ -90,7 +91,7 @@ class TestScene:
 
         # instantiate cameras
         cameras = {
-            camera_name: create_virtual_camera(
+            camera_name: VirtualCamera.from_camera_configs(
                 camera_info_file=camera_info_files[camera_name],
                 extrinsics_file=extrinsics_files[camera_name],
                 device=device,
@@ -235,7 +236,7 @@ def test_single_camera_multiple_poses() -> None:
     batch_size = 4
     camera_name = "camera"
     camera = {
-        camera_name: create_virtual_camera(
+        camera_name: VirtualCamera.from_camera_configs(
             camera_info_file="test/assets/lbr_med7_r800/samples/left_camera_info.yaml",
             extrinsics_file="test/assets/lbr_med7_r800/samples/HT_hydra_robust.npy",
             device=device,

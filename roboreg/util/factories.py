@@ -1,31 +1,10 @@
-from typing import Dict, Optional
+from typing import Dict
 
-import numpy as np
 import rich
 import torch
 
 from roboreg.differentiable import NVDiffRastRenderer, Robot, RobotScene, VirtualCamera
-from roboreg.io import URDFParser, parse_camera_info
-
-
-def create_virtual_camera(
-    camera_info_file: str,
-    extrinsics_file: Optional[str] = None,
-    device: torch.device = (
-        torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    ),
-) -> VirtualCamera:
-    height, width, intrinsics = parse_camera_info(camera_info_file=camera_info_file)
-    extrinsics = None
-    if extrinsics_file is not None:
-        extrinsics = np.load(extrinsics_file)
-    camera = VirtualCamera(
-        resolution=[height, width],
-        intrinsics=intrinsics,
-        extrinsics=extrinsics,
-        device=device,
-    )
-    return camera
+from roboreg.io import URDFParser
 
 
 def create_robot_scene(
