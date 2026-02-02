@@ -16,11 +16,14 @@ class URDFParser:
         self._robot = urdf_parser_py.urdf.Robot.from_xml_string(urdf)
 
     @classmethod
-    def from_urdf_file(cls, path: Union[Path, str]) -> None:
+    def from_urdf_file(cls, path: Union[Path, str]) -> "URDFParser":
         r"""Instantiate URDF parser via path to URDF file.
 
         Args:
             path (Union[Path, str]): Path to URDF file.
+
+        Returns:
+            URDFParser: A URDFParser instance.
         """
         path = Path(path)
         if not path.exists():
@@ -34,12 +37,17 @@ class URDFParser:
         return cls(urdf=urdf)
 
     @classmethod
-    def from_ros_xacro(cls, ros_package: str, xacro_path: Union[Path, str]) -> None:
+    def from_ros_xacro(
+        cls, ros_package: str, xacro_path: Union[Path, str]
+    ) -> "URDFParser":
         r"""Instantiate URDF parser from ROS xacro file.
 
         Args:
             ros_package (str): Internally finds the path to ros_package.
             xacro_path (Union[Path,str]): Path to xacro file relative to ros_package.
+
+        Returns:
+            URDFParser: A URDFParser instance.
         """
         xacro_path = Path(xacro_path)
         if not xacro_path.suffix == ".xacro":
@@ -51,7 +59,31 @@ class URDFParser:
         )
 
     @staticmethod
-    def resolve_uris_via_ros_registry(uris: Dict[str, str]) -> Dict[str, Path]:
+    def resolve_relative_uris(
+        uris: Dict[str, str], base_path: Union[Path, str]
+    ) -> Dict[str, Path]:
+        r"""Resolve relative URIs using a base path.
+
+        Args:
+            uris (Dict[str,str]): Dictionary of link names and relative mesh paths.
+            base_path (Union[Path,str]): Base path to resolve relative paths.
+
+        Returns:
+            Dict[str,Path]: Dictionary of link names and absolute mesh paths.
+        """
+        base_path = Path(base_path)
+        mesh_paths = {}
+        for link_name in uris.keys():
+            uri = uris[link_name]
+            mesh_paths[link_name] = (base_path / Path(uri)).resolve()
+        if len(mesh_paths) != len(uris):
+            raise RuntimeError("Some mesh paths could not be resolved.")
+        if not all([path.exists() for path in mesh_paths.values()]):
+            raise FileNotFoundError("Some resolved mesh paths do not exist.")
+        return mesh_paths
+
+    @staticmethod
+    def resolve_ros_registry_uris(uris: Dict[str, str]) -> Dict[str, Path]:
         r"""Resolve the URI-style package:// prefix using the ament_index_python ROS registry.
 
         Args:
@@ -71,11 +103,12 @@ class URDFParser:
                     raise ValueError(
                         f"Invalid package path {mesh_path} for link {link_name}."
                     )
-                mesh_paths[link_name] = Path(
-                    get_package_share_directory(mesh_path.parts[0])
-                ) / Path(*mesh_path.parts[1:])
+                mesh_paths[link_name] = (
+                    Path(get_package_share_directory(mesh_path.parts[0]))
+                    / Path(*mesh_path.parts[1:])
+                ).resolve()
             else:
-                raise ValueError("Case unhandled.")
+                raise ValueError("Expected a package:// prefix.")
         if len(mesh_paths) != len(uris):
             raise RuntimeError("Some mesh paths could not be resolved.")
         if not all([path.exists() for path in mesh_paths.values()]):
@@ -168,7 +201,7 @@ class URDFParser:
         Returns:
             Dict[str,Path]: Dictionary of link names and absolute mesh paths.
         """
-        return URDFParser.resolve_uris_via_ros_registry(
+        return URDFParser.resolve_ros_registry_uris(
             uris=self.mesh_uris(
                 root_link_name=root_link_name,
                 end_link_name=end_link_name,

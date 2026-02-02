@@ -13,13 +13,54 @@ from roboreg.io import (
 )
 
 
+def test_urdf_parser_from_urdf_file() -> None:
+    urdf_path = Path("test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf")
+    urdf_parser = URDFParser.from_urdf_file(path=urdf_path)
+    root_link_name = "lbr_link_0"
+    end_link_name = "lbr_link_ee"
+    chain_link_names = urdf_parser.chain_link_names(
+        root_link_name=root_link_name, end_link_name=end_link_name
+    )
+    assert (
+        chain_link_names[0] == root_link_name
+    ), f"Expected {root_link_name} root link, got {chain_link_names[0]}."
+    assert (
+        chain_link_names[-1] == end_link_name
+    ), f"Expected {end_link_name} end link, got {chain_link_names[-1]}."
+
+    # try resolve paths to meshes
+    mesh_uris = urdf_parser.mesh_uris(
+        root_link_name=root_link_name, end_link_name=end_link_name
+    )
+    mesh_paths = URDFParser.resolve_relative_uris(
+        uris=mesh_uris, base_path=urdf_path.parent
+    )
+    assert all(
+        [mesh_paths[link].exists() for link in mesh_paths]
+    ), "Expected all mesh paths to exist."
+
+    # check origins
+    mesh_origins = urdf_parser.mesh_origins(
+        root_link_name=root_link_name, end_link_name=end_link_name
+    )
+    assert all(
+        mesh_origins[link].shape == (4, 4) for link in mesh_origins
+    ), "Expected a 4x4 shape for each mesh origin."
+    for link in mesh_origins:
+        print(mesh_origins[link][3, :])
+    assert all(
+        (mesh_origins[link][3, :] == [0.0, 0.0, 0.0, 1.0]).all()
+        for link in mesh_origins
+    ), "Expected homogeneous transforms for mesh origins."
+
+
 @pytest.mark.skip(reason="To be fixed.")
-def test_urdf_parser() -> None:
+def test_urdf_parser_from_ros_xacro() -> None:
     urdf_parser = URDFParser.from_ros_xacro("lbr_description", "urdf/med7/med7.xacro")
     print(urdf_parser.chain_link_names("lbr_link_0", "lbr_link_ee"))
     print(urdf_parser.mesh_uris("lbr_link_0", "lbr_link_ee"))
     print(
-        URDFParser.resolve_uris_via_ros_registry(
+        URDFParser.resolve_ros_registry_uris(
             urdf_parser.mesh_uris("lbr_link_0", "lbr_link_ee")
         )
     )
@@ -155,7 +196,8 @@ if __name__ == "__main__":
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-    test_urdf_parser()
+    test_urdf_parser_from_urdf_file()
+    test_urdf_parser_from_ros_xacro()
     test_find_files()
     test_parse_camera_info()
     test_parse_hydra_data()
