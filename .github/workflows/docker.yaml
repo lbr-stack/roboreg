@@ -8,6 +8,8 @@ on:
 
 jobs:
   docker:
+    permissions:
+      packages: write
     runs-on: ubuntu-latest
     strategy:
       matrix:
