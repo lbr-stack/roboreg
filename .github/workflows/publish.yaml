@@ -28,6 +28,7 @@ jobs:
         with:
           name: python-package-distributions
           path: dist/
+          retention-days: 30
 
   publish-to-pypi:
     name: >-
