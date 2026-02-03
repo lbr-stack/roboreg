@@ -17,6 +17,7 @@ from roboreg.core import (
 from roboreg.io import (
     find_files,
     load_robot_data_from_ros_xacro,
+    load_robot_data_from_urdf_file,
     parse_camera_info,
     parse_mono_data,
 )
@@ -28,6 +29,8 @@ from roboreg.util import (
     overlay_mask,
     random_fov_eye_space_coordinates,
 )
+
+from .util.validate import validate_urdf_source
 
 
 def args_factory() -> argparse.Namespace:
@@ -97,16 +100,25 @@ def args_factory() -> argparse.Namespace:
         help="Display optimization progress.",
     )
     parser.add_argument(
+        "--urdf-path",
+        type=str,
+        default="test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf",
+        help="Path to URDF file. Meshes resolved relative to this file. "
+        "Mutually exclusive with --ros-package/--xacro-path.",
+    )
+    parser.add_argument(
         "--ros-package",
         type=str,
-        default="lbr_description",
-        help="Package where the URDF is located.",
+        default=None,
+        help="ROS package containing robot description. "
+        "Requires --xacro-path. Mutually exclusive with --urdf-path.",
     )
     parser.add_argument(
         "--xacro-path",
         type=str,
-        default="urdf/med7/med7.xacro",
-        help="Path to the xacro file, relative to --ros-package.",
+        default=None,
+        help="Path to xacro file relative to --ros-package. "
+        "Requires --ros-package. Mutually exclusive with --urdf-path.",
     )
     parser.add_argument(
         "--root-link-name",
@@ -180,6 +192,7 @@ def args_factory() -> argparse.Namespace:
         default=2,
         help="Number of concurrent compilation jobs for nvdiffrast. Only relevant on first run.",
     )
+    validate_urdf_source(parser, parser.parse_args())
     return parser.parse_args()
 
 
@@ -315,14 +328,23 @@ def main() -> None:
     )
 
     # instantiate robot
-    robot_data = load_robot_data_from_ros_xacro(
-        ros_package=args.ros_package,
-        xacro_path=args.xacro_path,
-        root_link_name=args.root_link_name,
-        end_link_name=args.end_link_name,
-        collision=args.collision_meshes,
-        target_reduction=args.target_reduction,
-    )
+    if args.urdf_path is not None:
+        robot_data = load_robot_data_from_urdf_file(
+            urdf_path=args.urdf_path,
+            root_link_name=args.root_link_name,
+            end_link_name=args.end_link_name,
+            collision=args.collision_meshes,
+            target_reduction=args.target_reduction,
+        )
+    else:
+        robot_data = load_robot_data_from_ros_xacro(
+            ros_package=args.ros_package,
+            xacro_path=args.xacro_path,
+            root_link_name=args.root_link_name,
+            end_link_name=args.end_link_name,
+            collision=args.collision_meshes,
+            target_reduction=args.target_reduction,
+        )
     mesh_container = TorchMeshContainer(
         meshes=robot_data.meshes,
         batch_size=batch_size,

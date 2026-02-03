@@ -128,8 +128,13 @@ Next:
     ```
 
 ## Command Line Interface
-> [!NOTE]
-> In these examples, the [lbr_fri_ros2_stack](https://github.com/lbr-stack/lbr_fri_ros2_stack/) is used. Make sure to follow [Quick Start](https://github.com/lbr-stack/lbr_fri_ros2_stack/#quick-start) first. However, you can also use your own robot description files.
+> [!TIP]
+> Examples use sample data under [test/assets/lbr_med7_r800](test/assets/lbr_med7_r800). Data is stored via Git Large File Storage (LFS). Data is cloned automatically when `git-lfs` is installed. To clone in retrospect:
+> ```shell
+> sudo apt install git-lfs
+> git lfs fetch --all
+> git lfs checkout
+> ```
 
 ### Segment
 This is a required step to generate robot masks.
@@ -153,8 +158,7 @@ rr-hydra \
     --mask-pattern mask_sam2_left_image_*.png \
     --depth-pattern depth_*.npy \
     --joint-states-pattern joint_states_*.npy \
-    --ros-package lbr_description \
-    --xacro-path urdf/med7/med7.xacro \
+    --urdf-path test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
     --number-of-points 5000 \
@@ -181,8 +185,7 @@ rr-cam-swarm \
     --c2 1.5 \
     --max-iterations 100 \
     --display-progress \
-    --ros-package lbr_description \
-    --xacro-path urdf/med7/med7.xacro \
+    --urdf-path test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
     --target-reduction 0.8 \
@@ -210,8 +213,7 @@ rr-mono-dr \
     --lr 0.01 \
     --max-iterations 100 \
     --display-progress \
-    --ros-package lbr_description \
-    --xacro-path urdf/med7/med7.xacro \
+    --urdf-path test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
     --camera-info-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
@@ -237,8 +239,7 @@ rr-stereo-dr \
     --lr 0.01 \
     --max-iterations 100 \
     --display-progress \
-    --ros-package lbr_description \
-    --xacro-path urdf/med7/med7.xacro \
+    --urdf-path test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
     --left-camera-info-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
@@ -267,8 +268,7 @@ Generate renders using the obtained extrinsics:
 rr-render \
     --batch-size 1 \
     --num-workers 0 \
-    --ros-package lbr_description \
-    --xacro-path urdf/med7/med7.xacro \
+    --urdf-path test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
     --camera-info-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \

@@ -130,6 +130,7 @@ class TestScene:
         self.scene.cameras["left"].extrinsics.requires_grad = camera_requires_grad
 
 
+@pytest.mark.skip(reason="No GPU support in CI.")
 def test_multi_config_stereo_view() -> None:
     test_scene = TestScene(camera_requires_grad=False)
 
@@ -159,6 +160,7 @@ def test_multi_config_stereo_view() -> None:
     assert difference > 0.01, "Left and right renders are unexpectedly similar."
 
 
+@pytest.mark.skip(reason="No GPU support in CI.")
 def test_multi_config_stereo_view_pose_optimization() -> None:
     test_scene = TestScene(camera_requires_grad=True)
 
