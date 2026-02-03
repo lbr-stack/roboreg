@@ -10,6 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0  # Fetch all history for setuptools_scm to determine version
           persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -117,4 +118,5 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
           verbose: true

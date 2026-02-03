@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=61.0", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "roboreg"
-version = "0.4.6"
+dynamic = ["version"]
 authors = [
   {name="mhubii", email="m.huber_1994@hotmail.de"},
   {name="haydnspass", email="lucasraphael.mueller@gmail.com"},
@@ -55,3 +55,7 @@ rr-stereo-dr = "cli.rr_stereo_dr:main"
 where = ["."]
 include = ["roboreg*", "cli*"]
 exclude = ["test*"]
+
+[tool.setuptools_scm]
+version_scheme = "guess-next-dev"
+local_scheme = "no-local-version"
