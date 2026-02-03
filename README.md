@@ -277,7 +277,7 @@ rr-render \
     --joint-states-path test/assets/lbr_med7_r800/samples \
     --image-pattern left_image_*.png \
     --joint-states-pattern joint_states_*.npy \
-    --output-path test/assets/lbr_med7_r800/samples
+    --output-path /tmp/renders/lbr_med7_r800
 ```
 
 ## Testing
@@ -288,13 +288,12 @@ To run Hydra robust ICP on provided `xarm` and `realsense` data, run
 
 ```shell
 rr-hydra \
-    --camera-info-file test/assets/xarm/realsense/camera_info.yaml \
-    --path test/assets/xarm/realsense \
+    --camera-info-file test/assets/xarm_7/samples/camera_info.yaml \
+    --path test/assets/xarm_7/samples \
     --mask-pattern mask_*.png \
     --depth-pattern depth_*.npy \
     --joint-states-pattern joint_state_*.npy \
-    --ros-package xarm_description \
-    --xacro-path  urdf/xarm_device.urdf.xacro \
+    --urdf-path test/assets/xarm_7/description/xarm_7.urdf \
     --root-link-name link_base \
     --end-link-name link7 \
     --number-of-points 5000 \
@@ -308,17 +307,16 @@ Generate renders using the obtained extrinsics:
 rr-render \
     --batch-size 1 \
     --num-workers 0 \
-    --ros-package xarm_description \
-    --xacro-path urdf/xarm_device.urdf.xacro \
+    --urdf-path test/assets/xarm_7/description/xarm_7.urdf \
     --root-link-name link_base \
     --end-link-name link7 \
-    --camera-info-file test/assets/xarm/realsense/camera_info.yaml \
-    --extrinsics-file test/assets/xarm/realsense/HT_hydra_robust.npy \
-    --images-path test/assets/xarm/realsense \
-    --joint-states-path test/assets/xarm/realsense \
+    --camera-info-file test/assets/xarm_7/samples/camera_info.yaml \
+    --extrinsics-file test/assets/xarm_7/samples/HT_hydra_robust.npy \
+    --images-path test/assets/xarm_7/samples \
+    --joint-states-path test/assets/xarm_7/samples \
     --image-pattern img_*.png \
     --joint-states-pattern joint_state_*.npy \
-    --output-path test/assets/xarm/realsense
+    --output-path /tmp/renders/xarm_7
 ```
 
 ## Acknowledgements
