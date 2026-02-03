@@ -1,9 +1,4 @@
-import os
-import sys
-
-sys.path.append(
-    os.path.dirname((os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-)
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -11,10 +6,15 @@ import pytest
 import torch
 from tqdm import tqdm
 
-from roboreg.differentiable import VirtualCamera
-from roboreg.io import find_files
-from roboreg.util import overlay_mask
-from roboreg.util.factories import create_robot_scene
+from roboreg.core import (
+    NVDiffRastRenderer,
+    Robot,
+    RobotScene,
+    TorchKinematics,
+    TorchMeshContainer,
+    VirtualCamera,
+)
+from roboreg.io import find_files, load_robot_data_from_urdf_file
 
 
 class TestScene:
@@ -24,10 +24,10 @@ class TestScene:
         root_link_name: str = "lbr_link_0",
         end_link_name: str = "lbr_link_7",
         camera_requires_grad: bool = False,
-        data_prefix: str = "test/assets/lbr_med7",
-        recording_prefix: str = "zed2i",
+        data_path: Path = Path("test/assets/lbr_med7_r800"),
+        samples_folder: Path = Path("samples"),
     ) -> None:
-        prefix = os.path.join(data_prefix, recording_prefix)
+        samples_path = data_path / samples_folder
 
         # set camera names
         self.camera_names = ["left", "right"]
@@ -37,19 +37,20 @@ class TestScene:
         self.images = {}
         for camera_name in self.camera_names:
             self.masks[camera_name] = [
-                cv2.imread(os.path.join(prefix, file), cv2.IMREAD_GRAYSCALE)
-                for file in find_files(prefix, f"mask_sam2_{camera_name}_image_*.png")
+                cv2.imread(file, cv2.IMREAD_GRAYSCALE)
+                for file in find_files(
+                    samples_path, f"mask_sam2_{camera_name}_image_*.png"
+                )
             ]
 
             self.images[camera_name] = [
-                cv2.imread(os.path.join(prefix, file))
-                for file in find_files(prefix, f"{camera_name}_image_*.png")
+                cv2.imread(file)
+                for file in find_files(samples_path, f"{camera_name}_image_*.png")
             ]
 
         # load joint states
         self.joint_states = [
-            np.load(os.path.join(prefix, file))
-            for file in find_files(prefix, "joint_states_*.npy")
+            np.load(file) for file in find_files(samples_path, "joint_states_*.npy")
         ]
 
         # test for equal length
@@ -78,15 +79,12 @@ class TestScene:
 
         # instantiates camera info and extrinsics files
         camera_info_files = {
-            camera_name: os.path.join(prefix, f"{camera_name}_camera_info.yaml")
+            camera_name: samples_path / f"{camera_name}_camera_info.yaml"
             for camera_name in self.camera_names
         }
         extrinsics_files = {
-            "left": os.path.join(prefix, "HT_hydra_robust.npy"),
-            "right": os.path.join(
-                prefix,
-                "HT_right_to_left.npy",
-            ),
+            "left": samples_path / "HT_hydra_robust.npy",
+            "right": samples_path / "HT_right_to_left.npy",
         }
 
         # instantiate cameras
@@ -99,22 +97,39 @@ class TestScene:
             for camera_name in self.camera_names
         }
 
-        # instantiate scene
-        self.scene = create_robot_scene(
-            batch_size=self.joint_states.shape[0],
-            ros_package="lbr_description",
-            xacro_path="urdf/med7/med7.xacro",
+        # instantiate robot
+        robot_data = load_robot_data_from_urdf_file(
+            urdf_path="test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf",
             root_link_name=root_link_name,
             end_link_name=end_link_name,
-            cameras=cameras,
+        )
+        mesh_container = TorchMeshContainer(
+            meshes=robot_data.meshes,
+            batch_size=self.joint_states.shape[0],
             device=device,
+        )
+        kinematics = TorchKinematics(
+            urdf=robot_data.urdf,
+            root_link_name=robot_data.root_link_name,
+            end_link_name=robot_data.end_link_name,
+            device=device,
+        )
+        robot = Robot(
+            mesh_container=mesh_container,
+            kinematics=kinematics,
+        )
+
+        # instantiate scene
+        self.scene = RobotScene(
+            cameras=cameras,
+            robot=robot,
+            renderer=NVDiffRastRenderer(device=device),
         )
 
         # enable gradient tracking
         self.scene.cameras["left"].extrinsics.requires_grad = camera_requires_grad
 
 
-@pytest.mark.skip(reason="To be fixed.")
 def test_multi_config_stereo_view() -> None:
     test_scene = TestScene(camera_requires_grad=False)
 
@@ -122,29 +137,28 @@ def test_multi_config_stereo_view() -> None:
     test_scene.scene.robot.configure(q=test_scene.joint_states)
 
     # render all camera views
+    left_camera_name = "left"
+    right_camera_name = "right"
     all_renders = {
-        "left": test_scene.scene.observe_from("left"),
-        "right": test_scene.scene.observe_from(
-            "right", reference_transform=test_scene.scene.cameras["left"].extrinsics
+        left_camera_name: test_scene.scene.observe_from(left_camera_name),
+        right_camera_name: test_scene.scene.observe_from(
+            right_camera_name,
+            reference_transform=test_scene.scene.cameras[left_camera_name].extrinsics,
         ),
     }
 
-    # show overlays
-    for camera_name, renders in all_renders.items():
-        for render, image in zip(renders, test_scene.images[camera_name]):
-            render = render.squeeze().cpu().numpy()
-            overlay = overlay_mask(
-                image,
-                (render * 255.0).astype(np.uint8),
-                scale=1.0,
-            )
+    # expect renders to match in shape and type
+    for camera_name in all_renders.keys():
+        assert all_renders[camera_name].shape == test_scene.masks[camera_name].shape
+        assert all_renders[camera_name].dtype == test_scene.masks[camera_name].dtype
 
-            cv2.imshow(camera_name, overlay)
-            cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # expect left / right mismatch
+    difference = torch.abs(
+        all_renders[left_camera_name] - all_renders[right_camera_name]
+    ).mean()
+    assert difference > 0.01, "Left and right renders are unexpectedly similar."
 
 
-@pytest.mark.skip(reason="To be fixed.")
 def test_multi_config_stereo_view_pose_optimization() -> None:
     test_scene = TestScene(camera_requires_grad=True)
 
@@ -181,20 +195,7 @@ def test_multi_config_stereo_view_pose_optimization() -> None:
         loss.backward()
         optimizer.step()
 
-        # show an overlay for a camera
-        overlays = []
-        for camera_name in test_scene.scene.cameras.keys():
-            render = all_renders[camera_name][0].squeeze().detach().cpu().numpy()
-            image = test_scene.images[camera_name][0]
-            overlays.append(
-                overlay_mask(
-                    image,
-                    (render * 255.0).astype(np.uint8),
-                    scale=1.0,
-                )
-            )
-        cv2.imshow("overlays", cv2.resize(np.hstack(overlays), (0, 0), fx=0.5, fy=0.5))
-        cv2.waitKey(1)
+    assert best_loss < float("inf"), "Optimization did not improve loss."
 
     # expect right intrinsics to be un-changed
     if not torch.allclose(
@@ -215,20 +216,6 @@ def test_multi_config_stereo_view_pose_optimization() -> None:
             ),
         }
 
-    # show overlays
-    for camera_name, renders in all_renders.items():
-        for render, image in zip(renders, test_scene.images[camera_name]):
-            render = render.squeeze().detach().cpu().numpy()
-            overlay = overlay_mask(
-                image,
-                (render * 255.0).astype(np.uint8),
-                scale=1.0,
-            )
-
-            cv2.imshow(camera_name, overlay)
-            cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
 
 @pytest.mark.skip(reason="To be fixed.")
 def test_single_camera_multiple_poses() -> None:
@@ -243,14 +230,33 @@ def test_single_camera_multiple_poses() -> None:
         )
     }
 
-    scene = create_robot_scene(
-        batch_size=batch_size,
-        ros_package="lbr_description",
-        xacro_path="urdf/med7/med7.xacro",
+    # instantiate robot
+    robot_data = load_robot_data_from_urdf_file(
+        urdf_path="test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf",
         root_link_name="lbr_link_0",
         end_link_name="lbr_link_7",
-        cameras=camera,
+    )
+    mesh_container = TorchMeshContainer(
+        meshes=robot_data.meshes,
+        batch_size=batch_size,
         device=device,
+    )
+    kinematics = TorchKinematics(
+        urdf=robot_data.urdf,
+        root_link_name=robot_data.root_link_name,
+        end_link_name=robot_data.end_link_name,
+        device=device,
+    )
+    robot = Robot(
+        mesh_container=mesh_container,
+        kinematics=kinematics,
+    )
+
+    # instantiate scene
+    scene = RobotScene(
+        cameras=camera,
+        robot=robot,
+        renderer=NVDiffRastRenderer(device=device),
     )
 
     # for each batch element, configure a unique camera pose...
@@ -294,6 +300,12 @@ def test_single_camera_multiple_poses() -> None:
 
 
 if __name__ == "__main__":
+    import os
+    import sys
+
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
     test_multi_config_stereo_view()
     test_multi_config_stereo_view_pose_optimization()
     test_single_camera_multiple_poses()

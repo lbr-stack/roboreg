@@ -10,11 +10,17 @@ import rich
 import rich.progress
 import torch
 
-from roboreg.differentiable import VirtualCamera
-from roboreg.io import find_files, parse_mono_data
+from roboreg.core import (
+    NVDiffRastRenderer,
+    Robot,
+    RobotScene,
+    TorchKinematics,
+    TorchMeshContainer,
+    VirtualCamera,
+)
+from roboreg.io import find_files, load_robot_data_from_ros_xacro, parse_mono_data
 from roboreg.losses import soft_dice_loss
 from roboreg.util import mask_distance_transform, mask_exponential_decay, overlay_mask
-from roboreg.util.factories import create_robot_scene
 
 
 class REGISTRATION_MODE(Enum):
@@ -181,16 +187,35 @@ def main() -> None:
         )
     }
 
-    # instantiate robot scene
-    scene = create_robot_scene(
-        batch_size=joint_states.shape[0],
+    # instantiate robot
+    robot_data = load_robot_data_from_ros_xacro(
         ros_package=args.ros_package,
         xacro_path=args.xacro_path,
         root_link_name=args.root_link_name,
         end_link_name=args.end_link_name,
         collision=args.collision_meshes,
-        cameras=camera,
+    )
+    mesh_container = TorchMeshContainer(
+        meshes=robot_data.meshes,
+        batch_size=joint_states.shape[0],
         device=device,
+    )
+    kinematics = TorchKinematics(
+        urdf=robot_data.urdf,
+        root_link_name=robot_data.root_link_name,
+        end_link_name=robot_data.end_link_name,
+        device=device,
+    )
+    robot = Robot(
+        mesh_container=mesh_container,
+        kinematics=kinematics,
+    )
+
+    # instantiate scene
+    scene = RobotScene(
+        cameras=camera,
+        robot=robot,
+        renderer=NVDiffRastRenderer(device=device),
     )
 
     # load extrinsics estimate

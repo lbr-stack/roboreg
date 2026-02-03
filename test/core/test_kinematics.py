@@ -5,10 +5,8 @@ import torch
 import transformations as tf
 from tqdm import tqdm
 
-from roboreg.differentiable.kinematics import TorchKinematics
-from roboreg.differentiable.rendering import NVDiffRastRenderer
-from roboreg.differentiable.structs import TorchMeshContainer
-from roboreg.io import URDFParser, load_meshes, apply_mesh_origins
+from roboreg.core import NVDiffRastRenderer, TorchKinematics, TorchMeshContainer
+from roboreg.io import URDFParser, apply_mesh_origins, load_meshes
 from roboreg.util import from_homogeneous
 
 

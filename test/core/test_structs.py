@@ -1,6 +1,6 @@
 import torch
 
-from roboreg.differentiable.structs import Camera, TorchMeshContainer, VirtualCamera
+from roboreg.core import Camera, TorchMeshContainer, VirtualCamera
 from roboreg.io import load_meshes
 
 

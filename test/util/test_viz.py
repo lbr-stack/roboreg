@@ -2,14 +2,14 @@ import pytest
 import pyvista as pv
 import torch
 
-from roboreg import differentiable as rrd
-from roboreg.io import URDFParser, load_meshes, apply_mesh_origins
+from roboreg.core import TorchKinematics, TorchMeshContainer
+from roboreg.io import URDFParser, apply_mesh_origins, load_meshes
 from roboreg.util import RegistrationVisualizer, from_homogeneous
 
 
 @pytest.mark.skip(reason="To be fixed.")
 def test_visualize_point_cloud():
-    meshes = rrd.TorchMeshContainer(
+    meshes = TorchMeshContainer(
         meshes=load_meshes(
             {
                 "link_0": "test/assets/lbr_med7_r800/description/meshes/collision/link_0.stl"
@@ -33,7 +33,7 @@ def test_visualize_point_cloud():
 
 @pytest.mark.skip(reason="To be fixed.")
 def test_visalize_multi_color_point_cloud():
-    meshes = rrd.TorchMeshContainer(
+    meshes = TorchMeshContainer(
         meshes=load_meshes(
             {
                 "link_0": "test/assets/lbr_med7_r800/description/meshes/collision/link_0.stl",
@@ -94,7 +94,7 @@ def test_visualize_robot():
     urdf_parser = URDFParser.from_ros_xacro("lbr_description", "urdf/med7/med7.xacro")
 
     # load meshes
-    meshes = rrd.TorchMeshContainer(
+    meshes = TorchMeshContainer(
         meshes=apply_mesh_origins(
             meshes=load_meshes(
                 urdf_parser.mesh_paths_from_ros_registry(
@@ -109,7 +109,7 @@ def test_visualize_robot():
     )
 
     # instantiate kinematics
-    kinematics = rrd.TorchKinematics(
+    kinematics = TorchKinematics(
         urdf=urdf_parser.urdf,
         root_link_name=root_link_name,
         end_link_name=end_link_name,

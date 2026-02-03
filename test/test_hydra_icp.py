@@ -5,7 +5,7 @@ import pytest
 import torch
 import transformations as tf
 
-from roboreg.differentiable import TorchKinematics, TorchMeshContainer
+from roboreg.core import TorchKinematics, TorchMeshContainer
 from roboreg.hydra_icp import (
     hydra_centroid_alignment,
     hydra_correspondence_indices,

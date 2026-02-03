@@ -6,8 +6,20 @@ import cv2
 import numpy as np
 import torch
 
-from roboreg import differentiable as rrd
-from roboreg.io import URDFParser, find_files, parse_camera_info, parse_mono_data
+from roboreg.core import (
+    NVDiffRastRenderer,
+    Robot,
+    RobotScene,
+    TorchKinematics,
+    TorchMeshContainer,
+    VirtualCamera,
+)
+from roboreg.io import (
+    find_files,
+    load_robot_data_from_ros_xacro,
+    parse_camera_info,
+    parse_mono_data,
+)
 from roboreg.losses import soft_dice_loss
 from roboreg.optim import LinearParticleSwarm, ParticleSwarmOptimizer
 from roboreg.util import (
@@ -295,31 +307,43 @@ def main() -> None:
         n_joint_states * args.n_cameras
     )  # (each camera observes n_joint_states joint states)
     camera_name = "camera"
-    camera = rrd.VirtualCamera(
+    camera = VirtualCamera(
         resolution=(height, width),
         intrinsics=intrinsics,
         extrinsics=torch.eye(4, device=device).unsqueeze(0).expand(batch_size, -1, -1),
         device=device,
     )
 
-    urdf_parser = URDFParser.from_ros_xacro(
-        ros_package=args.ros_package, xacro_path=args.xacro_path
-    )
-    robot = rrd.Robot.from_urdf_parser(
-        urdf_parser=urdf_parser,
+    # instantiate robot
+    robot_data = load_robot_data_from_ros_xacro(
+        ros_package=args.ros_package,
+        xacro_path=args.xacro_path,
         root_link_name=args.root_link_name,
         end_link_name=args.end_link_name,
         collision=args.collision_meshes,
+        target_reduction=args.target_reduction,
+    )
+    mesh_container = TorchMeshContainer(
+        meshes=robot_data.meshes,
         batch_size=batch_size,
         device=device,
-        target_reduction=args.target_reduction,  # reduce mesh vertex count for memory reduction
+    )
+    kinematics = TorchKinematics(
+        urdf=robot_data.urdf,
+        root_link_name=robot_data.root_link_name,
+        end_link_name=robot_data.end_link_name,
+        device=device,
+    )
+    robot = Robot(
+        mesh_container=mesh_container,
+        kinematics=kinematics,
     )
 
-    renderer = rrd.NVDiffRastRenderer(device=device)
-    scene = rrd.RobotScene(
+    # instantiate scene
+    scene = RobotScene(
         cameras={camera_name: camera},
         robot=robot,
-        renderer=renderer,
+        renderer=NVDiffRastRenderer(device=device),
     )
 
     # repeat joint states and masks for each camera

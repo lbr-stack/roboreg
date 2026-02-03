@@ -8,10 +8,16 @@ import torch
 from rich import progress
 from torch.utils.data import DataLoader
 
-from roboreg.differentiable import VirtualCamera
-from roboreg.io import MonocularDataset
+from roboreg.core import (
+    NVDiffRastRenderer,
+    Robot,
+    RobotScene,
+    TorchKinematics,
+    TorchMeshContainer,
+    VirtualCamera,
+)
+from roboreg.io import MonocularDataset, load_robot_data_from_ros_xacro
 from roboreg.util import overlay_mask
-from roboreg.util.factories import create_robot_scene
 
 
 def args_factory() -> argparse.Namespace:
@@ -119,15 +125,32 @@ def main():
             device=device,
         )
     }
-    scene = create_robot_scene(
-        batch_size=args.batch_size,
+    robot_data = load_robot_data_from_ros_xacro(
         ros_package=args.ros_package,
         xacro_path=args.xacro_path,
         root_link_name=args.root_link_name,
         end_link_name=args.end_link_name,
-        cameras=camera,
-        device=device,
         collision=args.collision_meshes,
+    )
+    mesh_container = TorchMeshContainer(
+        meshes=robot_data.meshes,
+        batch_size=args.batch_size,
+        device=device,
+    )
+    kinematics = TorchKinematics(
+        urdf=robot_data.urdf,
+        root_link_name=robot_data.root_link_name,
+        end_link_name=robot_data.end_link_name,
+        device=device,
+    )
+    robot = Robot(
+        mesh_container=mesh_container,
+        kinematics=kinematics,
+    )
+    scene = RobotScene(
+        cameras=camera,
+        robot=robot,
+        renderer=NVDiffRastRenderer(device=device),
     )
     dataset = MonocularDataset(
         images_path=args.images_path,

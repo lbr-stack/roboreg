@@ -13,7 +13,12 @@ import torch
 import transformations as tf
 from tqdm import tqdm
 
-from roboreg import differentiable as rrd
+from roboreg.core import (
+    NVDiffRastRenderer,
+    TorchKinematics,
+    TorchMeshContainer,
+    VirtualCamera,
+)
 from roboreg.io import URDFParser, find_files, parse_camera_info
 from roboreg.util import overlay_mask
 
@@ -67,7 +72,7 @@ class TestRendering:
         )
 
         # instantiate meshes
-        self.meshes = rrd.TorchMeshContainer(
+        self.meshes = TorchMeshContainer(
             mesh_paths=self.urdf_parser.mesh_paths_from_ros_registry(
                 self.root_link_name, self.end_link_name
             ),
@@ -76,7 +81,7 @@ class TestRendering:
         )
 
         # instantiante kinematics
-        self.kinematics = rrd.TorchKinematics(
+        self.kinematics = TorchKinematics(
             urdf_parser=self.urdf_parser,
             root_link_name=self.root_link_name,
             end_link_name=self.end_link_name,
@@ -90,7 +95,7 @@ class TestRendering:
 
         # instantiate camera and renderer
         self.ht_base_cam = np.load(os.path.join(prefix, "HT_hydra_robust.npy"))
-        self.renderer = rrd.NVDiffRastRenderer(device=self.device)
+        self.renderer = NVDiffRastRenderer(device=self.device)
 
 
 @pytest.mark.skip(reason="To be fixed.")
@@ -109,7 +114,7 @@ def test_nvdiffrast_unit() -> None:
     )
     faces = torch.tensor([[0, 1, 2]], dtype=torch.int32, device=device)
 
-    renderer = rrd.NVDiffRastRenderer()
+    renderer = NVDiffRastRenderer()
     render = renderer.constant_color(vertices, faces, [256, 256])
 
     cv2.imshow("render", render.cpu().numpy().squeeze())
@@ -151,7 +156,7 @@ def test_single_view_rendering() -> None:
         )
 
     # create a virtual camera
-    camera = rrd.VirtualCamera(
+    camera = VirtualCamera(
         resolution=[test_rendering.height, test_rendering.width],
         intrinsics=test_rendering.intrinsics,
         extrinsics=test_rendering.ht_base_cam,
@@ -200,7 +205,7 @@ def test_single_config_single_view_pose_optimization() -> None:
         test_rendering.meshes.transform_mesh(ht, link_name)
 
     # create differentiable camera and initialize extrinsics
-    camera = rrd.VirtualCamera(
+    camera = VirtualCamera(
         resolution=[test_rendering.height, test_rendering.width],
         intrinsics=test_rendering.intrinsics,
         extrinsics=torch.tensor(
@@ -268,7 +273,7 @@ def test_multi_config_single_view_rendering() -> None:
     )
 
     # overwrite meshes with batch size
-    test_rendering.meshes = rrd.TorchMeshContainer(
+    test_rendering.meshes = TorchMeshContainer(
         mesh_paths=test_rendering.urdf_parser.mesh_paths_from_ros_registry(
             test_rendering.root_link_name, test_rendering.end_link_name
         ),
@@ -284,7 +289,7 @@ def test_multi_config_single_view_rendering() -> None:
         test_rendering.meshes.transform_mesh(ht, link_name)
 
     # create a virtual camera
-    camera = rrd.VirtualCamera(
+    camera = VirtualCamera(
         resolution=[test_rendering.height, test_rendering.width],
         intrinsics=test_rendering.intrinsics,
         extrinsics=test_rendering.ht_base_cam,
@@ -330,7 +335,7 @@ def test_multi_config_single_view_pose_optimization() -> None:
     )
 
     # overwrite meshes with batch size
-    test_rendering.meshes = rrd.TorchMeshContainer(
+    test_rendering.meshes = TorchMeshContainer(
         mesh_paths=test_rendering.urdf_parser.mesh_paths_from_ros_registry(
             test_rendering.root_link_name, test_rendering.end_link_name
         ),
@@ -345,7 +350,7 @@ def test_multi_config_single_view_pose_optimization() -> None:
         test_rendering.meshes.transform_mesh(ht, link_name)
 
     # create differentiable camera and initialize extrinsics
-    camera = rrd.VirtualCamera(
+    camera = VirtualCamera(
         resolution=[test_rendering.height, test_rendering.width],
         intrinsics=test_rendering.intrinsics,
         extrinsics=torch.tensor(
@@ -406,7 +411,7 @@ def test_multi_camera_pose_rendering() -> None:
     batch_size = 2  # render 2 cameras at once
 
     # load a sample mesh
-    meshes = rrd.TorchMeshContainer(
+    meshes = TorchMeshContainer(
         {"link_0": "test/assets/lbr_med7_r800/description/meshes/collision/link_0.stl"},
         batch_size=batch_size,
         device=device,
@@ -437,12 +442,12 @@ def test_multi_camera_pose_rendering() -> None:
 
     print(extrinsics[0])
 
-    batched_camera = rrd.VirtualCamera(
+    batched_camera = VirtualCamera(
         resolution=resolution, intrinsics=intrinsics, extrinsics=extrinsics
     )
 
     # renderer
-    renderer = rrd.NVDiffRastRenderer(device=device)
+    renderer = NVDiffRastRenderer(device=device)
 
     # project meshes (knowing that intrinsics are identity)
     vertices = meshes.vertices.clone()
