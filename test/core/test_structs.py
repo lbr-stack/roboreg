@@ -1,13 +1,13 @@
 import torch
 
-from roboreg.differentiable.structs import Camera, TorchMeshContainer, VirtualCamera
+from roboreg.core import Camera, TorchMeshContainer, VirtualCamera
 from roboreg.io import load_meshes
 
 
 def test_torch_mesh_container() -> None:
     paths = {
-        "link_0": "test/assets/lbr_med7/mesh/link_0.stl",
-        "link_1": "test/assets/lbr_med7/mesh/link_1.stl",
+        "link_0": "test/assets/lbr_med7_r800/description/meshes/collision/link_0.stl",
+        "link_1": "test/assets/lbr_med7_r800/description/meshes/collision/link_1.stl",
     }
     device = "cpu"
     container = TorchMeshContainer(

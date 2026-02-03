@@ -5,10 +5,8 @@ import torch
 import transformations as tf
 from tqdm import tqdm
 
-from roboreg.differentiable.kinematics import TorchKinematics
-from roboreg.differentiable.rendering import NVDiffRastRenderer
-from roboreg.differentiable.structs import TorchMeshContainer
-from roboreg.io import URDFParser, load_meshes, apply_mesh_origins
+from roboreg.core import NVDiffRastRenderer, TorchKinematics, TorchMeshContainer
+from roboreg.io import URDFParser, apply_mesh_origins, load_meshes
 from roboreg.util import from_homogeneous
 
 
@@ -57,7 +55,7 @@ def test_torch_kinematics_on_mesh(
     meshes = TorchMeshContainer(
         meshes=apply_mesh_origins(
             meshes=load_meshes(
-                urdf_parser.ros_package_mesh_paths(
+                urdf_parser.mesh_paths_from_ros_registry(
                     root_link_name=root_link_name, end_link_name=end_link_name
                 )
             ),
@@ -120,7 +118,7 @@ def test_diff_kinematics() -> None:
     meshes = TorchMeshContainer(
         meshes=apply_mesh_origins(
             meshes=load_meshes(
-                urdf_parser.ros_package_mesh_paths(
+                urdf_parser.mesh_paths_from_ros_registry(
                     root_link_name=root_link_name, end_link_name=end_link_name
                 )
             ),

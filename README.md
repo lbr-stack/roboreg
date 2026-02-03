@@ -128,15 +128,20 @@ Next:
     ```
 
 ## Command Line Interface
-> [!NOTE]
-> In these examples, the [lbr_fri_ros2_stack](https://github.com/lbr-stack/lbr_fri_ros2_stack/) is used. Make sure to follow [Quick Start](https://github.com/lbr-stack/lbr_fri_ros2_stack/#quick-start) first. However, you can also use your own robot description files.
+> [!TIP]
+> Examples use sample data under [test/assets/lbr_med7_r800](test/assets/lbr_med7_r800). Data is stored via Git Large File Storage (LFS). Data is cloned automatically when `git-lfs` is installed. To clone in retrospect:
+> ```shell
+> sudo apt install git-lfs
+> git lfs fetch --all
+> git lfs checkout
+> ```
 
 ### Segment
 This is a required step to generate robot masks.
 
 ```shell
 rr-sam2 \
-    --path test/assets/lbr_med7/zed2i \
+    --path test/assets/lbr_med7_r800/samples \
     --pattern "left_image_*.png" \
     --n-positive-samples 5 \
     --n-negative-samples 5 \
@@ -148,13 +153,12 @@ The Hydra robust ICP implements a point-to-plane ICP registration on a Lie algeb
 
 ```shell
 rr-hydra \
-    --camera-info-file test/assets/lbr_med7/zed2i/left_camera_info.yaml \
-    --path test/assets/lbr_med7/zed2i \
+    --camera-info-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
+    --path test/assets/lbr_med7_r800/samples \
     --mask-pattern mask_sam2_left_image_*.png \
     --depth-pattern depth_*.npy \
     --joint-states-pattern joint_states_*.npy \
-    --ros-package lbr_description \
-    --xacro-path urdf/med7/med7.xacro \
+    --urdf-path test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
     --number-of-points 5000 \
@@ -181,15 +185,14 @@ rr-cam-swarm \
     --c2 1.5 \
     --max-iterations 100 \
     --display-progress \
-    --ros-package lbr_description \
-    --xacro-path urdf/med7/med7.xacro \
+    --urdf-path test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
     --target-reduction 0.8 \
     --scale 0.1 \
     --n-samples 1 \
-    --camera-info-file test/assets/lbr_med7/zed2i/left_camera_info.yaml \
-    --path test/assets/lbr_med7/zed2i \
+    --camera-info-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
+    --path test/assets/lbr_med7_r800/samples \
     --image-pattern left_image_*.png \
     --joint-states-pattern joint_states_*.npy \
     --mask-pattern mask_sam2_left_image_*.png \
@@ -210,13 +213,12 @@ rr-mono-dr \
     --lr 0.01 \
     --max-iterations 100 \
     --display-progress \
-    --ros-package lbr_description \
-    --xacro-path urdf/med7/med7.xacro \
+    --urdf-path test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
-    --camera-info-file test/assets/lbr_med7/zed2i/left_camera_info.yaml \
-    --extrinsics-file test/assets/lbr_med7/zed2i/HT_hydra_robust.npy \
-    --path test/assets/lbr_med7/zed2i \
+    --camera-info-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
+    --extrinsics-file test/assets/lbr_med7_r800/samples/HT_hydra_robust.npy \
+    --path test/assets/lbr_med7_r800/samples \
     --image-pattern left_image_*.png \
     --joint-states-pattern joint_states_*.npy \
     --mask-pattern mask_sam2_left_image_*.png \
@@ -237,15 +239,14 @@ rr-stereo-dr \
     --lr 0.01 \
     --max-iterations 100 \
     --display-progress \
-    --ros-package lbr_description \
-    --xacro-path urdf/med7/med7.xacro \
+    --urdf-path test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
-    --left-camera-info-file test/assets/lbr_med7/zed2i/left_camera_info.yaml \
-    --right-camera-info-file test/assets/lbr_med7/zed2i/right_camera_info.yaml \
-    --left-extrinsics-file test/assets/lbr_med7/zed2i/HT_hydra_robust.npy \
-    --right-extrinsics-file test/assets/lbr_med7/zed2i/HT_right_to_left.npy \
-    --path test/assets/lbr_med7/zed2i \
+    --left-camera-info-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
+    --right-camera-info-file test/assets/lbr_med7_r800/samples/right_camera_info.yaml \
+    --left-extrinsics-file test/assets/lbr_med7_r800/samples/HT_hydra_robust.npy \
+    --right-extrinsics-file test/assets/lbr_med7_r800/samples/HT_right_to_left.npy \
+    --path test/assets/lbr_med7_r800/samples \
     --left-image-pattern left_image_*.png \
     --right-image-pattern right_image_*.png \
     --joint-states-pattern joint_states_*.npy \
@@ -267,17 +268,16 @@ Generate renders using the obtained extrinsics:
 rr-render \
     --batch-size 1 \
     --num-workers 0 \
-    --ros-package lbr_description \
-    --xacro-path urdf/med7/med7.xacro \
+    --urdf-path test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
-    --camera-info-file test/assets/lbr_med7/zed2i/left_camera_info.yaml \
-    --extrinsics-file test/assets/lbr_med7/zed2i/HT_left_dr.npy \
-    --images-path test/assets/lbr_med7/zed2i \
-    --joint-states-path test/assets/lbr_med7/zed2i \
+    --camera-info-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
+    --extrinsics-file test/assets/lbr_med7_r800/samples/HT_left_dr.npy \
+    --images-path test/assets/lbr_med7_r800/samples \
+    --joint-states-path test/assets/lbr_med7_r800/samples \
     --image-pattern left_image_*.png \
     --joint-states-pattern joint_states_*.npy \
-    --output-path test/assets/lbr_med7/zed2i
+    --output-path /tmp/renders/lbr_med7_r800
 ```
 
 ## Testing
@@ -288,13 +288,12 @@ To run Hydra robust ICP on provided `xarm` and `realsense` data, run
 
 ```shell
 rr-hydra \
-    --camera-info-file test/assets/xarm/realsense/camera_info.yaml \
-    --path test/assets/xarm/realsense \
+    --camera-info-file test/assets/xarm_7/samples/camera_info.yaml \
+    --path test/assets/xarm_7/samples \
     --mask-pattern mask_*.png \
     --depth-pattern depth_*.npy \
     --joint-states-pattern joint_state_*.npy \
-    --ros-package xarm_description \
-    --xacro-path  urdf/xarm_device.urdf.xacro \
+    --urdf-path test/assets/xarm_7/description/xarm_7.urdf \
     --root-link-name link_base \
     --end-link-name link7 \
     --number-of-points 5000 \
@@ -308,17 +307,16 @@ Generate renders using the obtained extrinsics:
 rr-render \
     --batch-size 1 \
     --num-workers 0 \
-    --ros-package xarm_description \
-    --xacro-path urdf/xarm_device.urdf.xacro \
+    --urdf-path test/assets/xarm_7/description/xarm_7.urdf \
     --root-link-name link_base \
     --end-link-name link7 \
-    --camera-info-file test/assets/xarm/realsense/camera_info.yaml \
-    --extrinsics-file test/assets/xarm/realsense/HT_hydra_robust.npy \
-    --images-path test/assets/xarm/realsense \
-    --joint-states-path test/assets/xarm/realsense \
+    --camera-info-file test/assets/xarm_7/samples/camera_info.yaml \
+    --extrinsics-file test/assets/xarm_7/samples/HT_hydra_robust.npy \
+    --images-path test/assets/xarm_7/samples \
+    --joint-states-path test/assets/xarm_7/samples \
     --image-pattern img_*.png \
     --joint-states-pattern joint_state_*.npy \
-    --output-path test/assets/xarm/realsense
+    --output-path /tmp/renders/xarm_7
 ```
 
 ## Acknowledgements

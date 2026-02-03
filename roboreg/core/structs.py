@@ -1,5 +1,6 @@
 import abc
 from collections import OrderedDict
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -346,6 +347,29 @@ class VirtualCamera(Camera):
         self._perspective_projection[..., 2, 2] = (zmax + zmin) / (zmax - zmin)
         self._perspective_projection[..., 2, 3] = 2.0 * zmax * zmin / (zmin - zmax)
         self._perspective_projection[..., 3, 2] = 1.0
+
+    @classmethod
+    def from_camera_configs(
+        cls,
+        camera_info_file: Union[Path, str],
+        extrinsics_file: Optional[Union[Path, str]] = None,
+        device: Union[torch.device, str] = "cuda",
+    ) -> "VirtualCamera":
+        from roboreg.io.parsers import parse_camera_info
+
+        camera_info_file = Path(camera_info_file)
+
+        height, width, intrinsics = parse_camera_info(camera_info_file=camera_info_file)
+        extrinsics = None
+        if extrinsics_file is not None:
+            extrinsics_file = Path(extrinsics_file)
+            extrinsics = np.load(extrinsics_file)
+        return cls(
+            resolution=[height, width],
+            intrinsics=intrinsics,
+            extrinsics=extrinsics,
+            device=device,
+        )
 
     def to(self, device: Union[torch.device, str]) -> None:
         self._perspective_projection = self._perspective_projection.to(device=device)

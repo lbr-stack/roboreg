@@ -6,8 +6,21 @@ import cv2
 import numpy as np
 import torch
 
-from roboreg import differentiable as rrd
-from roboreg.io import URDFParser, find_files, parse_camera_info, parse_mono_data
+from roboreg.core import (
+    NVDiffRastRenderer,
+    Robot,
+    RobotScene,
+    TorchKinematics,
+    TorchMeshContainer,
+    VirtualCamera,
+)
+from roboreg.io import (
+    find_files,
+    load_robot_data_from_ros_xacro,
+    load_robot_data_from_urdf_file,
+    parse_camera_info,
+    parse_mono_data,
+)
 from roboreg.losses import soft_dice_loss
 from roboreg.optim import LinearParticleSwarm, ParticleSwarmOptimizer
 from roboreg.util import (
@@ -16,6 +29,8 @@ from roboreg.util import (
     overlay_mask,
     random_fov_eye_space_coordinates,
 )
+
+from .util.validate import validate_urdf_source
 
 
 def args_factory() -> argparse.Namespace:
@@ -85,16 +100,25 @@ def args_factory() -> argparse.Namespace:
         help="Display optimization progress.",
     )
     parser.add_argument(
+        "--urdf-path",
+        type=str,
+        default="test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf",
+        help="Path to URDF file. Meshes resolved relative to this file. "
+        "Mutually exclusive with --ros-package/--xacro-path.",
+    )
+    parser.add_argument(
         "--ros-package",
         type=str,
-        default="lbr_description",
-        help="Package where the URDF is located.",
+        default=None,
+        help="ROS package containing robot description. "
+        "Requires --xacro-path. Mutually exclusive with --urdf-path.",
     )
     parser.add_argument(
         "--xacro-path",
         type=str,
-        default="urdf/med7/med7.xacro",
-        help="Path to the xacro file, relative to --ros-package.",
+        default=None,
+        help="Path to xacro file relative to --ros-package. "
+        "Requires --ros-package. Mutually exclusive with --urdf-path.",
     )
     parser.add_argument(
         "--root-link-name",
@@ -168,6 +192,7 @@ def args_factory() -> argparse.Namespace:
         default=2,
         help="Number of concurrent compilation jobs for nvdiffrast. Only relevant on first run.",
     )
+    validate_urdf_source(parser, parser.parse_args())
     return parser.parse_args()
 
 
@@ -295,31 +320,52 @@ def main() -> None:
         n_joint_states * args.n_cameras
     )  # (each camera observes n_joint_states joint states)
     camera_name = "camera"
-    camera = rrd.VirtualCamera(
+    camera = VirtualCamera(
         resolution=(height, width),
         intrinsics=intrinsics,
         extrinsics=torch.eye(4, device=device).unsqueeze(0).expand(batch_size, -1, -1),
         device=device,
     )
 
-    urdf_parser = URDFParser.from_ros_xacro(
-        ros_package=args.ros_package, xacro_path=args.xacro_path
-    )
-    robot = rrd.Robot.from_urdf_parser(
-        urdf_parser=urdf_parser,
-        root_link_name=args.root_link_name,
-        end_link_name=args.end_link_name,
-        collision=args.collision_meshes,
+    # instantiate robot
+    if args.urdf_path is not None:
+        robot_data = load_robot_data_from_urdf_file(
+            urdf_path=args.urdf_path,
+            root_link_name=args.root_link_name,
+            end_link_name=args.end_link_name,
+            collision=args.collision_meshes,
+            target_reduction=args.target_reduction,
+        )
+    else:
+        robot_data = load_robot_data_from_ros_xacro(
+            ros_package=args.ros_package,
+            xacro_path=args.xacro_path,
+            root_link_name=args.root_link_name,
+            end_link_name=args.end_link_name,
+            collision=args.collision_meshes,
+            target_reduction=args.target_reduction,
+        )
+    mesh_container = TorchMeshContainer(
+        meshes=robot_data.meshes,
         batch_size=batch_size,
         device=device,
-        target_reduction=args.target_reduction,  # reduce mesh vertex count for memory reduction
+    )
+    kinematics = TorchKinematics(
+        urdf=robot_data.urdf,
+        root_link_name=robot_data.root_link_name,
+        end_link_name=robot_data.end_link_name,
+        device=device,
+    )
+    robot = Robot(
+        mesh_container=mesh_container,
+        kinematics=kinematics,
     )
 
-    renderer = rrd.NVDiffRastRenderer(device=device)
-    scene = rrd.RobotScene(
+    # instantiate scene
+    scene = RobotScene(
         cameras={camera_name: camera},
         robot=robot,
-        renderer=renderer,
+        renderer=NVDiffRastRenderer(device=device),
     )
 
     # repeat joint states and masks for each camera

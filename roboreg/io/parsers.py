@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
@@ -17,11 +16,14 @@ class URDFParser:
         self._robot = urdf_parser_py.urdf.Robot.from_xml_string(urdf)
 
     @classmethod
-    def from_file(cls, path: Union[Path, str]) -> None:
-        r"""Instantiate URDF parser path to URDF file.
+    def from_urdf_file(cls, path: Union[Path, str]) -> "URDFParser":
+        r"""Instantiate URDF parser via path to URDF file.
 
         Args:
             path (Union[Path, str]): Path to URDF file.
+
+        Returns:
+            URDFParser: A URDFParser instance.
         """
         path = Path(path)
         if not path.exists():
@@ -35,13 +37,21 @@ class URDFParser:
         return cls(urdf=urdf)
 
     @classmethod
-    def from_ros_xacro(cls, ros_package: str, xacro_path: str) -> None:
+    def from_ros_xacro(
+        cls, ros_package: str, xacro_path: Union[Path, str]
+    ) -> "URDFParser":
         r"""Instantiate URDF parser from ROS xacro file.
 
         Args:
             ros_package (str): Internally finds the path to ros_package.
-            xacro_path (str): Path to xacro file relative to ros_package.
+            xacro_path (Union[Path,str]): Path to xacro file relative to ros_package.
+
+        Returns:
+            URDFParser: A URDFParser instance.
         """
+        xacro_path = Path(xacro_path)
+        if not xacro_path.suffix == ".xacro":
+            raise ValueError(f"Xacro file {xacro_path} must have .xacro extension.")
         return cls(
             urdf=cls._urdf_from_ros_xacro(
                 ros_package=ros_package, xacro_path=xacro_path
@@ -49,23 +59,61 @@ class URDFParser:
         )
 
     @staticmethod
-    def _urdf_from_ros_xacro(ros_package: str, xacro_path: str) -> str:
-        r"""Convert ROS xacro file to URDF.
+    def resolve_relative_uris(
+        uris: Dict[str, str], base_path: Union[Path, str]
+    ) -> Dict[str, Path]:
+        r"""Resolve relative URIs using a base path.
 
         Args:
-            ros_package (str): Internally finds the path to ros_package.
-            xacro_path (str): Path to xacro file relative to ros_package.
+            uris (Dict[str,str]): Dictionary of link names and relative mesh paths.
+            base_path (Union[Path,str]): Base path to resolve relative paths.
 
         Returns:
-            str: URDF string.
+            Dict[str,Path]: Dictionary of link names and absolute mesh paths.
         """
+        base_path = Path(base_path)
+        mesh_paths = {}
+        for link_name in uris.keys():
+            uri = uris[link_name]
+            mesh_paths[link_name] = (base_path / Path(uri)).resolve()
+        if len(mesh_paths) != len(uris):
+            raise RuntimeError("Some mesh paths could not be resolved.")
+        if not all([path.exists() for path in mesh_paths.values()]):
+            raise FileNotFoundError("Some resolved mesh paths do not exist.")
+        return mesh_paths
 
-        import xacro
+    @staticmethod
+    def resolve_ros_registry_uris(uris: Dict[str, str]) -> Dict[str, Path]:
+        r"""Resolve the URI-style package:// prefix using the ament_index_python ROS registry.
+
+        Args:
+            uris (Dict[str,str]): Dictionary of link names and URI-style mesh paths, prefixed with package://.
+
+        Returns:
+            Dict[str,Path]: Dictionary of link names and absolute mesh paths.
+        """
         from ament_index_python import get_package_share_directory
 
-        return xacro.process(
-            os.path.join(get_package_share_directory(ros_package), xacro_path)
-        )
+        mesh_paths = {}
+        for link_name in uris.keys():
+            uri = uris[link_name]
+            if uri.startswith("package://"):
+                mesh_path = Path(uri.removeprefix("package://"))
+                if len(mesh_path.parts) < 2:
+                    raise ValueError(
+                        f"Invalid package path {mesh_path} for link {link_name}."
+                    )
+                mesh_paths[link_name] = (
+                    Path(get_package_share_directory(mesh_path.parts[0]))
+                    / Path(*mesh_path.parts[1:])
+                ).resolve()
+            else:
+                raise ValueError("Expected a package:// prefix.")
+        if len(mesh_paths) != len(uris):
+            raise RuntimeError("Some mesh paths could not be resolved.")
+        if not all([path.exists() for path in mesh_paths.values()]):
+            raise FileNotFoundError("Some resolved mesh paths do not exist.")
+        return mesh_paths
 
     def chain_link_names(self, root_link_name: str, end_link_name: str) -> List[str]:
         r"""Get link names in chain from root to end link.
@@ -110,10 +158,10 @@ class URDFParser:
                     links.remove(link)
         return links
 
-    def raw_mesh_paths(
+    def mesh_uris(
         self, root_link_name: str, end_link_name: str, collision: bool = False
     ) -> Dict[str, str]:
-        r"""Get the raw mesh paths as specified in URDF.
+        r"""Get the mesh paths as specified in URDF. These paths may be relative or have a package:// prefix.
 
         Args:
             root_link_name (str): Root link name.
@@ -121,29 +169,29 @@ class URDFParser:
             collision (bool): If True, get collision mesh paths, else visual mesh paths.
 
         Returns:
-            Dict[str,str]: Dictionary of link names and raw mesh paths.
+            Dict[str,str]: Dictionary of link names and mesh URIs.
         """
         link_names = self.chain_link_names(
             root_link_name=root_link_name, end_link_name=end_link_name
         )
-        raw_mesh_paths = {}
+        paths = {}
         # lookup paths
         for link_name in link_names:
             link: urdf_parser_py.urdf.Link = self._robot.link_map[link_name]
             if collision:
                 if link.collision is None:
                     continue
-                raw_mesh_paths[link_name] = link.collision.geometry.filename
+                paths[link_name] = link.collision.geometry.filename
             else:
                 if link.visual is None:
                     continue
-                raw_mesh_paths[link_name] = link.visual.geometry.filename
-        return raw_mesh_paths
+                paths[link_name] = link.visual.geometry.filename
+        return paths
 
-    def ros_package_mesh_paths(
+    def mesh_paths_from_ros_registry(
         self, root_link_name: str, end_link_name: str, collision: bool = False
-    ) -> Dict[str, str]:
-        r"""Get the absolute mesh paths by resolving package within ROS.
+    ) -> Dict[str, Path]:
+        r"""Get the absolute mesh paths by resolving the package:// prefix using ROS ament_index_python.
 
         Args:
             root_link_name (str): Root link name.
@@ -151,27 +199,15 @@ class URDFParser:
             collision (bool): If True, get collision mesh paths, else visual mesh paths.
 
         Returns:
-            Dict[str,str]: Dictionary of link names and absolute mesh paths.
+            Dict[str,Path]: Dictionary of link names and absolute mesh paths.
         """
-        raw_mesh_paths = self.raw_mesh_paths(
-            root_link_name=root_link_name,
-            end_link_name=end_link_name,
-            collision=collision,
+        return URDFParser.resolve_ros_registry_uris(
+            uris=self.mesh_uris(
+                root_link_name=root_link_name,
+                end_link_name=end_link_name,
+                collision=collision,
+            )
         )
-        from ament_index_python import get_package_share_directory
-
-        ros_package_mesh_paths = {}
-        for link_name in raw_mesh_paths.keys():
-            raw_mesh_path = raw_mesh_paths[link_name]
-            if raw_mesh_path.startswith("package://"):
-                raw_mesh_path = raw_mesh_path.replace("package://", "")
-                package, relative_mesh_path = raw_mesh_path.split("/", 1)
-                ros_package_mesh_paths[link_name] = os.path.join(
-                    get_package_share_directory(package), relative_mesh_path
-                )
-            else:
-                raise ValueError("Case unhandled.")
-        return ros_package_mesh_paths
 
     def mesh_origins(
         self, root_link_name: str, end_link_name: str, collision: bool = False
@@ -208,6 +244,26 @@ class URDFParser:
             origin[:3, 3] = link_origin.xyz
             mesh_origins[link_name] = origin
         return mesh_origins
+
+    @staticmethod
+    def _urdf_from_ros_xacro(ros_package: str, xacro_path: Path) -> str:
+        r"""Convert ROS xacro file to URDF.
+
+        Args:
+            ros_package (str): Internally finds the path to ros_package.
+            xacro_path (Path): Path to xacro file relative to ros_package.
+
+        Returns:
+            str: URDF string.
+        """
+
+        import xacro
+        from ament_index_python import get_package_share_directory
+
+        path = Path(get_package_share_directory(ros_package)) / xacro_path
+        if not path.exists():
+            raise FileNotFoundError(f"Xacro file {path} does not exist.")
+        return xacro.process(path)
 
     def _verify_links_in_chain(self, root_link_name: str, end_link_name: str) -> None:
         if not self._robot:

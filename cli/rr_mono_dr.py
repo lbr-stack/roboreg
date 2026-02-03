@@ -10,10 +10,24 @@ import rich
 import rich.progress
 import torch
 
-from roboreg.io import find_files, parse_mono_data
+from roboreg.core import (
+    NVDiffRastRenderer,
+    Robot,
+    RobotScene,
+    TorchKinematics,
+    TorchMeshContainer,
+    VirtualCamera,
+)
+from roboreg.io import (
+    find_files,
+    load_robot_data_from_ros_xacro,
+    load_robot_data_from_urdf_file,
+    parse_mono_data,
+)
 from roboreg.losses import soft_dice_loss
 from roboreg.util import mask_distance_transform, mask_exponential_decay, overlay_mask
-from roboreg.util.factories import create_robot_scene, create_virtual_camera
+
+from .util.validate import validate_urdf_source
 
 
 class REGISTRATION_MODE(Enum):
@@ -68,16 +82,25 @@ def args_factory() -> argparse.Namespace:
         help="Display optimization progress.",
     )
     parser.add_argument(
+        "--urdf-path",
+        type=str,
+        default="test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf",
+        help="Path to URDF file. Meshes resolved relative to this file. "
+        "Mutually exclusive with --ros-package/--xacro-path.",
+    )
+    parser.add_argument(
         "--ros-package",
         type=str,
-        default="lbr_description",
-        help="Package where the URDF is located.",
+        default=None,
+        help="ROS package containing robot description. "
+        "Requires --xacro-path. Mutually exclusive with --urdf-path.",
     )
     parser.add_argument(
         "--xacro-path",
         type=str,
-        default="urdf/med7/med7.xacro",
-        help="Path to the xacro file, relative to --ros-package.",
+        default=None,
+        help="Path to xacro file relative to --ros-package. "
+        "Requires --ros-package. Mutually exclusive with --urdf-path.",
     )
     parser.add_argument(
         "--root-link-name",
@@ -139,6 +162,7 @@ def args_factory() -> argparse.Namespace:
         default=2,
         help="Number of concurrent compilation jobs for nvdiffrast. Only relevant on first run.",
     )
+    validate_urdf_source(parser, parser.parse_args())
     return parser.parse_args()
 
 
@@ -174,22 +198,49 @@ def main() -> None:
 
     # instantiate camera with default identity extrinsics because we optimize for robot pose instead
     camera = {
-        "camera": create_virtual_camera(
+        "camera": VirtualCamera.from_camera_configs(
             camera_info_file=args.camera_info_file,
             device=device,
         )
     }
 
-    # instantiate robot scene
-    scene = create_robot_scene(
+    # instantiate robot
+    if args.urdf_path is not None:
+        robot_data = load_robot_data_from_urdf_file(
+            urdf_path=args.urdf_path,
+            root_link_name=args.root_link_name,
+            end_link_name=args.end_link_name,
+            collision=args.collision_meshes,
+        )
+    else:
+        robot_data = load_robot_data_from_ros_xacro(
+            ros_package=args.ros_package,
+            xacro_path=args.xacro_path,
+            root_link_name=args.root_link_name,
+            end_link_name=args.end_link_name,
+            collision=args.collision_meshes,
+        )
+    mesh_container = TorchMeshContainer(
+        meshes=robot_data.meshes,
         batch_size=joint_states.shape[0],
-        ros_package=args.ros_package,
-        xacro_path=args.xacro_path,
-        root_link_name=args.root_link_name,
-        end_link_name=args.end_link_name,
-        collision=args.collision_meshes,
-        cameras=camera,
         device=device,
+    )
+    kinematics = TorchKinematics(
+        urdf=robot_data.urdf,
+        root_link_name=robot_data.root_link_name,
+        end_link_name=robot_data.end_link_name,
+        device=device,
+    )
+    robot = Robot(
+        mesh_container=mesh_container,
+        kinematics=kinematics,
+    )
+
+    # instantiate scene
+    scene = RobotScene(
+        cameras=camera,
+        robot=robot,
+        renderer=NVDiffRastRenderer(device=device),
     )
 
     # load extrinsics estimate

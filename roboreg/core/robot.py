@@ -2,8 +2,6 @@ from typing import Union
 
 import torch
 
-from roboreg.io import URDFParser
-
 from .kinematics import TorchKinematics
 from .structs import TorchMeshContainer
 
@@ -15,62 +13,15 @@ class Robot:
         self,
         mesh_container: TorchMeshContainer,
         kinematics: TorchKinematics,
-        device: Union[torch.device, str] = "cuda",
     ) -> None:
         self._mesh_container = mesh_container
         self._kinematics = kinematics
         self._configured_vertices = self.mesh_container.vertices.clone()
-        self._device = torch.device(device) if isinstance(device, str) else device
-        self.to(device=self._device)
-
-    @classmethod
-    def from_urdf_parser(
-        cls,
-        urdf_parser: URDFParser,
-        root_link_name: str,
-        end_link_name: str,
-        collision: bool = False,
-        batch_size: int = 1,
-        device: Union[torch.device, str] = "cuda",
-        target_reduction: float = 0.0,
-    ) -> "Robot":
-        from roboreg.io import apply_mesh_origins, load_meshes, simplify_meshes
-
-        # parse data from URDF
-        mesh_paths = urdf_parser.ros_package_mesh_paths(
-            root_link_name=root_link_name,
-            end_link_name=end_link_name,
-            collision=collision,
-        )
-        mesh_origins = urdf_parser.mesh_origins(
-            root_link_name=root_link_name,
-            end_link_name=end_link_name,
-            collision=collision,
-        )
-
-        # load and preprocess meshes
-        meshes = load_meshes(paths=mesh_paths)
-        meshes = simplify_meshes(
-            meshes=meshes,
-            target_reduction=target_reduction,
-        )
-        meshes = apply_mesh_origins(meshes=meshes, origins=mesh_origins)
-
-        # configure this robot
-        mesh_container = TorchMeshContainer(
-            meshes=meshes,
-            batch_size=batch_size,
-            device=device,
-        )
-
-        kinematics = TorchKinematics(
-            urdf=urdf_parser.urdf,
-            root_link_name=root_link_name,
-            end_link_name=end_link_name,
-            device=device,
-        )
-
-        return cls(mesh_container=mesh_container, kinematics=kinematics, device=device)
+        if mesh_container.device != kinematics.device:
+            raise ValueError(
+                "Mesh container and kinematics must be on the same device."
+            )
+        self._device = mesh_container.device
 
     def configure(
         self, q: torch.FloatTensor, ht_root: torch.FloatTensor = None
