@@ -12,13 +12,19 @@ jobs:
     strategy:
       matrix:
         include:
-          - ubuntu_version: "22.04"
-            cuda_version: "12.4.1"
-            ros_distro: "humble"
-          - ubuntu_version: "24.04"
-            cuda_version: "13.1.0"
-            ros_distro: "jazzy"
+          - pytorch_version: "2.6.0"
+            cuda_version: "12.4"
+          - pytorch_version: "2.10.0"
+            cuda_version: "13.0"
     steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/local/.ghcup
+          df -h
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -38,10 +44,9 @@ jobs:
           platforms: linux/amd64
           file: .docker/Dockerfile
           build-args: |
-            UBUNTU_VERSION=${{ matrix.ubuntu_version }}
+            PYTORCH_VERSION=${{ matrix.pytorch_version }}
             CUDA_VERSION=${{ matrix.cuda_version }}
-            ROS_DISTRO=${{ matrix.ros_distro }}
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: |
-            roboreg:${{ matrix.ubuntu_version }}
-            ghcr.io/lbr-stack/roboreg:${{ matrix.ubuntu_version }}
+            roboreg:cuda-${{ matrix.cuda_version }}
+            ghcr.io/lbr-stack/roboreg:cuda-${{ matrix.cuda_version }}
