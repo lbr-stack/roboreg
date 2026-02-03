@@ -17,6 +17,7 @@ jobs:
           - pytorch_version: "2.10.0"
             cuda_version: "13.0"
     steps:
+      # Free disk space
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet
@@ -25,6 +26,13 @@ jobs:
           sudo rm -rf /usr/local/.ghcup
           df -h
 
+      # Check out the repository
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          lfs: true
+
+      # Build and push Docker image
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -47,6 +55,4 @@ jobs:
             PYTORCH_VERSION=${{ matrix.pytorch_version }}
             CUDA_VERSION=${{ matrix.cuda_version }}
           push: ${{ github.ref == 'refs/heads/main' }}
-          tags: |
-            roboreg:cuda-${{ matrix.cuda_version }}
-            ghcr.io/lbr-stack/roboreg:cuda-${{ matrix.cuda_version }}
+          tags: ghcr.io/lbr-stack/roboreg:cuda-${{ matrix.cuda_version }}
