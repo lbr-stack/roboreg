@@ -1,6 +1,6 @@
 # Build arguments for version configuration
-ARG PYTORCH_VERSION=2.10.0
-ARG CUDA_VERSION=12.6
+ARG PYTORCH_VERSION=2.6.0
+ARG CUDA_VERSION=12.4
 
 FROM pytorch/pytorch:${PYTORCH_VERSION}-cuda${CUDA_VERSION}-cudnn9-runtime
 
@@ -53,9 +53,16 @@ SHELL ["/bin/bash", "-c"]
 # extend PATH (for CLI)
 ENV PATH="$PATH:/home/ubuntu/.local/bin"
 
-# install roboreg
-RUN pip install --upgrade pip setuptools wheel \
-    && pip install roboreg/ --no-build-isolation \
+# install roboreg (to use cached libraries, break system packages for Ubuntu 24.04)
+RUN UBUNTU_VERSION=$(grep -oP '(?<=VERSION_ID=")[^"]+' /etc/os-release) && \
+    echo "Detected Ubuntu $UBUNTU_VERSION" && \
+    if [ "$UBUNTU_VERSION" = "24.04" ]; then \
+        pip install --upgrade pip setuptools wheel --break-system-packages && \
+        pip install roboreg/ --no-build-isolation --break-system-packages; \
+    else \
+        pip install --upgrade pip setuptools wheel && \
+        pip install roboreg/ --no-build-isolation; \
+    fi \
     && rm -rf /home/ubuntu/.cache/pip
 
 # copy sample data

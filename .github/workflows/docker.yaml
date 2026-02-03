@@ -15,7 +15,7 @@ jobs:
           - pytorch_version: "2.6.0"
             cuda_version: "12.4"
           - pytorch_version: "2.10.0"
-            cuda_version: "13.1"
+            cuda_version: "13.0"
     steps:
       - name: Free disk space
         run: |
