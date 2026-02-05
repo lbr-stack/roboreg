@@ -14,7 +14,6 @@ from roboreg.io import (
     parse_hydra_data,
 )
 from roboreg.util import (
-    RegistrationVisualizer,
     clean_xyz,
     compute_vertex_normals,
     depth_to_xyz,
@@ -159,6 +158,11 @@ def args_factory() -> argparse.Namespace:
         default=10,
         help="Erosion kernel size for mask boundary. Larger value will result in larger boundary. The closer the robot, the larger the recommended kernel size.",
     )
+    parser.add_argument(
+        "--display-results",
+        action="store_true",
+        help="Display point cloud registration results.",
+    )
     validate_urdf_source(parser, parser.parse_args())
     return parser.parse_args()
 
@@ -293,13 +297,16 @@ def main():
     )
 
     # visualize
-    visualizer = RegistrationVisualizer()
-    visualizer(mesh_vertices=mesh_vertices, observed_vertices=observed_vertices)
-    visualizer(
-        mesh_vertices=mesh_vertices,
-        observed_vertices=observed_vertices,
-        HT=torch.linalg.inv(HT),
-    )
+    if args.display_results:
+        from roboreg.util import RegistrationVisualizer
+
+        visualizer = RegistrationVisualizer()
+        visualizer(mesh_vertices=mesh_vertices, observed_vertices=observed_vertices)
+        visualizer(
+            mesh_vertices=mesh_vertices,
+            observed_vertices=observed_vertices,
+            HT=torch.linalg.inv(HT),
+        )
 
     # to numpy
     HT = HT.cpu().numpy()
