@@ -23,7 +23,6 @@ Eye-to-hand calibration from RGB-D images using robot mesh as calibration target
 ## Table of Contents
 - [Installation](#installation)
     - [Pip (Requires CUDA Toolkit Installation)](#pip-requires-cuda-toolkit-installation)
-    - [Conda (Installs CUDA Toolkit)](#conda-installs-cuda-toolkit)
     - [Docker (Comes with CUDA Toolkit)](#docker-comes-with-cuda-toolkit)
 - [Command Line Interface](#command-line-interface)
     - [Segment](#segment)
@@ -47,31 +46,8 @@ Three install options are provided:
 To `pip` intall `roboreg`, simply run
 
 ```shell
-pip3 install roboreg
+pip install roboreg
 ```
-
-### Conda (Installs CUDA Toolkit)
-To install `roboreg` within an [Anaconda](https://www.anaconda.com/) environment (ideally [Miniconda](https://docs.anaconda.com/miniconda/), or even better, [Mamba](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html)), do the following:
-
-1. Create an environment
-
-    ```shell
-    conda create -n rr-0.4.6 python=3.10
-    ```
-
-2. Clone this repository and install dependencies
-
-    ```shell
-    git clone git@github.com:lbr-stack/roboreg.git
-    mamba env update -f roboreg/env.yaml # if Anaconda or Miniconda was used, do 'conda env update -f env.yaml'
-    ```
-
-3. Install `roboreg`
-
-    ```shell
-    mamba activate rr-0.4.6 # can also use 'conda activate rr-0.4.6' in either case
-    pip3 install roboreg/
-    ```
 
 ### Docker (Comes with CUDA Toolkit)
 A sample Docker container is provided for testing purposes. First:
