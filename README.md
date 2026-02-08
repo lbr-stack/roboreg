@@ -34,14 +34,13 @@ Eye-to-hand calibration from RGB-D images using robot mesh as calibration target
 - [Testing](#testing)
 
 ## Installation
-Three install options are provided: 
+Two install options are provided: 
 - [Pip (Requires CUDA Toolkit Installation)](#pip-requires-cuda-toolkit-installation)
-- [Conda (Installs CUDA Toolkit)](#conda-installs-cuda-toolkit)
 - [Docker (Comes with CUDA Toolkit)](#docker-comes-with-cuda-toolkit)
 
 ### Pip (Requires CUDA Toolkit Installation)
 > [!NOTE]
-> During runtime, CUDA Toolkit is required for the differentiable rendering. If you are planning to do differentiable rendering, see [CUDA Toolkit Install Instructions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/). Alternatively, install using `conda`, see [Conda (Installs CUDA Toolkit)](#conda-installs-cuda-toolkit).
+> During runtime, CUDA Toolkit is required for the differentiable rendering. If you are planning to do differentiable rendering, see [CUDA Toolkit Install Instructions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/).
 
 To `pip` intall `roboreg`, simply run
 
