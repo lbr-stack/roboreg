@@ -18,7 +18,7 @@ class HydraObservations:
     masks: List[np.ndarray]
     depths: List[np.ndarray]
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         lengths = {
             "joint_states": len(self.joint_states),
             "masks": len(self.masks),
@@ -44,6 +44,6 @@ class HydraRequest:
     observations: HydraObservations
     initial_extrinsics: np.ndarray
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         validate_intrinsics(self.intrinsics)
         validate_extrinsics(self.initial_extrinsics)
