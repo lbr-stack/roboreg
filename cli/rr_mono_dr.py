@@ -22,7 +22,7 @@ from roboreg.io import (
     find_files,
     load_robot_data_from_ros_xacro,
     load_robot_data_from_urdf_file,
-    parse_mono_data,
+    parse_monocular_observations,
 )
 from roboreg.losses import soft_dice_loss
 from roboreg.util import mask_distance_transform, mask_exponential_decay, overlay_mask
@@ -176,7 +176,7 @@ def main() -> None:
     image_files = find_files(args.path, args.image_pattern)
     joint_states_files = find_files(args.path, args.joint_states_pattern)
     mask_files = find_files(args.path, args.mask_pattern)
-    images, joint_states, masks = parse_mono_data(
+    observations = parse_monocular_observations(
         image_files=image_files,
         joint_states_files=joint_states_files,
         mask_files=mask_files,
@@ -184,12 +184,12 @@ def main() -> None:
 
     # pre-process data
     joint_states = torch.tensor(
-        np.array(joint_states), dtype=torch.float32, device=device
+        np.array(observations.joint_states), dtype=torch.float32, device=device
     )
     if mode == REGISTRATION_MODE.DISTANCE_FUNCTION:
-        targets = [mask_distance_transform(mask) for mask in masks]
+        targets = [mask_distance_transform(mask) for mask in observations.masks]
     elif mode == REGISTRATION_MODE.SEGMENTATION:
-        targets = [mask_exponential_decay(mask) for mask in masks]
+        targets = [mask_exponential_decay(mask) for mask in observations.masks]
     else:
         raise ValueError("Invalid registration mode.")
     targets = torch.tensor(
@@ -298,7 +298,7 @@ def main() -> None:
         # display optimization progress
         if args.display_progress:
             render = renders["camera"][0].squeeze().detach().cpu().numpy()
-            image = images[0]
+            image = observations.images[0]
             render_overlay = overlay_mask(
                 image,
                 (render * 255.0).astype(np.uint8),
@@ -307,7 +307,7 @@ def main() -> None:
             # difference left / right render / mask
             difference = (
                 cv2.cvtColor(
-                    np.abs(render - masks[0].astype(np.float32) / 255.0),
+                    np.abs(render - observations.masks[0].astype(np.float32) / 255.0),
                     cv2.COLOR_GRAY2BGR,
                 )
                 * 255.0
@@ -315,7 +315,7 @@ def main() -> None:
             # overlay segmentation mask
             segmentation_overlay = overlay_mask(
                 image,
-                masks[0],
+                observations.masks[0],
                 mode="b",
                 scale=1.0,
             )
@@ -343,8 +343,10 @@ def main() -> None:
 
     for i, render in enumerate(renders):
         render = render.squeeze().cpu().numpy()
-        overlay = overlay_mask(images[i], (render * 255.0).astype(np.uint8), scale=1.0)
-        difference = np.abs(render - masks[i].astype(np.float32) / 255.0)
+        overlay = overlay_mask(
+            observations.images[i], (render * 255.0).astype(np.uint8), scale=1.0
+        )
+        difference = np.abs(render - observations.masks[i].astype(np.float32) / 255.0)
 
         cv2.imwrite(os.path.join(args.path, f"dr_overlay_{i}.png"), overlay)
         cv2.imwrite(

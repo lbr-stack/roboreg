@@ -11,7 +11,7 @@ from roboreg.io import (
     load_robot_data_from_ros_xacro,
     load_robot_data_from_urdf_file,
     parse_camera_info,
-    parse_hydra_data,
+    parse_hydra_observations,
 )
 from roboreg.util import (
     clean_xyz,
@@ -175,7 +175,7 @@ def main():
     joint_states_files = find_files(args.path, args.joint_states_pattern)
     mask_files = find_files(args.path, args.mask_pattern)
     depth_files = find_files(args.path, args.depth_pattern)
-    joint_states, masks, depths = parse_hydra_data(
+    observations = parse_hydra_observations(
         joint_states_files=joint_states_files,
         mask_files=mask_files,
         depth_files=depth_files,
@@ -183,7 +183,7 @@ def main():
     height, width, intrinsics = parse_camera_info(args.camera_info_file)
 
     # instantiate robot
-    batch_size = len(joint_states)
+    batch_size = len(observations.joint_states)
     if args.urdf_path is not None:
         robot_data = load_robot_data_from_urdf_file(
             urdf_path=args.urdf_path,
@@ -201,7 +201,7 @@ def main():
         )
     mesh_container = TorchMeshContainer(
         meshes=robot_data.meshes,
-        batch_size=len(joint_states),
+        batch_size=len(observations.joint_states),
         device=device,
     )
     kinematics = TorchKinematics(
@@ -217,13 +217,15 @@ def main():
 
     # perform forward kinematics
     joint_states = torch.tensor(
-        np.array(joint_states), dtype=torch.float32, device=device
+        np.array(observations.joint_states), dtype=torch.float32, device=device
     )
     robot.configure(joint_states)
 
     # turn depths into xyzs
     intrinsics = torch.tensor(intrinsics, dtype=torch.float32, device=device)
-    depths = torch.tensor(np.array(depths), dtype=torch.float32, device=device)
+    depths = torch.tensor(
+        np.array(observations.depths), dtype=torch.float32, device=device
+    )
     xyzs = depth_to_xyz(
         depth=depths,
         intrinsics=intrinsics,
@@ -276,7 +278,7 @@ def main():
             dtype=torch.float32,
             device=device,
         )
-        for xyz, mask in zip(xyzs, masks)
+        for xyz, mask in zip(xyzs, observations.masks)
     ]
 
     # sample N points per mesh

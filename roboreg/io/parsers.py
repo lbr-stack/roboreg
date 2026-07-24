@@ -7,6 +7,9 @@ import rich
 import yaml
 from pytorch_kinematics import urdf_parser_py
 
+from roboreg.reg.img.request import MonocularObservations, StereoObservations
+from roboreg.reg.pcl.request import HydraObservations
+
 
 class URDFParser:
     __slots__ = ["_urdf", "_robot"]
@@ -312,11 +315,11 @@ def parse_camera_info(
     return height, width, intrinsic_matrix
 
 
-def parse_hydra_data(
+def parse_hydra_observations(
     joint_states_files: List[Path],
     mask_files: List[Path],
     depth_files: List[Path],
-) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
+) -> HydraObservations:
     r"""Parse data for Hydra registration.
 
     Args:
@@ -325,10 +328,7 @@ def parse_hydra_data(
         depth_files (List[Path]): Depth files. Note that depth values are expected in meters.
 
     Returns:
-        Tuple[List[np.ndarray],List[np.ndarray],List[np.ndarray]]:
-            - Joint states.
-            - Masks of shape HxW.
-            - Point clouds of shape HxWx3.
+        HydraObservations: Data for Hydra registration.
     """
     if len(joint_states_files) == 0 or len(mask_files) == 0 or len(depth_files) == 0:
         raise ValueError("No files found.")
@@ -348,27 +348,19 @@ def parse_hydra_data(
     joint_states = [np.load(f) for f in joint_states_files]
     masks = [cv2.imread(f, cv2.IMREAD_GRAYSCALE) for f in mask_files]
     depths = [np.load(f) for f in depth_files]
-    if not all([mask.dtype == np.uint8 for mask in masks]):
-        raise ValueError("Masks must be of type np.uint8.")
-    if not all([np.all(mask >= 0) and np.all(mask <= 255) for mask in masks]):
-        raise ValueError("Masks must be in the range [0, 255].")
     if not all(
         [mask.shape[:2] == depth.shape[:2] for mask, depth in zip(masks, depths)]
     ):
         raise ValueError("Mask and depth shapes do not match.")
-    if not all(mask.ndim == 2 for mask in masks):
-        raise ValueError("Masks must be 2D.")
-    if not all(depth.ndim == 2 for depth in depths):
-        raise ValueError("Depths must be 2D.")
-    return joint_states, masks, depths
+    return HydraObservations(joint_states=joint_states, masks=masks, depths=depths)
 
 
-def parse_mono_data(
+def parse_monocular_observations(
     image_files: List[Path],
     joint_states_files: List[Path],
     mask_files: List[Path],
-) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
-    r"""Parse monocular data.
+) -> MonocularObservations:
+    r"""Parse monocular observations.
 
     Args:
         image_files (List[Path]): Image files.
@@ -376,10 +368,7 @@ def parse_mono_data(
         mask_files (List[Path]): Mask files.
 
     Returns:
-        Tuple[List[np.ndarray],List[np.ndarray],List[np.ndarray]]:
-            - Images of shape HxWx3.
-            - Joint states.
-            - Masks of shape HxW.
+        MonocularObservations: Data for monocular registration.
     """
     if len(image_files) != len(joint_states_files) or len(image_files) != len(
         mask_files
@@ -394,37 +383,21 @@ def parse_mono_data(
     images = [cv2.imread(f) for f in image_files]
     joint_states = [np.load(f) for f in joint_states_files]
     masks = [cv2.imread(f, cv2.IMREAD_GRAYSCALE) for f in mask_files]
-    if not all([mask.dtype == np.uint8 for mask in masks]):
-        raise ValueError("Masks must be of type np.uint8.")
-    if not all([np.all(mask >= 0) and np.all(mask <= 255) for mask in masks]):
-        raise ValueError("Masks must be in the range [0, 255].")
     if not all(
         [mask.shape[:2] == image.shape[:2] for mask, image in zip(masks, images)]
     ):
         raise ValueError("Mask and image shapes do not match.")
-    if not all(mask.ndim == 2 for mask in masks):
-        raise ValueError("Masks must be 2D.")
-    if not all(image.ndim == 3 for image in images):
-        raise ValueError("Images must be 3D.")
-    if not all(image.shape[-1] == 3 for image in images):
-        raise ValueError("Images must have 3 channels")
-    return images, joint_states, masks
+    return MonocularObservations(images=images, joint_states=joint_states, masks=masks)
 
 
-def parse_stereo_data(
+def parse_stereo_observations(
     left_image_files: List[Path],
     right_image_files: List[Path],
     joint_states_files: List[Path],
     left_mask_files: List[Path],
     right_mask_files: List[Path],
-) -> Tuple[
-    List[np.ndarray],
-    List[np.ndarray],
-    List[np.ndarray],
-    List[np.ndarray],
-    List[np.ndarray],
-]:
-    r"""Parse stereo data.
+) -> StereoObservations:
+    r"""Parse stereo observations.
 
     Args:
         left_image_files (List[Path]): Left image files.
@@ -434,12 +407,7 @@ def parse_stereo_data(
         right_mask_files (List[Path]): Right mask files.
 
     Returns:
-        Tuple[List[np.ndarray],List[np.ndarray],List[np.ndarray],List[np.ndarray],List[np.ndarray]]:
-            - Left images of shape HxWx3.
-            - Right images of shape HxWx3.
-            - Joint states.
-            - Left masks of shape HxW.
-            - Right masks of shape HxW.
+        StereoObservations: Data for stereo registration.
     """
     if (
         len(left_image_files) != len(right_image_files)
@@ -463,24 +431,10 @@ def parse_stereo_data(
     joint_states = [np.load(f) for f in joint_states_files]
     left_masks = [cv2.imread(f, cv2.IMREAD_GRAYSCALE) for f in left_mask_files]
     right_masks = [cv2.imread(f, cv2.IMREAD_GRAYSCALE) for f in right_mask_files]
-    if not all([mask.dtype == np.uint8 for mask in left_masks]):
-        raise ValueError("Left masks must be of type np.uint8.")
-    if not all([np.all(mask >= 0) and np.all(mask <= 255) for mask in left_masks]):
-        raise ValueError("Left masks must be in the range [0, 255].")
-    if not all([mask.dtype == np.uint8 for mask in right_masks]):
-        raise ValueError("Left masks must be of type np.uint8.")
-    if not all([np.all(mask >= 0) and np.all(mask <= 255) for mask in right_masks]):
-        raise ValueError("Left masks must be in the range [0, 255].")
-    if not all(mask.ndim == 2 for mask in left_masks):
-        raise ValueError("Left masks must be 2D.")
-    if not all(image.ndim == 3 for image in left_images):
-        raise ValueError("Left images must be 3D.")
-    if not all(image.shape[-1] == 3 for image in left_images):
-        raise ValueError("Left images must have 3 channels")
-    if not all(mask.ndim == 2 for mask in right_masks):
-        raise ValueError("Right masks must be 2D.")
-    if not all(image.ndim == 3 for image in right_images):
-        raise ValueError("Right images must be 3D.")
-    if not all(image.shape[-1] == 3 for image in right_images):
-        raise ValueError("Right images must have 3 channels")
-    return left_images, right_images, joint_states, left_masks, right_masks
+    return StereoObservations(
+        left_images=left_images,
+        right_images=right_images,
+        joint_states=joint_states,
+        left_masks=left_masks,
+        right_masks=right_masks,
+    )

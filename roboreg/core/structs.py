@@ -1,12 +1,29 @@
 import abc
 from collections import OrderedDict
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
 
-from roboreg.io import Mesh
+
+@dataclass
+class Mesh:
+    r"""Dataclass to hold mesh data."""
+
+    vertices: np.ndarray
+    faces: np.ndarray
+
+
+@dataclass
+class RobotData:
+    r"""Data needed to construct a Robot."""
+
+    meshes: Dict[str, Mesh]
+    urdf: str
+    root_link_name: str
+    end_link_name: str
 
 
 class TorchMeshContainer:

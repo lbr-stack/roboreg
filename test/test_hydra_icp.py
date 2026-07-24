@@ -14,11 +14,11 @@ from roboreg.hydra_icp import (
 )
 from roboreg.io import (
     URDFParser,
+    apply_mesh_origins,
     find_files,
     load_meshes,
     parse_camera_info,
-    apply_mesh_origins,
-    parse_hydra_data,
+    parse_hydra_observations,
 )
 from roboreg.util import (
     RegistrationVisualizer,
@@ -118,7 +118,7 @@ def test_hydra_icp():
     depth_pattern = "depth_*.npy"
 
     # load data
-    joint_states, masks, depths = parse_hydra_data(
+    observations = parse_hydra_observations(
         joint_states_files=find_files(path, joint_states_pattern),
         mask_files=find_files(path, mask_pattern),
         depth_files=find_files(path, depth_pattern),
@@ -139,7 +139,7 @@ def test_hydra_icp():
     )
 
     # instantiate mesh
-    batch_size = len(joint_states)
+    batch_size = len(observations.joint_states)
     meshes = TorchMeshContainer(
         meshes=apply_mesh_origins(
             meshes=load_meshes(
@@ -158,9 +158,9 @@ def test_hydra_icp():
     # perform forward kinematics
     mesh_vertices = meshes.vertices.clone()
     joint_states = torch.tensor(
-        np.array(joint_states), dtype=torch.float32, device=device
+        np.array(observations.joint_states), dtype=torch.float32, device=device
     )
-    ht_lookup = kinematics.mesh_forward_kinematics(joint_states)
+    ht_lookup = kinematics.forward_kinematics(joint_states)
     for link_name, ht in ht_lookup.items():
         mesh_vertices[
             :,
@@ -180,7 +180,9 @@ def test_hydra_icp():
 
     # turn depths into xyzs
     intrinsics = torch.tensor(intrinsics, dtype=torch.float32, device=device)
-    depths = torch.tensor(np.array(depths), dtype=torch.float32, device=device)
+    depths = torch.tensor(
+        np.array(observations.depths), dtype=torch.float32, device=device
+    )
     xyzs = depth_to_xyz(depth=depths, intrinsics=intrinsics, z_max=1.5)
 
     # flatten BxHxWx3 -> Bx(H*W)x3
@@ -204,7 +206,7 @@ def test_hydra_icp():
             dtype=torch.float32,
             device=device,
         )
-        for xyz, mask in zip(xyzs, masks)
+        for xyz, mask in zip(xyzs, observations.masks)
     ]
 
     # sample 5000 points per mesh
@@ -249,7 +251,7 @@ def test_hydra_robust_icp() -> None:
     depth_pattern = "depth_*.npy"
 
     # load data
-    joint_states, masks, depths = parse_hydra_data(
+    observations = parse_hydra_observations(
         joint_states_files=find_files(path, joint_states_pattern),
         mask_files=find_files(path, mask_pattern),
         depth_files=find_files(path, depth_pattern),
@@ -270,7 +272,7 @@ def test_hydra_robust_icp() -> None:
     )
 
     # instantiate mesh
-    batch_size = len(joint_states)
+    batch_size = len(observations.joint_states)
     meshes = TorchMeshContainer(
         meshes=apply_mesh_origins(
             meshes=load_meshes(
@@ -289,7 +291,7 @@ def test_hydra_robust_icp() -> None:
     # perform forward kinematics
     mesh_vertices = meshes.vertices.clone()
     joint_states = torch.tensor(
-        np.array(joint_states), dtype=torch.float32, device=device
+        np.array(observations.joint_states), dtype=torch.float32, device=device
     )
     ht_lookup = kinematics.forward_kinematics(joint_states)
     for link_name, ht in ht_lookup.items():
@@ -310,7 +312,9 @@ def test_hydra_robust_icp() -> None:
 
     # turn depths into xyzs
     intrinsics = torch.tensor(intrinsics, dtype=torch.float32, device=device)
-    depths = torch.tensor(np.array(depths), dtype=torch.float32, device=device)
+    depths = torch.tensor(
+        np.array(observations.depths), dtype=torch.float32, device=device
+    )
     xyzs = depth_to_xyz(depth=depths, intrinsics=intrinsics, z_max=1.5)
 
     # flatten BxHxWx3 -> Bx(H*W)x3
@@ -340,7 +344,7 @@ def test_hydra_robust_icp() -> None:
             dtype=torch.float32,
             device=device,
         )
-        for xyz, mask in zip(xyzs, masks)
+        for xyz, mask in zip(xyzs, observations.masks)
     ]
 
     # sample 5000 points per mesh

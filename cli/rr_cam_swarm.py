@@ -19,7 +19,7 @@ from roboreg.io import (
     load_robot_data_from_ros_xacro,
     load_robot_data_from_urdf_file,
     parse_camera_info,
-    parse_mono_data,
+    parse_monocular_observations,
 )
 from roboreg.losses import soft_dice_loss
 from roboreg.optim import LinearParticleSwarm, ParticleSwarmOptimizer
@@ -274,7 +274,7 @@ def main() -> None:
     image_files = np.array(image_files)[random_indices].tolist()
     mask_files = np.array(mask_files)[random_indices].tolist()
     joint_states_files = np.array(joint_states_files)[random_indices].tolist()
-    images, joint_states, masks = parse_mono_data(
+    observations = parse_monocular_observations(
         image_files=image_files,
         mask_files=mask_files,
         joint_states_files=joint_states_files,
@@ -282,10 +282,10 @@ def main() -> None:
 
     # pre-process data
     joint_states = torch.tensor(
-        np.array(joint_states), dtype=torch.float32, device=device
+        np.array(observations.joint_states), dtype=torch.float32, device=device
     )
     n_joint_states = joint_states.shape[0]
-    masks = [mask_exponential_decay(mask) for mask in masks]
+    masks = [mask_exponential_decay(mask) for mask in observations.masks]
     masks = torch.tensor(np.array(masks), dtype=torch.float32, device=device)
 
     # scale image data (memory reduction)
@@ -399,10 +399,14 @@ def main() -> None:
             ).astype(np.uint8)
             # upscale render
             current_best_render = cv2.resize(
-                current_best_render, (images[offset].shape[1], images[offset].shape[0])
+                current_best_render,
+                (
+                    observations.images[offset].shape[1],
+                    observations.images[offset].shape[0],
+                ),
             )
             overlay = overlay_mask(
-                images[offset],
+                observations.images[offset],
                 current_best_render,
                 scale=1.0,
             )

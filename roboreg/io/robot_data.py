@@ -1,26 +1,10 @@
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Union
+from typing import Union
 
 import rich
 
-from roboreg.io import (
-    Mesh,
-    URDFParser,
-    apply_mesh_origins,
-    load_meshes,
-    simplify_meshes,
-)
-
-
-@dataclass
-class RobotData:
-    r"""Data needed to construct a Robot."""
-
-    meshes: Dict[str, Mesh]
-    urdf: str
-    root_link_name: str
-    end_link_name: str
+from roboreg.core.structs import RobotData
+from roboreg.io import URDFParser, apply_mesh_origins, load_meshes, simplify_meshes
 
 
 def load_robot_data_from_ros_xacro(
