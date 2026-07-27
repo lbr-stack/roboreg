@@ -12,12 +12,13 @@ from roboreg.io import (
     parse_hydra_observations,
 )
 from roboreg.registration.point_cloud.config import (
+    DepthToPointCloudConfig,
     HydraConfig,
     HydraRobustICPConfig,
-    PointCloudConfig,
 )
 from roboreg.registration.point_cloud.request import HydraRequest
-from roboreg.registration.point_cloud.solver import HydraRobustICP
+from roboreg.registration.point_cloud.solver import HydraProblem, HydraRobustICP
+from roboreg.registration.result import RegistrationResult
 
 from .util.validate import validate_urdf_source
 
@@ -163,6 +164,26 @@ def args_factory() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def visualize_hydra_result(
+    problem: HydraProblem,
+    result: RegistrationResult,
+) -> None:
+    from roboreg.util import RegistrationVisualizer
+
+    visualizer = RegistrationVisualizer()
+
+    visualizer(
+        mesh_vertices=problem.reference_vertices,
+        observed_vertices=problem.observed_vertices,
+    )
+
+    visualizer(
+        mesh_vertices=problem.reference_vertices,
+        observed_vertices=problem.observed_vertices,
+        HT=torch.linalg.inv(result.extrinsics),
+    )
+
+
 def main():
     args = args_factory()
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -176,10 +197,9 @@ def main():
         mask_files=mask_files,
         depth_files=depth_files,
     )
-    height, width, intrinsics = parse_camera_info(args.camera_info_file)
+    _, _, intrinsics = parse_camera_info(args.camera_info_file)
 
     # instantiate robot
-    batch_size = len(observations.joint_states)
     if args.urdf_path is not None:
         robot_data = load_robot_data_from_urdf_file(
             urdf_path=args.urdf_path,
@@ -196,11 +216,11 @@ def main():
             collision=args.collision_meshes,
         )
 
-    # prepare
+    # register
     config = HydraRobustICPConfig(
         HydraConfig(
             reference_points_per_mesh=args.number_of_points,
-            observation=PointCloudConfig(
+            depth_to_point_cloud=DepthToPointCloudConfig(
                 z_min=args.z_min,
                 z_max=args.z_max,
                 depth_conversion_factor=args.depth_conversion_factor,
@@ -211,7 +231,11 @@ def main():
             max_correspondence_distance=args.max_distance,
         )
     )
-    hydra_robust_icp = HydraRobustICP(config=config, device=device)
+    hydra_robust_icp = HydraRobustICP(
+        config=config,
+        device=device,
+        callback=visualize_hydra_result if args.display_results else None,
+    )
     result = hydra_robust_icp(
         request=HydraRequest(
             intrinsics=intrinsics,
@@ -220,22 +244,8 @@ def main():
         )
     )
 
-    # TODO update visualization
-    # # visualize
-    # if args.display_results:
-    #     from roboreg.util import RegistrationVisualizer
-
-    #     visualizer = RegistrationVisualizer()
-    #     visualizer(mesh_vertices=mesh_vertices, observed_vertices=observed_vertices)
-    #     visualizer(
-    #         mesh_vertices=mesh_vertices,
-    #         observed_vertices=observed_vertices,
-    #         HT=torch.linalg.inv(HT),
-    #     )
-
     # to numpy
-    HT = HT.cpu().numpy()
-    np.save(os.path.join(args.path, args.output_file), HT)
+    np.save(os.path.join(args.path, args.output_file), result.extrinsics.cpu().numpy())
 
 
 if __name__ == "__main__":

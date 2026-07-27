@@ -1,19 +1,20 @@
 from typing import List, Tuple
 
 import torch
-from rich import print
 from rich.progress import track
+
+from roboreg.registration.result import RegistrationResult, TerminationReason
 
 
 def kabsch_register(
-    input: torch.Tensor, target: torch.Tensor
+    observed_vertices: torch.Tensor, reference_vertices: torch.Tensor
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     r"""Kabsch algorithm: https://en.wikipedia.org/wiki/Kabsch_algorithm.
-    Computes rotation and translation such that input @ R + t = target.
+    Computes rotation and translation such that observed_vertices @ R + t = reference_vertices.
 
     Args:
-        input (torch.Tensor): input of shape (..., M, 3).
-        target(torch.Tensor): target of shape (..., M, 3).
+        observed_vertices (torch.Tensor): Observed vertices of shape (..., M, 3).
+        reference_vertices (torch.Tensor): Reference vertices of shape (..., M, 3).
 
     Returns:
         Tuple[torch.Tensor,torch.Tensor]:
@@ -21,15 +22,15 @@ def kabsch_register(
             - Translation vector of shape (..., 3).
     """
     # compute centroids
-    input_centroid = torch.mean(input, dim=-2)
-    target_centroid = torch.mean(target, dim=-2)
+    observed_centroid = torch.mean(observed_vertices, dim=-2)
+    reference_centroid = torch.mean(reference_vertices, dim=-2)
 
     # compute centered points
-    input_centered = input - input_centroid
-    target_centered = target - target_centroid
+    observed_centered = observed_vertices - observed_centroid
+    reference_centered = reference_vertices - reference_centroid
 
     # compute covariance matrix
-    H = target_centered.transpose(-1, -2) @ input_centered
+    H = reference_centered.transpose(-1, -2) @ observed_centered
 
     # compute SVD
     U, _, V = torch.svd(H)
@@ -41,56 +42,60 @@ def kabsch_register(
     R = V @ E @ U.transpose(-1, -2)
 
     # compute translation
-    t = target_centroid - input_centroid @ R
+    t = reference_centroid - observed_centroid @ R
     return R, t
 
 
 def correspondence_indices(
-    input: torch.Tensor, target: torch.Tensor, max_distance: float = 0.1
+    observed_vertices: torch.Tensor,
+    reference_vertices: torch.Tensor,
+    max_correspondence_distance: float = 0.1,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     r"""For each point in input, find nearest neighbor index in target.
 
     Args:
-        input (torch.Tensor): Input of shape (M, 3) or (B, M, 3).
-        target (torch.Tensor): Target of shape (N, 3) or (B, N, 3).
-        max_distance (float): Maximum distance between point correspondences.
+        observed_vertices (torch.Tensor): Observed vertices of shape (M, 3) or (B, M, 3).
+        reference_vertices (torch.Tensor): Reference vertices of shape (N, 3) or (B, N, 3).
+        max_correspondence_distance (float): Maximum distance between point correspondences.
 
     Returns:
         Tuple[torch.Tensor,torch.Tensor]:
             - Match-indices of shape (M) or (B, M), where mi is the index of the nearest neighbor in target.
             - Mask of shape (M) or (B, M).
     """
-    if input.shape[-1] != 3 or target.shape[-1] != 3:
+    if observed_vertices.shape[-1] != 3 or reference_vertices.shape[-1] != 3:
         raise ValueError("Input and target must have shape (..., 3).")
-    if max_distance < 0:
+    if max_correspondence_distance < 0:
         raise ValueError("Max distance must be positive.")
-    distances = torch.cdist(input, target, p=2)  # (M, N)
-    min_distance, matchindices = torch.min(distances, dim=-1)  # (M)
-    mask = min_distance < max_distance
-    return matchindices, mask
+    distances = torch.cdist(observed_vertices, reference_vertices, p=2)  # (M, N)
+    min_distance, match_indices = torch.min(distances, dim=-1)  # (M)
+    mask = min_distance < max_correspondence_distance
+    return match_indices, mask
 
 
 def centroid_alignment(
-    Xs: List[torch.Tensor],
-    Ys: List[torch.Tensor],
+    observed_vertices: List[torch.Tensor],
+    reference_vertices: List[torch.Tensor],
 ) -> torch.Tensor:
-    r"""Aligns centroids of Xs and Ys as an initial guess.
+    r"""Aligns centroids of observed_vertices and Ys as an initial guess.
 
     Args:
-        Xs (List[torch.Tensor]): List of poinclouds of shape (Mi, 3).
-        Ys (List[torch.Tensor]): List of pointclouds of shape (Ni, 3).
+        observed_vertices (List[torch.Tensor]): List of poinclouds of shape (Mi, 3).
+        reference_vertices (List[torch.Tensor]): List of pointclouds of shape (Ni, 3).
 
     Returns:
-        torch.Tensor: Homogeneous transformation of shape (4, 4). HT @ Xs = Ys.
+        torch.Tensor: Homogeneous transformation of shape (4, 4). HT @ observed_vertices = reference_vertices.
     """
     # for each cloud compute centroid
-    Xs_centroids = [torch.mean(observation, dim=-2) for observation in Xs]
-    Ys_centroids = [torch.mean(mesh, dim=-2) for mesh in Ys]
+    observed_centroids = [
+        torch.mean(observation, dim=-2) for observation in observed_vertices
+    ]
+    reference_centroids = [torch.mean(mesh, dim=-2) for mesh in reference_vertices]
 
     # estimate transform
     R, t = kabsch_register(
-        torch.stack(Xs_centroids).unsqueeze(0),
-        torch.stack(Ys_centroids).unsqueeze(0),
+        observed_vertices=torch.stack(observed_centroids).unsqueeze(0),
+        reference_vertices=torch.stack(reference_centroids).unsqueeze(0),
     )
 
     HT = torch.eye(4, dtype=R.dtype, device=R.device)
@@ -103,63 +108,70 @@ def centroid_alignment(
 
 def point_to_point_icp(
     HT_init: torch.Tensor,
-    observations: List[torch.Tensor],
-    meshes: List[torch.Tensor],
-    max_distance: float = 0.1,
-    max_iter: int = 100,
-    rmse_change: float = 1e-6,
-    exit_early: bool = True,
-) -> torch.Tensor:
+    observed_vertices: List[torch.Tensor],
+    reference_vertices: List[torch.Tensor],
+    max_correspondence_distance: float = 0.1,
+    max_iterations: int = 100,
+    rmse_change_tolerance: float = 1e-6,
+) -> RegistrationResult:
     r"""Hydra iterative closest point algorithm.
 
     Args:
-        HT_init: Initial guess. HT_init @ observations = meshes.
-        observations: List of observations of shape (Mi, 3).
-        meshes: List of meshes of shape (Ni, 3).
-        max_distance: Maximum distance between point correspondences.
-        max_iter: Maximum number of iterations.
-        rmse_change: Minimum change in rmse to continue iterating.
+        HT_init: Initial guess. HT_init @ observed_vertices = reference_vertices.
+        observed_vertices: List of observed vertices of shape (Mi, 3).
+        reference_vertices: List of reference vertices of shape (Ni, 3).
+        max_correspondence_distance: Maximum distance between point correspondences.
+        max_iterations: Maximum number of iterations.
+        rmse_change_tolerance: Minimum change in rmse to continue iterating.
 
     Returns:
-        torch.Tensor: Homogeneous transformation of shape (4, 4). HT @ observations = meshes.
+        RegistrationResult: Result with homogeneous transformation of shape (4, 4). HT @ observed_vertices = reference_vertices.
     """
     HT = HT_init
     # registration
-    prev_rmse = float("inf")
-    for _ in track(range(max_iter), description=f"Running Hydra ICP..."):
-        observation_corr = []
-        mesh_corr = []
-        for i in range(len(meshes)):
+    previous_rmse = float("inf")
+    for iteration in track(
+        range(max_iterations), description=f"Running point to point ICP..."
+    ):
+        observed_correspondences = []
+        reference_correspondences = []
+        for i in range(len(reference_vertices)):
             # search correspondences
-            observations_tf = observations[i] @ HT[:3, :3].T + HT[:3, 3]
-            matchindices, mask = correspondence_indices(
-                observations_tf, meshes[i], max_distance
+            observations_tf = observed_vertices[i] @ HT[:3, :3].T + HT[:3, 3]
+            match_indices, mask = correspondence_indices(
+                observations_tf, reference_vertices[i], max_correspondence_distance
             )
 
-            observation_corr.append(observations[i][mask])
-            mesh_corr.append(meshes[i][matchindices[mask]].squeeze())
+            observed_correspondences.append(observed_vertices[i][mask])
+            reference_correspondences.append(
+                reference_vertices[i][match_indices[mask]].squeeze()
+            )
 
-        observation_corr = torch.concatenate(observation_corr).unsqueeze(0)
-        mesh_corr = torch.concatenate(mesh_corr).unsqueeze(0)
+        observed_correspondences = torch.concatenate(
+            observed_correspondences
+        ).unsqueeze(0)
+        reference_correspondences = torch.concatenate(
+            reference_correspondences
+        ).unsqueeze(0)
 
         (
             R,
             t,
         ) = kabsch_register(
-            observation_corr,
-            mesh_corr,
+            observed_correspondences,
+            reference_correspondences,
         )
         R = R.squeeze(0)
         t = t.squeeze(0)
         HT[:3, :3] = R.T
         HT[:3, 3] = t
 
-        # compute rmse between observation and mesh_corr
+        # compute rmse between observed_correspondences and reference_correspondences
         rmse = torch.sqrt(
             torch.mean(
                 torch.sum(
                     torch.pow(
-                        mesh_corr - observation_corr,
+                        reference_correspondences - observed_correspondences,
                         2,
                     ),
                     dim=-1,
@@ -167,100 +179,115 @@ def point_to_point_icp(
             )
         )
 
-        if abs(prev_rmse - rmse.item()) < rmse_change and exit_early:
-            print("Converged early. Exiting.")
-            break
+        if abs(previous_rmse - rmse.item()) < rmse_change_tolerance:
+            return RegistrationResult(
+                extrinsics=HT,
+                iterations=iteration,
+                termination_reason=TerminationReason.CONVERGED,
+            )
 
-        prev_rmse = rmse.item()
+        previous_rmse = rmse.item()
 
-    print("HT estimate:\n", HT)
-    return HT
+    return RegistrationResult(
+        extrinsics=HT,
+        iterations=max_iterations,
+        termination_reason=TerminationReason.MAX_ITERATIONS,
+    )
 
 
 def point_to_plane_robust_icp(
     HT_init: torch.Tensor,
-    observations: List[torch.Tensor],
-    meshes: List[torch.Tensor],
-    mesh_normals: List[torch.Tensor],
-    max_distance: float = 0.1,
-    outer_max_iter: int = 100,
-    inner_max_iter: int = 3,
-    rmse_change: float = 1e-6,
-) -> torch.Tensor:
+    observed_vertices: List[torch.Tensor],
+    reference_vertices: List[torch.Tensor],
+    reference_normals: List[torch.Tensor],
+    max_correspondence_distance: float = 0.1,
+    max_outer_iterations: int = 100,
+    max_inner_iterations: int = 3,
+    rmse_change_tolerance: float = 1e-6,
+) -> RegistrationResult:
     r"""Lie-algebra point-to-plane ICP with robust loss, refer to section 1
     https://drive.google.com/file/d/1iIUqKchAbcYzwyS2D6jNI1J6KotReD1h/view?usp=sharing.
 
     Args:
-        HT_init: Initial guess. HT_init @ observations = meshes.
-        observations: List of observations of shape (Mi, 3).
-        meshes: List of meshes of shape (Ni, 3).
-        mesh_normals: List of mesh normals of shape (Ni, 3).
-        max_distance: Maximum distance between point correspondences.
-        outer_max_iter: Maximum number of outer iterations.
-        inner_max_iter: Maximum number of inner iterations.
-        rmse_change: Minimum change in rmse to continue iterating.
+        HT_init: Initial guess. HT_init @ observed_vertices = reference_vertices.
+        observed_vertices: List of observed vertices of shape (Mi, 3).
+        reference_vertices: List of reference vertices of shape (Ni, 3).
+        reference_normals: List of reference normals of shape (Ni, 3).
+        max_correspondence_distance: Maximum distance between point correspondences.
+        max_outer_iterations: Maximum number of outer iterations.
+        max_inner_iterations: Maximum number of inner iterations.
+        rmse_change_tolerance: Minimum change in rmse to continue iterating.
 
     Returns:
-        torch.Tensor: Homogeneous transformation of shape (4, 4). HT @ observations = meshes.
+        RegistrationResult: Result with homogeneous transformation of shape (4, 4). HT @ observed_vertices = reference_vertices.
     """
-    HT = HT_init  # HT @ observation = mesh
+    HT = HT_init  # HT @ observed_vertices = reference_vertices
 
-    observations_cross_mat = []
-    for i in range(len(observations)):
+    observed_cross_mat = []
+    for i in range(len(observed_vertices)):
         # build observation cross product matrix, refer eq. 4 (gets created once)
-        observations_cross_mat.append(
+        observed_cross_mat.append(
             torch.stack(
                 [
-                    torch.zeros_like(observations[i][:, 0]),
-                    -observations[i][:, 2],
-                    observations[i][:, 1],
-                    observations[i][:, 2],
-                    torch.zeros_like(observations[i][:, 0]),
-                    -observations[i][:, 0],
-                    -observations[i][:, 1],
-                    observations[i][:, 0],
-                    torch.zeros_like(observations[i][:, 0]),
+                    torch.zeros_like(observed_vertices[i][:, 0]),
+                    -observed_vertices[i][:, 2],
+                    observed_vertices[i][:, 1],
+                    observed_vertices[i][:, 2],
+                    torch.zeros_like(observed_vertices[i][:, 0]),
+                    -observed_vertices[i][:, 0],
+                    -observed_vertices[i][:, 1],
+                    observed_vertices[i][:, 0],
+                    torch.zeros_like(observed_vertices[i][:, 0]),
                 ],
                 dim=-1,
             ).reshape(-1, 3, 3)
         )
 
     # implementation of algorithm 1
-    prev_rmse = float("inf")
+    previous_rmse = float("inf")
     dTh = torch.zeros_like(HT)
-    for _ in track(range(outer_max_iter), description=f"Running Hydra robust ICP..."):
-        observations_corr = []
-        observations_cross_mat_corr = []
-        meshes_corr = []
-        meshes_normals_corr = []
+    for outer_iteration in track(
+        range(max_outer_iterations), description=f"Running point to plane robust ICP..."
+    ):
+        observed_correspondences = []
+        observed_cross_mat_correspondences = []
+        reference_correspondences = []
+        reference_normals_correspondences = []
 
-        for i in range(len(observations)):
-            if len(observations) != len(meshes):
+        for i in range(len(observed_vertices)):
+            if len(observed_vertices) != len(reference_vertices):
                 raise ValueError("Length of observations and meshes must be the same.")
             # search correspondences
-            observations_tf = observations[i] @ HT[:3, :3].T + HT[:3, 3]
-            matchindices, mask = correspondence_indices(
-                observations_tf, meshes[i], max_distance
+            observed_vertices_tf = observed_vertices[i] @ HT[:3, :3].T + HT[:3, 3]
+            match_indices, mask = correspondence_indices(
+                observed_vertices_tf, reference_vertices[i], max_correspondence_distance
             )
 
-            observations_corr.append(observations[i][mask])
-            observations_cross_mat_corr.append(observations_cross_mat[i][mask])
-            meshes_corr.append(meshes[i][matchindices[mask].squeeze()])
-            meshes_normals_corr.append(mesh_normals[i][matchindices[mask].squeeze()])
+            observed_correspondences.append(observed_vertices[i][mask])
+            observed_cross_mat_correspondences.append(observed_cross_mat[i][mask])
+            reference_correspondences.append(
+                reference_vertices[i][match_indices[mask].squeeze()]
+            )
+            reference_normals_correspondences.append(
+                reference_normals[i][match_indices[mask].squeeze()]
+            )
 
-        observations_corr = torch.cat(observations_corr)
-        observations_cross_mat_corr = torch.cat(observations_cross_mat_corr)
-        meshes_corr = torch.cat(meshes_corr)
-        meshes_normals_corr = torch.cat(meshes_normals_corr)
+        observed_correspondences = torch.cat(observed_correspondences)
+        observed_cross_mat_correspondences = torch.cat(
+            observed_cross_mat_correspondences
+        )
+        reference_correspondences = torch.cat(reference_correspondences)
+        reference_normals_correspondences = torch.cat(reference_normals_correspondences)
 
-        for _ in range(inner_max_iter):
+        for _ in range(max_inner_iterations):
             # ||A @ dTh - B||^2, refer eq. 14
-            Al = meshes_normals_corr @ HT[:3, :3]  # eq. 18
-            Au = -Al.unsqueeze(1) @ observations_cross_mat_corr  # eq. 19
+            Al = reference_normals_correspondences @ HT[:3, :3]  # eq. 18
+            Au = -Al.unsqueeze(1) @ observed_cross_mat_correspondences  # eq. 19
             A = torch.cat((Au.squeeze(), Al.squeeze()), dim=-1)
             B = torch.linalg.vecdot(
-                meshes_normals_corr,
-                meshes_corr - (observations_corr @ HT[:3, :3].T + HT[:3, 3]),
+                reference_normals_correspondences,
+                reference_correspondences
+                - (observed_correspondences @ HT[:3, :3].T + HT[:3, 3]),
             )
             # weight associated with Huber loss
             kappa = (
@@ -286,12 +313,12 @@ def point_to_plane_robust_icp(
 
             HT = HT @ torch.linalg.matrix_exp(dTh)
 
-        # compute rmse between observation and mesh_corr
+        # compute rmse between observation and mesh_correspondences
         rmse = torch.sqrt(
             torch.mean(
                 torch.sum(
                     torch.pow(
-                        meshes_corr - observations_corr,
+                        reference_correspondences - observed_correspondences,
                         2,
                     ),
                     dim=-1,
@@ -299,11 +326,17 @@ def point_to_plane_robust_icp(
             )
         )
 
-        if abs(prev_rmse - rmse.item()) < rmse_change:
-            print("Converged early. Exiting.")
-            break
+        if abs(previous_rmse - rmse.item()) < rmse_change_tolerance:
+            return RegistrationResult(
+                extrinsics=HT,
+                iterations=outer_iteration,
+                termination_reason=TerminationReason.CONVERGED,
+            )
 
-        prev_rmse = rmse.item()
+        previous_rmse = rmse.item()
 
-    print("HT estimate:\n", HT)
-    return HT
+    return RegistrationResult(
+        extrinsics=HT,
+        iterations=max_outer_iterations,
+        termination_reason=TerminationReason.MAX_ITERATIONS,
+    )

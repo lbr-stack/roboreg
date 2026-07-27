@@ -76,19 +76,23 @@ def test_hydra_correspondence_indices() -> None:
             raise ValueError("Indices contain negative indices.")
 
     # single input
-    input = torch.rand(M, dim)
-    target = torch.rand(N, dim)  # e.g. the mesh vertices
+    observed_vertices = torch.rand(M, dim)
+    reference_vertices = torch.rand(N, dim)  # e.g. the mesh vertices
     matchindices, mask = correspondence_indices(
-        input, target, max_distance=np.sqrt(dim) / 2.0  # remove some elements randomly
+        observed_vertices,
+        reference_vertices,
+        max_correspondence_distance=np.sqrt(dim) / 2.0,  # remove some elements randomly
     )
     test_index_shape(matchindices, mask, torch.Size([M]), N)
 
     # batched input
     batch_size = 2
-    input = torch.rand(batch_size, M, dim)
-    target = torch.rand(batch_size, N, dim)
+    observed_vertices = torch.rand(batch_size, M, dim)
+    reference_vertices = torch.rand(batch_size, N, dim)
     matchindices, mask = correspondence_indices(
-        input, target, max_distance=np.sqrt(dim) / 2.0
+        observed_vertices,
+        reference_vertices,
+        max_correspondence_distance=np.sqrt(dim) / 2.0,
     )
     test_index_shape(matchindices, mask, torch.Size([batch_size, M]), N)
 
@@ -96,10 +100,12 @@ def test_hydra_correspondence_indices() -> None:
     M = 10
     N = 100
 
-    input = torch.rand(M, dim)
-    target = torch.rand(N, dim)
+    observed_vertices = torch.rand(M, dim)
+    reference_vertices = torch.rand(N, dim)
     matchindices, mask = correspondence_indices(
-        input, target, max_distance=np.sqrt(dim) / 2.0
+        observed_vertices,
+        reference_vertices,
+        max_correspondence_distance=np.sqrt(dim) / 2.0,
     )
     test_index_shape(matchindices, mask, torch.Size([M]), N)
 
@@ -156,19 +162,19 @@ def test_hydra_point_to_point_icp():
     )
 
     # perform forward kinematics
-    mesh_vertices = meshes.vertices.clone()
+    reference_vertices = meshes.vertices.clone()
     joint_states = torch.tensor(
         np.array(observations.joint_states), dtype=torch.float32, device=device
     )
     ht_lookup = kinematics.forward_kinematics(joint_states)
     for link_name, ht in ht_lookup.items():
-        mesh_vertices[
+        reference_vertices[
             :,
             meshes.lower_vertex_index_lookup[
                 link_name
             ] : meshes.upper_vertex_index_lookup[link_name],
         ] = torch.matmul(
-            mesh_vertices[
+            reference_vertices[
                 :,
                 meshes.lower_vertex_index_lookup[
                     link_name
@@ -176,7 +182,7 @@ def test_hydra_point_to_point_icp():
             ],
             ht.transpose(-1, -2),
         )
-    mesh_vertices = from_homogeneous(mesh_vertices)
+    reference_vertices = from_homogeneous(reference_vertices)
 
     # turn depths into xyzs
     intrinsics = torch.tensor(intrinsics, dtype=torch.float32, device=device)
@@ -196,8 +202,8 @@ def test_hydra_point_to_point_icp():
     xyzs = xyzs.view(-1, height, width, 3)
     xyzs = [xyz.squeeze() for xyz in xyzs.cpu().numpy()]
 
-    # mesh vertices to list
-    mesh_vertices = [mesh_vertices[i].contiguous() for i in range(batch_size)]
+    # reference vertices to list
+    reference_vertices = [reference_vertices[i].contiguous() for i in range(batch_size)]
 
     # clean observed vertices and turn into tensor
     observed_vertices = [
@@ -211,30 +217,32 @@ def test_hydra_point_to_point_icp():
 
     # sample 5000 points per mesh
     for i in range(batch_size):
-        idx = torch.randperm(mesh_vertices[i].shape[0])[:5000]
-        mesh_vertices[i] = mesh_vertices[i][idx]
+        idx = torch.randperm(reference_vertices[i].shape[0])[:5000]
+        reference_vertices[i] = reference_vertices[i][idx]
 
-    HT_init = centroid_alignment(observed_vertices, mesh_vertices)
-    HT = point_to_point_icp(
+    HT_init = centroid_alignment(observed_vertices, reference_vertices)
+    registration_result = point_to_point_icp(
         HT_init,
         observed_vertices,
-        mesh_vertices,
-        max_distance=0.1,
-        max_iter=int(1e3),
-        rmse_change=1e-8,
+        reference_vertices,
+        max_correspondence_distance=0.1,
+        max_iterations=int(1e3),
+        rmse_change_tolerance=1e-8,
     )
 
     # visualize
     visualizer = RegistrationVisualizer()
-    visualizer(mesh_vertices=mesh_vertices, observed_vertices=observed_vertices)
+    visualizer(mesh_vertices=reference_vertices, observed_vertices=observed_vertices)
     visualizer(
-        mesh_vertices=mesh_vertices,
+        mesh_vertices=reference_vertices,
         observed_vertices=observed_vertices,
-        HT=torch.linalg.inv(HT),
+        HT=torch.linalg.inv(registration_result.extrinsics),
     )
 
     # to numpy
-    np.save(os.path.join(path, "HT_hydra.npy"), HT.cpu().numpy())
+    np.save(
+        os.path.join(path, "HT_hydra.npy"), registration_result.extrinsics.cpu().numpy()
+    )
 
 
 @pytest.mark.skip(reason="To be fixed.")
@@ -289,19 +297,19 @@ def test_hydra_point_to_plane_robust_icp() -> None:
     )
 
     # perform forward kinematics
-    mesh_vertices = meshes.vertices.clone()
+    reference_vertices = meshes.vertices.clone()
     joint_states = torch.tensor(
         np.array(observations.joint_states), dtype=torch.float32, device=device
     )
     ht_lookup = kinematics.forward_kinematics(joint_states)
     for link_name, ht in ht_lookup.items():
-        mesh_vertices[
+        reference_vertices[
             :,
             meshes.lower_vertex_index_lookup[
                 link_name
             ] : meshes.upper_vertex_index_lookup[link_name],
         ] = torch.matmul(
-            mesh_vertices[
+            reference_vertices[
                 :,
                 meshes.lower_vertex_index_lookup[
                     link_name
@@ -329,12 +337,12 @@ def test_hydra_point_to_plane_robust_icp() -> None:
     xyzs = [xyz.squeeze() for xyz in xyzs.cpu().numpy()]
 
     # mesh vertices to list
-    mesh_vertices = from_homogeneous(mesh_vertices)
-    mesh_vertices = [mesh_vertices[i].contiguous() for i in range(batch_size)]
-    mesh_normals = []
+    reference_vertices = from_homogeneous(reference_vertices)
+    reference_vertices = [reference_vertices[i].contiguous() for i in range(batch_size)]
+    reference_normals = []
     for i in range(batch_size):
-        mesh_normals.append(
-            compute_vertex_normals(vertices=mesh_vertices[i], faces=meshes.faces)
+        reference_normals.append(
+            compute_vertex_normals(vertices=reference_vertices[i], faces=meshes.faces)
         )
 
     # clean observed vertices and turn into tensor
@@ -349,33 +357,35 @@ def test_hydra_point_to_plane_robust_icp() -> None:
 
     # sample 5000 points per mesh
     for i in range(batch_size):
-        idx = torch.randperm(mesh_vertices[i].shape[0])[:5000]
-        mesh_vertices[i] = mesh_vertices[i][idx]
-        mesh_normals[i] = mesh_normals[i][idx]
+        idx = torch.randperm(reference_vertices[i].shape[0])[:5000]
+        reference_vertices[i] = reference_vertices[i][idx]
+        reference_normals[i] = reference_normals[i][idx]
 
-    HT_init = centroid_alignment(observed_vertices, mesh_vertices)
-    HT = point_to_plane_robust_icp(
+    HT_init = centroid_alignment(observed_vertices, reference_vertices)
+    registration_result = point_to_plane_robust_icp(
         HT_init,
         observed_vertices,
-        mesh_vertices,
-        mesh_normals,
-        max_distance=0.1,
-        outer_max_iter=int(50),
-        inner_max_iter=10,
+        reference_vertices,
+        reference_normals,
+        max_correspondence_distance=0.1,
+        max_outer_iterations=50,
+        max_inner_iterations=10,
     )
 
     # visualize
     visualizer = RegistrationVisualizer()
-    visualizer(mesh_vertices=mesh_vertices, observed_vertices=observed_vertices)
+    visualizer(mesh_vertices=reference_vertices, observed_vertices=observed_vertices)
     visualizer(
-        mesh_vertices=mesh_vertices,
+        mesh_vertices=reference_vertices,
         observed_vertices=observed_vertices,
-        HT=torch.linalg.inv(HT),
+        HT=torch.linalg.inv(registration_result.extrinsics),
     )
 
     # to numpy
-    HT = HT.cpu().numpy()
-    np.save(os.path.join(path, "HT_hydra_robust.npy"), HT)
+    np.save(
+        os.path.join(path, "HT_hydra_robust.npy"),
+        registration_result.extrinsics.cpu().numpy(),
+    )
 
 
 if __name__ == "__main__":

@@ -2,10 +2,9 @@ from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
-class PointCloudConfig:
+class DepthToPointCloudConfig:
     z_min: float = 0.01
     z_max: float = 2.0
-
     depth_conversion_factor: float = 1.0
 
     use_mask_boundary: bool = True
@@ -17,10 +16,12 @@ class PointCloudConfig:
 class HydraConfig:
     reference_points_per_mesh: int = 5000
 
-    observation: PointCloudConfig = field(default_factory=PointCloudConfig)
+    depth_to_point_cloud: DepthToPointCloudConfig = field(
+        default_factory=DepthToPointCloudConfig
+    )
 
     max_correspondence_distance: float = 0.1
-    rmse_change_tolerance: float = 1e-6  ## convergence ...
+    rmse_change_tolerance: float = 1e-6
 
 
 @dataclass(frozen=True)
@@ -32,5 +33,5 @@ class HydraICPConfig:
 @dataclass(frozen=True)
 class HydraRobustICPConfig:
     hydra: HydraConfig = field(default_factory=HydraConfig)
-    outer_max_iterations: int = 50
-    inner_max_iterations: int = 10
+    max_outer_iterations: int = 50
+    max_inner_iterations: int = 10
