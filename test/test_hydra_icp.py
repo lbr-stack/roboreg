@@ -6,12 +6,6 @@ import torch
 import transformations as tf
 
 from roboreg.core import TorchKinematics, TorchMeshContainer
-from roboreg.hydra_icp import (
-    hydra_centroid_alignment,
-    hydra_correspondence_indices,
-    hydra_icp,
-    hydra_robust_icp,
-)
 from roboreg.io import (
     URDFParser,
     apply_mesh_origins,
@@ -19,6 +13,12 @@ from roboreg.io import (
     load_meshes,
     parse_camera_info,
     parse_hydra_observations,
+)
+from roboreg.registration.point_cloud.hydra import (
+    centroid_alignment,
+    correspondence_indices,
+    point_to_point_icp,
+    point_to_plane_robust_icp,
 )
 from roboreg.util import (
     RegistrationVisualizer,
@@ -48,7 +48,7 @@ def test_hydra_centroid_alignment():
         for mesh_centroid in mesh_centroids
     ]
 
-    HT = hydra_centroid_alignment(mesh_centroids, observed_centroids)
+    HT = centroid_alignment(mesh_centroids, observed_centroids)
 
     assert torch.allclose(HT, HT_random)
 
@@ -78,7 +78,7 @@ def test_hydra_correspondence_indices() -> None:
     # single input
     input = torch.rand(M, dim)
     target = torch.rand(N, dim)  # e.g. the mesh vertices
-    matchindices, mask = hydra_correspondence_indices(
+    matchindices, mask = correspondence_indices(
         input, target, max_distance=np.sqrt(dim) / 2.0  # remove some elements randomly
     )
     test_index_shape(matchindices, mask, torch.Size([M]), N)
@@ -87,7 +87,7 @@ def test_hydra_correspondence_indices() -> None:
     batch_size = 2
     input = torch.rand(batch_size, M, dim)
     target = torch.rand(batch_size, N, dim)
-    matchindices, mask = hydra_correspondence_indices(
+    matchindices, mask = correspondence_indices(
         input, target, max_distance=np.sqrt(dim) / 2.0
     )
     test_index_shape(matchindices, mask, torch.Size([batch_size, M]), N)
@@ -98,14 +98,14 @@ def test_hydra_correspondence_indices() -> None:
 
     input = torch.rand(M, dim)
     target = torch.rand(N, dim)
-    matchindices, mask = hydra_correspondence_indices(
+    matchindices, mask = correspondence_indices(
         input, target, max_distance=np.sqrt(dim) / 2.0
     )
     test_index_shape(matchindices, mask, torch.Size([M]), N)
 
 
 @pytest.mark.skip(reason="To be fixed.")
-def test_hydra_icp():
+def test_hydra_point_to_point_icp():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     ros_package = "lbr_description"
     xacro_path = "urdf/med7/med7.xacro"
@@ -214,8 +214,8 @@ def test_hydra_icp():
         idx = torch.randperm(mesh_vertices[i].shape[0])[:5000]
         mesh_vertices[i] = mesh_vertices[i][idx]
 
-    HT_init = hydra_centroid_alignment(observed_vertices, mesh_vertices)
-    HT = hydra_icp(
+    HT_init = centroid_alignment(observed_vertices, mesh_vertices)
+    HT = point_to_point_icp(
         HT_init,
         observed_vertices,
         mesh_vertices,
@@ -238,7 +238,7 @@ def test_hydra_icp():
 
 
 @pytest.mark.skip(reason="To be fixed.")
-def test_hydra_robust_icp() -> None:
+def test_hydra_point_to_plane_robust_icp() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     ros_package = "lbr_description"
     xacro_path = "urdf/med7/med7.xacro"
@@ -353,8 +353,8 @@ def test_hydra_robust_icp() -> None:
         mesh_vertices[i] = mesh_vertices[i][idx]
         mesh_normals[i] = mesh_normals[i][idx]
 
-    HT_init = hydra_centroid_alignment(observed_vertices, mesh_vertices)
-    HT = hydra_robust_icp(
+    HT_init = centroid_alignment(observed_vertices, mesh_vertices)
+    HT = point_to_plane_robust_icp(
         HT_init,
         observed_vertices,
         mesh_vertices,
@@ -387,5 +387,5 @@ if __name__ == "__main__":
 
     # test_hydra_centroid_alignment()
     # test_hydra_correspondence_indices()
-    # test_hydra_icp()
-    test_hydra_robust_icp()
+    # test_hydra_point_to_point_icp()
+    test_hydra_point_to_plane_robust_icp()

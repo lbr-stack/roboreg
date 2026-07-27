@@ -10,9 +10,7 @@ def validate_intrinsics(intrinsics: np.ndarray) -> None:
 
 def validate_extrinsics(extrinsics: np.ndarray) -> None:
     if extrinsics.shape != (4, 4):
-        raise ValueError(
-            "Extrinsics must have shape (4, 4), " f"got {extrinsics.shape}."
-        )
+        raise ValueError(f"Extrinsics must have shape (4, 4), got {extrinsics.shape}.")
 
 
 def validate_images(images: List[np.ndarray], name: str) -> None:
@@ -37,7 +35,7 @@ def validate_masks(masks: List[np.ndarray], name: str) -> None:
             )
 
 
-def validate_depths(depths: List[np.ndarray], name: str) -> None:
-    for index, depth in enumerate(depths):
-        if depth.ndim != 2:
-            raise ValueError(f"{name}[{index}] must be 2D, got shape {depth.shape}.")
+def validate_targets(targets: List[np.ndarray], name: str) -> None:
+    for index, target in enumerate(targets):
+        if target.ndim != 2:
+            raise ValueError(f"{name}[{index}] must be 2D, got shape {target.shape}.")

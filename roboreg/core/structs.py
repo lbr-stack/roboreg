@@ -16,16 +16,6 @@ class Mesh:
     faces: np.ndarray
 
 
-@dataclass
-class RobotData:
-    r"""Data needed to construct a Robot."""
-
-    meshes: Dict[str, Mesh]
-    urdf: str
-    root_link_name: str
-    end_link_name: str
-
-
 class TorchMeshContainer:
     r"""Compatability utility structure for NVDiffRast rendering and pytorch-kinematics.
 

@@ -10,8 +10,6 @@ from roboreg.core import (
     NVDiffRastRenderer,
     Robot,
     RobotScene,
-    TorchKinematics,
-    TorchMeshContainer,
     VirtualCamera,
 )
 from roboreg.io import (
@@ -265,18 +263,18 @@ def main() -> None:
         camera_info_file=args.camera_info_file
     )
     image_files = find_files(args.path, args.image_pattern)
-    mask_files = find_files(args.path, args.mask_pattern)
+    target_files = find_files(args.path, args.mask_pattern)
     joint_states_files = find_files(args.path, args.joint_states_pattern)
     n_samples = args.n_samples
     if n_samples > len(image_files):  # randomly sample n_samples
         n_samples = len(image_files)
     random_indices = np.random.choice(len(image_files), n_samples, replace=False)
     image_files = np.array(image_files)[random_indices].tolist()
-    mask_files = np.array(mask_files)[random_indices].tolist()
+    target_files = np.array(target_files)[random_indices].tolist()
     joint_states_files = np.array(joint_states_files)[random_indices].tolist()
     observations = parse_monocular_observations(
         image_files=image_files,
-        mask_files=mask_files,
+        target_files=target_files,
         joint_states_files=joint_states_files,
     )
 
@@ -285,7 +283,7 @@ def main() -> None:
         np.array(observations.joint_states), dtype=torch.float32, device=device
     )
     n_joint_states = joint_states.shape[0]
-    masks = [mask_exponential_decay(mask) for mask in observations.masks]
+    masks = [mask_exponential_decay(mask) for mask in observations.targets]
     masks = torch.tensor(np.array(masks), dtype=torch.float32, device=device)
 
     # scale image data (memory reduction)
@@ -345,20 +343,8 @@ def main() -> None:
             collision=args.collision_meshes,
             target_reduction=args.target_reduction,
         )
-    mesh_container = TorchMeshContainer(
-        meshes=robot_data.meshes,
-        batch_size=batch_size,
-        device=device,
-    )
-    kinematics = TorchKinematics(
-        urdf=robot_data.urdf,
-        root_link_name=robot_data.root_link_name,
-        end_link_name=robot_data.end_link_name,
-        device=device,
-    )
-    robot = Robot(
-        mesh_container=mesh_container,
-        kinematics=kinematics,
+    robot = Robot.from_robot_data(
+        robot_data=robot_data, batch_size=batch_size, device=device
     )
 
     # instantiate scene

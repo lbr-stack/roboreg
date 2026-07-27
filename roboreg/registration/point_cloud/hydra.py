@@ -45,7 +45,7 @@ def kabsch_register(
     return R, t
 
 
-def hydra_correspondence_indices(
+def correspondence_indices(
     input: torch.Tensor, target: torch.Tensor, max_distance: float = 0.1
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     r"""For each point in input, find nearest neighbor index in target.
@@ -70,7 +70,7 @@ def hydra_correspondence_indices(
     return matchindices, mask
 
 
-def hydra_centroid_alignment(
+def centroid_alignment(
     Xs: List[torch.Tensor],
     Ys: List[torch.Tensor],
 ) -> torch.Tensor:
@@ -101,7 +101,7 @@ def hydra_centroid_alignment(
     return HT
 
 
-def hydra_icp(
+def point_to_point_icp(
     HT_init: torch.Tensor,
     observations: List[torch.Tensor],
     meshes: List[torch.Tensor],
@@ -132,7 +132,7 @@ def hydra_icp(
         for i in range(len(meshes)):
             # search correspondences
             observations_tf = observations[i] @ HT[:3, :3].T + HT[:3, 3]
-            matchindices, mask = hydra_correspondence_indices(
+            matchindices, mask = correspondence_indices(
                 observations_tf, meshes[i], max_distance
             )
 
@@ -177,7 +177,7 @@ def hydra_icp(
     return HT
 
 
-def hydra_robust_icp(
+def point_to_plane_robust_icp(
     HT_init: torch.Tensor,
     observations: List[torch.Tensor],
     meshes: List[torch.Tensor],
@@ -239,7 +239,7 @@ def hydra_robust_icp(
                 raise ValueError("Length of observations and meshes must be the same.")
             # search correspondences
             observations_tf = observations[i] @ HT[:3, :3].T + HT[:3, 3]
-            matchindices, mask = hydra_correspondence_indices(
+            matchindices, mask = correspondence_indices(
                 observations_tf, meshes[i], max_distance
             )
 

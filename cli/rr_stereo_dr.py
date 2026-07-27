@@ -14,8 +14,6 @@ from roboreg.core import (
     NVDiffRastRenderer,
     Robot,
     RobotScene,
-    TorchKinematics,
-    TorchMeshContainer,
     VirtualCamera,
 )
 from roboreg.io import (
@@ -206,14 +204,14 @@ def main() -> None:
     left_image_files = find_files(args.path, args.left_image_pattern)
     right_image_files = find_files(args.path, args.right_image_pattern)
     joint_states_files = find_files(args.path, args.joint_states_pattern)
-    left_mask_files = find_files(args.path, args.left_mask_pattern)
-    right_mask_files = find_files(args.path, args.right_mask_pattern)
+    left_target_files = find_files(args.path, args.left_mask_pattern)
+    right_target_files = find_files(args.path, args.right_mask_pattern)
     observations = parse_stereo_observations(
         left_image_files=left_image_files,
         right_image_files=right_image_files,
         joint_states_files=joint_states_files,
-        left_mask_files=left_mask_files,
-        right_mask_files=right_mask_files,
+        left_target_files=left_target_files,
+        right_target_files=right_target_files,
     )
 
     # pre-process data
@@ -222,17 +220,17 @@ def main() -> None:
     )
     if mode == REGISTRATION_MODE.DISTANCE_FUNCTION:
         left_targets = [
-            mask_distance_transform(mask) for mask in observations.left_masks
+            mask_distance_transform(mask) for mask in observations.left_targets
         ]
         right_targets = [
-            mask_distance_transform(mask) for mask in observations.right_masks
+            mask_distance_transform(mask) for mask in observations.right_targets
         ]
     elif mode == REGISTRATION_MODE.SEGMENTATION:
         left_targets = [
-            mask_exponential_decay(mask) for mask in observations.left_masks
+            mask_exponential_decay(mask) for mask in observations.left_targets
         ]
         right_targets = [
-            mask_exponential_decay(mask) for mask in observations.right_masks
+            mask_exponential_decay(mask) for mask in observations.right_targets
         ]
     else:
         raise ValueError("Invalid registration mode.")
@@ -274,20 +272,8 @@ def main() -> None:
             end_link_name=args.end_link_name,
             collision=args.collision_meshes,
         )
-    mesh_container = TorchMeshContainer(
-        meshes=robot_data.meshes,
-        batch_size=joint_states.shape[0],
-        device=device,
-    )
-    kinematics = TorchKinematics(
-        urdf=robot_data.urdf,
-        root_link_name=robot_data.root_link_name,
-        end_link_name=robot_data.end_link_name,
-        device=device,
-    )
-    robot = Robot(
-        mesh_container=mesh_container,
-        kinematics=kinematics,
+    robot = Robot.from_robot_data(
+        robot_data=robot_data, batch_size=joint_states.shape[0], device=device
     )
 
     # instantiate scene
@@ -382,7 +368,7 @@ def main() -> None:
                     cv2.cvtColor(
                         np.abs(
                             left_render
-                            - observations.left_masks[0].astype(np.float32) / 255.0
+                            - observations.left_targets[0].astype(np.float32) / 255.0
                         ),
                         cv2.COLOR_GRAY2BGR,
                     )
@@ -394,7 +380,7 @@ def main() -> None:
                     cv2.cvtColor(
                         np.abs(
                             right_render
-                            - observations.right_masks[0].astype(np.float32) / 255.0
+                            - observations.right_targets[0].astype(np.float32) / 255.0
                         ),
                         cv2.COLOR_GRAY2BGR,
                     )
@@ -406,7 +392,7 @@ def main() -> None:
             segmentation_overlays.append(
                 overlay_mask(
                     left_image,
-                    observations.left_masks[0],
+                    observations.left_targets[0],
                     mode="b",
                     scale=1.0,
                 )
@@ -414,7 +400,7 @@ def main() -> None:
             segmentation_overlays.append(
                 overlay_mask(
                     right_image,
-                    observations.right_masks[0],
+                    observations.right_targets[0],
                     mode="b",
                     scale=1.0,
                 )
@@ -460,10 +446,10 @@ def main() -> None:
             scale=1.0,
         )
         left_difference = np.abs(
-            left_render - observations.left_masks[i].astype(np.float32) / 255.0
+            left_render - observations.left_targets[i].astype(np.float32) / 255.0
         )
         right_difference = np.abs(
-            right_render - observations.right_masks[i].astype(np.float32) / 255.0
+            right_render - observations.right_targets[i].astype(np.float32) / 255.0
         )
 
         cv2.imwrite(os.path.join(args.path, f"left_dr_overlay_{i}.png"), left_overlay)

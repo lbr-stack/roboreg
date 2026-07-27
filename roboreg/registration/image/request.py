@@ -3,12 +3,12 @@ from typing import List
 
 import numpy as np
 
-from roboreg.core.structs import RobotData
-from roboreg.reg._validation import (
+from roboreg.core.robot import RobotData
+from roboreg.registration._validation import (
     validate_extrinsics,
     validate_images,
     validate_intrinsics,
-    validate_masks,
+    validate_targets,
 )
 
 
@@ -16,13 +16,13 @@ from roboreg.reg._validation import (
 class MonocularObservations:
     images: List[np.ndarray]
     joint_states: List[np.ndarray]
-    masks: List[np.ndarray]
+    targets: List[np.ndarray]
 
     def __post_init__(self) -> None:
         lengths = {
             "images": len(self.images),
             "joint_states": len(self.joint_states),
-            "masks": len(self.masks),
+            "targets": len(self.targets),
         }
 
         if len(set(lengths.values())) != 1:
@@ -34,7 +34,7 @@ class MonocularObservations:
             raise ValueError("Expected at least one observation.")
 
         validate_images(self.images, "images")
-        validate_masks(self.masks, "masks")
+        validate_targets(self.targets, "targets")
 
 
 @dataclass(frozen=True)
@@ -42,16 +42,16 @@ class StereoObservations:
     left_images: List[np.ndarray]
     right_images: List[np.ndarray]
     joint_states: List[np.ndarray]
-    left_masks: List[np.ndarray]
-    right_masks: List[np.ndarray]
+    left_targets: List[np.ndarray]
+    right_targets: List[np.ndarray]
 
     def __post_init__(self) -> None:
         lengths = {
             "left_images": len(self.left_images),
             "right_images": len(self.right_images),
             "joint_states": len(self.joint_states),
-            "left_masks": len(self.left_masks),
-            "right_masks": len(self.right_masks),
+            "left_targets": len(self.left_targets),
+            "right_targets": len(self.right_targets),
         }
 
         if len(set(lengths.values())) != 1:
@@ -64,8 +64,8 @@ class StereoObservations:
 
         validate_images(self.left_images, "left_images")
         validate_images(self.right_images, "right_images")
-        validate_masks(self.left_masks, "left_masks")
-        validate_masks(self.right_masks, "right_masks")
+        validate_targets(self.left_targets, "left_targets")
+        validate_targets(self.right_targets, "right_targets")
 
 
 @dataclass(frozen=True)

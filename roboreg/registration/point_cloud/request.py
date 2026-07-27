@@ -1,14 +1,13 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 
-from roboreg.core.structs import RobotData
-from roboreg.reg._validation import (
-    validate_depths,
-    validate_extrinsics,
+from roboreg.core.robot import RobotData
+from roboreg.registration._validation import (
     validate_intrinsics,
     validate_masks,
+    validate_targets,
 )
 
 
@@ -34,7 +33,18 @@ class HydraObservations:
             raise ValueError("Expected at least one observation.")
 
         validate_masks(self.masks, "masks")
-        validate_depths(self.depths, "depths")
+        validate_targets(self.depths, "depths")
+
+        for i, (mask, depth) in enumerate(zip(self.masks, self.depths)):
+            if mask.shape != depth.shape:
+                raise ValueError(
+                    f"masks[{i}] and depths[{i}] have incompatible shapes: "
+                    f"{mask.shape} and {depth.shape}."
+                )
+
+    @property
+    def shape(self) -> Tuple[int, int]:
+        return self.depths[0].shape
 
 
 @dataclass(frozen=True)
@@ -42,8 +52,6 @@ class HydraRequest:
     intrinsics: np.ndarray
     robot_data: RobotData
     observations: HydraObservations
-    initial_extrinsics: np.ndarray
 
     def __post_init__(self) -> None:
         validate_intrinsics(self.intrinsics)
-        validate_extrinsics(self.initial_extrinsics)

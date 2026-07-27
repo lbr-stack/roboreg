@@ -1,9 +1,20 @@
-from typing import Union
+from dataclasses import dataclass
+from typing import Dict, Union
 
 import torch
 
 from .kinematics import TorchKinematics
-from .structs import TorchMeshContainer
+from .structs import Mesh, TorchMeshContainer
+
+
+@dataclass
+class RobotData:
+    r"""Data needed to construct a Robot."""
+
+    meshes: Dict[str, Mesh]
+    urdf: str
+    root_link_name: str
+    end_link_name: str
 
 
 class Robot:
@@ -22,6 +33,27 @@ class Robot:
                 "Mesh container and kinematics must be on the same device."
             )
         self._device = mesh_container.device
+
+    @classmethod
+    def from_robot_data(
+        cls,
+        robot_data: RobotData,
+        batch_size: int,
+        device: Union[torch.device, str] = "cuda",
+    ) -> "Robot":
+        return Robot(
+            mesh_container=TorchMeshContainer(
+                meshes=robot_data.meshes,
+                batch_size=batch_size,
+                device=device,
+            ),
+            kinematics=TorchKinematics(
+                urdf=robot_data.urdf,
+                root_link_name=robot_data.root_link_name,
+                end_link_name=robot_data.end_link_name,
+                device=device,
+            ),
+        )
 
     def configure(
         self, q: torch.FloatTensor, ht_root: torch.FloatTensor = None

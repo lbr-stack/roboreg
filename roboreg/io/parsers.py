@@ -7,8 +7,8 @@ import rich
 import yaml
 from pytorch_kinematics import urdf_parser_py
 
-from roboreg.reg.img.request import MonocularObservations, StereoObservations
-from roboreg.reg.pcl.request import HydraObservations
+from roboreg.registration.image.request import MonocularObservations, StereoObservations
+from roboreg.registration.point_cloud.request import HydraObservations
 
 
 class URDFParser:
@@ -358,44 +358,46 @@ def parse_hydra_observations(
 def parse_monocular_observations(
     image_files: List[Path],
     joint_states_files: List[Path],
-    mask_files: List[Path],
+    target_files: List[Path],
 ) -> MonocularObservations:
     r"""Parse monocular observations.
 
     Args:
         image_files (List[Path]): Image files.
         joint_states_files (List[Path]): Joint states files.
-        mask_files (List[Path]): Mask files.
+        target_files (List[Path]): Target files.
 
     Returns:
         MonocularObservations: Data for monocular registration.
     """
     if len(image_files) != len(joint_states_files) or len(image_files) != len(
-        mask_files
+        target_files
     ):
         raise ValueError("Number of images, joint states, masks do not match.")
 
     rich.print("Parsing the following files:")
     rich.print(f"Images: {[f.name for f in image_files]}")
     rich.print(f"Joint states: {[f.name for f in joint_states_files]}")
-    rich.print(f"Masks: {[f.name for f in mask_files]}")
+    rich.print(f"Targets: {[f.name for f in target_files]}")
 
     images = [cv2.imread(f) for f in image_files]
     joint_states = [np.load(f) for f in joint_states_files]
-    masks = [cv2.imread(f, cv2.IMREAD_GRAYSCALE) for f in mask_files]
+    masks = [cv2.imread(f, cv2.IMREAD_GRAYSCALE) for f in target_files]
     if not all(
         [mask.shape[:2] == image.shape[:2] for mask, image in zip(masks, images)]
     ):
         raise ValueError("Mask and image shapes do not match.")
-    return MonocularObservations(images=images, joint_states=joint_states, masks=masks)
+    return MonocularObservations(
+        images=images, joint_states=joint_states, targets=masks
+    )
 
 
 def parse_stereo_observations(
     left_image_files: List[Path],
     right_image_files: List[Path],
     joint_states_files: List[Path],
-    left_mask_files: List[Path],
-    right_mask_files: List[Path],
+    left_target_files: List[Path],
+    right_target_files: List[Path],
 ) -> StereoObservations:
     r"""Parse stereo observations.
 
@@ -403,8 +405,8 @@ def parse_stereo_observations(
         left_image_files (List[Path]): Left image files.
         right_image_files (List[Path]): Right image files.
         joint_states_files (List[Path]): Joint states files.
-        left_mask_files (List[Path]): Left mask files.
-        right_mask_files (List[Path]): Right mask files.
+        left_target_files (List[Path]): Left target files.
+        right_target_files (List[Path]): Right target files.
 
     Returns:
         StereoObservations: Data for stereo registration.
@@ -412,8 +414,8 @@ def parse_stereo_observations(
     if (
         len(left_image_files) != len(right_image_files)
         or len(left_image_files) != len(joint_states_files)
-        or len(left_image_files) != len(left_mask_files)
-        or len(left_image_files) != len(right_mask_files)
+        or len(left_image_files) != len(left_target_files)
+        or len(left_image_files) != len(right_target_files)
     ):
         raise ValueError(
             "Number of left / right images, joint states, left / right masks do not match."
@@ -423,18 +425,18 @@ def parse_stereo_observations(
     rich.print(f"Left images: {[f.name for f in left_image_files]}")
     rich.print(f"Right images: {[f.name for f in right_image_files]}")
     rich.print(f"Joint states: {[f.name for f in joint_states_files]}")
-    rich.print(f"Left masks: {[f.name for f in left_mask_files]}")
-    rich.print(f"Right masks: {[f.name for f in right_mask_files]}")
+    rich.print(f"Left targets: {[f.name for f in left_target_files]}")
+    rich.print(f"Right targets: {[f.name for f in right_target_files]}")
 
     left_images = [cv2.imread(f) for f in left_image_files]
     right_images = [cv2.imread(f) for f in right_image_files]
     joint_states = [np.load(f) for f in joint_states_files]
-    left_masks = [cv2.imread(f, cv2.IMREAD_GRAYSCALE) for f in left_mask_files]
-    right_masks = [cv2.imread(f, cv2.IMREAD_GRAYSCALE) for f in right_mask_files]
+    left_targets = [cv2.imread(f, cv2.IMREAD_GRAYSCALE) for f in left_target_files]
+    right_targets = [cv2.imread(f, cv2.IMREAD_GRAYSCALE) for f in right_target_files]
     return StereoObservations(
         left_images=left_images,
         right_images=right_images,
         joint_states=joint_states,
-        left_masks=left_masks,
-        right_masks=right_masks,
+        left_targets=left_targets,
+        right_targets=right_targets,
     )

@@ -3,7 +3,7 @@ from typing import Union
 
 import rich
 
-from roboreg.core.structs import RobotData
+from roboreg.core.robot import RobotData
 from roboreg.io import URDFParser, apply_mesh_origins, load_meshes, simplify_meshes
 
 

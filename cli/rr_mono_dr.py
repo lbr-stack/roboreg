@@ -10,14 +10,7 @@ import rich
 import rich.progress
 import torch
 
-from roboreg.core import (
-    NVDiffRastRenderer,
-    Robot,
-    RobotScene,
-    TorchKinematics,
-    TorchMeshContainer,
-    VirtualCamera,
-)
+from roboreg.core import NVDiffRastRenderer, Robot, RobotScene, VirtualCamera
 from roboreg.io import (
     find_files,
     load_robot_data_from_ros_xacro,
@@ -175,11 +168,11 @@ def main() -> None:
     # load data
     image_files = find_files(args.path, args.image_pattern)
     joint_states_files = find_files(args.path, args.joint_states_pattern)
-    mask_files = find_files(args.path, args.mask_pattern)
+    target_files = find_files(args.path, args.mask_pattern)
     observations = parse_monocular_observations(
         image_files=image_files,
         joint_states_files=joint_states_files,
-        mask_files=mask_files,
+        target_files=target_files,
     )
 
     # pre-process data
@@ -187,9 +180,9 @@ def main() -> None:
         np.array(observations.joint_states), dtype=torch.float32, device=device
     )
     if mode == REGISTRATION_MODE.DISTANCE_FUNCTION:
-        targets = [mask_distance_transform(mask) for mask in observations.masks]
+        targets = [mask_distance_transform(mask) for mask in observations.targets]
     elif mode == REGISTRATION_MODE.SEGMENTATION:
-        targets = [mask_exponential_decay(mask) for mask in observations.masks]
+        targets = [mask_exponential_decay(mask) for mask in observations.targets]
     else:
         raise ValueError("Invalid registration mode.")
     targets = torch.tensor(
@@ -220,20 +213,8 @@ def main() -> None:
             end_link_name=args.end_link_name,
             collision=args.collision_meshes,
         )
-    mesh_container = TorchMeshContainer(
-        meshes=robot_data.meshes,
-        batch_size=joint_states.shape[0],
-        device=device,
-    )
-    kinematics = TorchKinematics(
-        urdf=robot_data.urdf,
-        root_link_name=robot_data.root_link_name,
-        end_link_name=robot_data.end_link_name,
-        device=device,
-    )
-    robot = Robot(
-        mesh_container=mesh_container,
-        kinematics=kinematics,
+    robot = Robot.from_robot_data(
+        robot_data=robot_data, batch_size=joint_states.shape[0], device=device
     )
 
     # instantiate scene
@@ -307,7 +288,7 @@ def main() -> None:
             # difference left / right render / mask
             difference = (
                 cv2.cvtColor(
-                    np.abs(render - observations.masks[0].astype(np.float32) / 255.0),
+                    np.abs(render - observations.targets[0].astype(np.float32) / 255.0),
                     cv2.COLOR_GRAY2BGR,
                 )
                 * 255.0
@@ -315,7 +296,7 @@ def main() -> None:
             # overlay segmentation mask
             segmentation_overlay = overlay_mask(
                 image,
-                observations.masks[0],
+                observations.targets[0],
                 mode="b",
                 scale=1.0,
             )
@@ -346,7 +327,7 @@ def main() -> None:
         overlay = overlay_mask(
             observations.images[i], (render * 255.0).astype(np.uint8), scale=1.0
         )
-        difference = np.abs(render - observations.masks[i].astype(np.float32) / 255.0)
+        difference = np.abs(render - observations.targets[i].astype(np.float32) / 255.0)
 
         cv2.imwrite(os.path.join(args.path, f"dr_overlay_{i}.png"), overlay)
         cv2.imwrite(

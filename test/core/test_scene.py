@@ -10,8 +10,6 @@ from roboreg.core import (
     NVDiffRastRenderer,
     Robot,
     RobotScene,
-    TorchKinematics,
-    TorchMeshContainer,
     VirtualCamera,
 )
 from roboreg.io import find_files, load_robot_data_from_urdf_file
@@ -103,20 +101,8 @@ class TestScene:
             root_link_name=root_link_name,
             end_link_name=end_link_name,
         )
-        mesh_container = TorchMeshContainer(
-            meshes=robot_data.meshes,
-            batch_size=self.joint_states.shape[0],
-            device=device,
-        )
-        kinematics = TorchKinematics(
-            urdf=robot_data.urdf,
-            root_link_name=robot_data.root_link_name,
-            end_link_name=robot_data.end_link_name,
-            device=device,
-        )
-        robot = Robot(
-            mesh_container=mesh_container,
-            kinematics=kinematics,
+        robot = Robot.from_robot_data(
+            robot_data=robot_data, batch_size=self.joint_states.shape[0], device=device
         )
 
         # instantiate scene
@@ -238,20 +224,8 @@ def test_single_camera_multiple_poses() -> None:
         root_link_name="lbr_link_0",
         end_link_name="lbr_link_7",
     )
-    mesh_container = TorchMeshContainer(
-        meshes=robot_data.meshes,
-        batch_size=batch_size,
-        device=device,
-    )
-    kinematics = TorchKinematics(
-        urdf=robot_data.urdf,
-        root_link_name=robot_data.root_link_name,
-        end_link_name=robot_data.end_link_name,
-        device=device,
-    )
-    robot = Robot(
-        mesh_container=mesh_container,
-        kinematics=kinematics,
+    robot = Robot.from_robot_data(
+        robot_data=robot_data, batch_size=batch_size, device=device
     )
 
     # instantiate scene
