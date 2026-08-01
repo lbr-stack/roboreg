@@ -26,10 +26,8 @@ def test_dilate_with_kernel() -> None:
         cv2.IMREAD_GRAYSCALE,
     )
     dilated_mask = mask_dilate_with_kernel(mask)
-    cv2.imshow("mask", mask)
-    cv2.imshow("dilated_mask", dilated_mask)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    cv2.imwrite("test_dilate_with_kernel.mask.png", mask)
+    cv2.imwrite("test_dilate_with_kernel.dilated_mask.png", dilated_mask)
 
 
 @pytest.mark.skip(reason="To be fixed.")
@@ -45,10 +43,8 @@ def test_distance_transform() -> None:
     distance_map = (distance_map / distance_map.max() * 255.0).astype(
         np.uint8
     )  # normalize for visualization
-    cv2.imshow("mask", mask)
-    cv2.imshow("distance_map", distance_map)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    cv2.imwrite("test_distance_transform.mask.png", mask)
+    cv2.imwrite("test_distance_transform.distance_map.png", distance_map)
 
     # show inverse distance map
     inverse_mask = np.where(mask > 0, 0, 255).astype(np.uint8)
@@ -58,10 +54,10 @@ def test_distance_transform() -> None:
     ).astype(
         np.uint8
     )  # normalize for visualization
-    cv2.imshow("inverse_mask", inverse_mask)
-    cv2.imshow("inverse_distance_map", inverse_distance_map)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    cv2.imwrite("test_distance_transform.inverse_mask.png", inverse_mask)
+    cv2.imwrite(
+        "test_distance_transform.inverse_distance_map.png", inverse_distance_map
+    )
 
 
 @pytest.mark.skip(reason="To be fixed.")
@@ -72,10 +68,8 @@ def test_erode_with_kernel() -> None:
         cv2.IMREAD_GRAYSCALE,
     )
     eroded_mask = mask_erode_with_kernel(mask)
-    cv2.imshow("mask", mask)
-    cv2.imshow("eroded_mask", eroded_mask)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    cv2.imwrite("test_erode_with_kernel.mask.png", mask)
+    cv2.imwrite("test_erode_with_kernel.eroded_mask.png", eroded_mask)
 
 
 @pytest.mark.skip(reason="To be fixed.")
@@ -86,10 +80,8 @@ def test_exponential_decay() -> None:
         cv2.IMREAD_GRAYSCALE,
     )
     exponential_decay = mask_exponential_decay(mask)
-    cv2.imshow("mask", mask)
-    cv2.imshow("exponential_decay", exponential_decay)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    cv2.imwrite("test_exponential_decay.mask.png", mask)
+    cv2.imwrite("test_exponential_decay.exponential_decay.png", exponential_decay)
 
 
 @pytest.mark.skip(reason="To be fixed.")
@@ -102,11 +94,9 @@ def test_extract_boundary() -> None:
     )
     boundary_mask = mask_extract_boundary(mask)
     overlay = overlay_mask(img, boundary_mask, mode="b", alpha=1.0, scale=1.0)
-    cv2.imshow("mask", mask)
-    cv2.imshow("boundary_mask", boundary_mask)
-    cv2.imshow("overlay", overlay)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    cv2.imwrite("test_extract_boundary.mask.png", mask)
+    cv2.imwrite("test_extract_boundary.boundary_mask.png", boundary_mask)
+    cv2.imwrite("test_extract_boundary.overlay.png", overlay)
 
 
 @pytest.mark.skip(reason="To be fixed.")
@@ -121,11 +111,12 @@ def test_extract_extended_boundary() -> None:
         mask, dilation_kernel=np.ones([2, 2]), erosion_kernel=np.ones([10, 10])
     )
     overlay = overlay_mask(img, extended_boundary_mask, mode="b", alpha=1.0, scale=1.0)
-    cv2.imshow("mask", mask)
-    cv2.imshow("extended_boundary_mask", extended_boundary_mask)
-    cv2.imshow("overlay", overlay)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    cv2.imwrite("test_extract_extended_boundary.mask.png", mask)
+    cv2.imwrite(
+        "test_extract_extended_boundary.extended_boundary_mask.png",
+        extended_boundary_mask,
+    )
+    cv2.imwrite("test_extract_extended_boundary.overlay.png", overlay)
 
 
 if __name__ == "__main__":
