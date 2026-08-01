@@ -28,7 +28,7 @@ class HydraProblem:
 
 
 HydraCallback = Callable[
-    ["HydraProblem", RegistrationResult],
+    [HydraProblem, RegistrationResult],
     None,
 ]
 
