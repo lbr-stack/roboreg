@@ -311,22 +311,22 @@ class VirtualCamera(Camera):
     - https://stackoverflow.com/questions/22064084/how-to-create-perspective-projection-matrix-given-focal-points-and-camera-princ
     """
 
-    __slots__ = ["_perspective_projection", "_zmin", "_zmax"]
+    __slots__ = ["_perspective_projection", "_z_min", "_z_max"]
 
     def __init__(
         self,
         resolution: Tuple[int, int],
         intrinsics: Optional[Union[torch.FloatTensor, np.ndarray]] = None,
         extrinsics: Optional[Union[torch.FloatTensor, np.ndarray]] = None,
-        zmin: float = 0.1,
-        zmax: float = 100.0,
+        z_min: float = 0.1,
+        z_max: float = 100.0,
         device: Union[torch.device, str] = "cuda",
     ) -> None:
         super().__init__(resolution, intrinsics, extrinsics, device)
 
         # build perspective projection matrix
-        self._zmin = zmin
-        self._zmax = zmax
+        self._z_min = z_min
+        self._z_max = z_max
 
         if (
             self._intrinsics.ndim == 2
@@ -351,8 +351,8 @@ class VirtualCamera(Camera):
         self._perspective_projection[..., 1, 2] = (
             2.0 * self._intrinsics[..., 1, 2] / self.height - 1.0
         )
-        self._perspective_projection[..., 2, 2] = (zmax + zmin) / (zmax - zmin)
-        self._perspective_projection[..., 2, 3] = 2.0 * zmax * zmin / (zmin - zmax)
+        self._perspective_projection[..., 2, 2] = (z_max + z_min) / (z_max - z_min)
+        self._perspective_projection[..., 2, 3] = 2.0 * z_max * z_min / (z_min - z_max)
         self._perspective_projection[..., 3, 2] = 1.0
 
     @classmethod
@@ -387,9 +387,9 @@ class VirtualCamera(Camera):
         return self._perspective_projection
 
     @property
-    def zmin(self) -> float:
-        return self._zmin
+    def z_min(self) -> float:
+        return self._z_min
 
     @property
-    def zmax(self) -> float:
-        return self._zmax
+    def z_max(self) -> float:
+        return self._z_max
