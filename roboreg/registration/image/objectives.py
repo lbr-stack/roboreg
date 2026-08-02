@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Protocol
 
+import numpy as np
 import torch
 
 from roboreg.losses import soft_dice_loss
@@ -42,6 +43,10 @@ def _ensure_binary_masks(
 class DistanceMapConfig:
     threshold: float | None = None
 
+    def __post_init__(self) -> None:
+        if self.threshold is not None and not 0.0 < self.threshold < 1.0:
+            raise ValueError("threshold must be in (0, 1).")
+
 
 class DistanceMapObjective:
     r"""Computes the mean squared error between the distance transform of the target mask and the rendered mask.
@@ -54,14 +59,6 @@ class DistanceMapObjective:
     ) -> None:
         self._config = config or DistanceMapConfig()
 
-    def __post_init__(self) -> None:
-        if (
-            self._config.threshold is not None
-            and self._config.threshold <= 0
-            or self._config.threshold >= 1
-        ):
-            raise ValueError("threshold must be in [0, 1].")
-
     def validate_targets(self, targets: torch.Tensor) -> None:
         if not torch.all((targets >= 0) & (targets <= 1)):
             raise ValueError("Expected targets in range [0, 1].")
@@ -69,10 +66,10 @@ class DistanceMapObjective:
 
     def preprocess_targets(self, targets: torch.Tensor) -> torch.Tensor:
         targets = _ensure_binary_masks(targets, threshold=self._config.threshold)
-        targets_np = targets.cpu().numpy()
+        targets_np = targets.detach().cpu().numpy()
         distance_maps = [mask_distance_transform(mask) for mask in targets_np]
-        return torch.tensor(
-            distance_maps, dtype=torch.float32, device=targets.device
+        return torch.as_tensor(
+            np.stack(distance_maps), dtype=torch.float32, device=targets.device
         ).unsqueeze(-1)
 
     def __call__(
@@ -87,6 +84,14 @@ class ExponentialDecayMaskConfig:
     epsilon: float = 1e-6
     threshold: float | None = None
 
+    def __post_init__(self) -> None:
+        if self.sigma <= 0:
+            raise ValueError("sigma must be positive.")
+        if self.epsilon <= 0:
+            raise ValueError("epsilon must be positive.")
+        if self.threshold is not None and not 0.0 < self.threshold < 1.0:
+            raise ValueError("threshold must be in (0, 1).")
+
 
 class ExponentialDecayMaskObjective:
     r"""Computes a soft Dice loss between an exponentially decaying target mask and the rendered mask.
@@ -99,18 +104,6 @@ class ExponentialDecayMaskObjective:
     ) -> None:
         self._config = config or ExponentialDecayMaskConfig()
 
-    def __post_init__(self) -> None:
-        if self._config.sigma <= 0:
-            raise ValueError("sigma must be positive.")
-        if self._config.epsilon <= 0:
-            raise ValueError("epsilon must be positive.")
-        if (
-            self._config.threshold is not None
-            and self._config.threshold <= 0
-            or self._config.threshold >= 1
-        ):
-            raise ValueError("threshold must be in [0, 1].")
-
     def validate_targets(self, targets: torch.Tensor) -> None:
         if not torch.all((targets >= 0) & (targets <= 1)):
             raise ValueError("Expected targets in range [0, 1].")
@@ -118,13 +111,13 @@ class ExponentialDecayMaskObjective:
 
     def preprocess_targets(self, targets: torch.Tensor) -> torch.Tensor:
         targets = _ensure_binary_masks(targets, threshold=self._config.threshold)
-        targets_np = targets.cpu().numpy()
+        targets_np = targets.detach().cpu().numpy()
         decay_maps = [
             mask_exponential_decay(mask, sigma=self._config.sigma)
             for mask in targets_np
         ]
-        return torch.tensor(
-            decay_maps, dtype=torch.float32, device=targets.device
+        return torch.as_tensor(
+            np.stack(decay_maps), dtype=torch.float32, device=targets.device
         ).unsqueeze(-1)
 
     def __call__(
@@ -139,6 +132,10 @@ class ExponentialDecayMaskObjective:
 class ProbabilityMapConfig:
     epsilon: float = 1e-6
 
+    def __post_init__(self) -> None:
+        if self.epsilon <= 0:
+            raise ValueError("epsilon must be positive.")
+
 
 class ProbabilityMapObjective:
     r"""Computes a soft Dice loss between the target probability map and the rendered mask."""
@@ -149,10 +146,6 @@ class ProbabilityMapObjective:
     ) -> None:
         self._config = config or ProbabilityMapConfig()
 
-    def __post_init__(self) -> None:
-        if self._config.epsilon <= 0:
-            raise ValueError("epsilon must be positive.")
-
     def validate_targets(self, targets: torch.Tensor) -> None:
         if not targets.is_floating_point():
             raise ValueError("Expected floating point probability targets.")
@@ -160,7 +153,7 @@ class ProbabilityMapObjective:
             raise ValueError("Expected targets in range [0, 1].")
 
     def preprocess_targets(self, targets: torch.Tensor) -> torch.Tensor:
-        return targets
+        return targets.unsqueeze(-1)
 
     def __call__(
         self, preprocessed_targets: torch.Tensor, renders: torch.Tensor
