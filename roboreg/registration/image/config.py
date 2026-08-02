@@ -54,7 +54,7 @@ class ConvergenceConfig:
 
 
 @dataclass(frozen=True)
-class DRRegConfig:
+class DiffRenderingRegistrationConfig:
     camera: CameraConfig = field(default_factory=CameraConfig)
 
     optimizer: str = "AdamW"
@@ -71,7 +71,7 @@ class DRRegConfig:
 
 
 @dataclass(frozen=True)
-class CSRegConfig:
+class CameraSwarmRegistrationConfig:
     camera: CameraConfig = field(default_factory=CameraConfig)
 
     n_cameras: int = 50

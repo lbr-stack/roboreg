@@ -128,22 +128,29 @@ def test_parse_monocular_observations() -> None:
     )
 
     assert (
-        len(observations.images)
+        len(observations.cameras["camera"].images)
         == len(observations.joint_states)
-        == len(observations.targets)
+        == len(observations.cameras["camera"].targets)
     ), "Expected same number of images / joint states / masks."
-    assert len(observations.images) >= 1, "Should at least have one sample."
-    assert observations.images[0].ndim == 3, "Expected 3D image (HxWx3)."
-    assert observations.images[0].shape[-1] == 3, "Expected 3 color channels."
-    assert observations.targets[0].ndim == 2, "Expected 2D mask."
     assert (
-        observations.targets[0].dtype == np.uint8
+        len(observations.cameras["camera"].images) >= 1
+    ), "Should at least have one sample."
+    assert (
+        observations.cameras["camera"].images[0].ndim == 3
+    ), "Expected 3D image (HxWx3)."
+    assert (
+        observations.cameras["camera"].images[0].shape[-1] == 3
+    ), "Expected 3 color channels."
+    assert observations.cameras["camera"].targets[0].ndim == 2, "Expected 2D mask."
+    assert (
+        observations.cameras["camera"].targets[0].dtype == np.uint8
     ), "Expected unsigned integers for mask."
-    assert np.all(observations.targets[0] >= 0) and np.all(
-        observations.targets[0] <= 255
+    assert np.all(observations.cameras["camera"].targets[0] >= 0) and np.all(
+        observations.cameras["camera"].targets[0] <= 255
     ), "Expected mask in range [0, 255]."
     assert (
-        observations.targets[0].shape[:2] == observations.images[0].shape[:2]
+        observations.cameras["camera"].targets[0].shape[:2]
+        == observations.cameras["camera"].images[0].shape[:2]
     ), "Mask and image dimensions should match."
 
 
@@ -158,47 +165,54 @@ def test_parse_stereo_observations() -> None:
     )
 
     assert (
-        len(observations.left_images)
-        == len(observations.right_images)
+        len(observations.cameras["left"].images)
+        == len(observations.cameras["right"].images)
         == len(observations.joint_states)
-        == len(observations.left_targets)
-        == len(observations.right_targets)
+        == len(observations.cameras["left"].targets)
+        == len(observations.cameras["right"].targets)
     ), "Expected same number of left/right images, joint states, and left/right masks."
-    assert len(observations.left_images) >= 1, "Should at least have one sample."
+    assert (
+        len(observations.cameras["left"].images) >= 1
+    ), "Should at least have one sample."
 
     # Test left data
-    assert observations.left_images[0].ndim == 3, "Expected 3D left image (HxWx3)."
     assert (
-        observations.left_images[0].shape[-1] == 3
+        observations.cameras["left"].images[0].ndim == 3
+    ), "Expected 3D left image (HxWx3)."
+    assert (
+        observations.cameras["left"].images[0].shape[-1] == 3
     ), "Expected 3 color channels for left image."
-    assert observations.left_targets[0].ndim == 2, "Expected 2D left mask."
+    assert observations.cameras["left"].targets[0].ndim == 2, "Expected 2D left mask."
     assert (
-        observations.left_targets[0].dtype == np.uint8
+        observations.cameras["left"].targets[0].dtype == np.uint8
     ), "Expected unsigned integers for left mask."
-    assert np.all(observations.left_targets[0] >= 0) and np.all(
-        observations.left_targets[0] <= 255
+    assert np.all(observations.cameras["left"].targets[0] >= 0) and np.all(
+        observations.cameras["left"].targets[0] <= 255
     ), "Expected left mask in range [0, 255]."
 
     # Test right data
-    assert observations.right_images[0].ndim == 3, "Expected 3D right image (HxWx3)."
     assert (
-        observations.right_images[0].shape[-1] == 3
+        observations.cameras["right"].images[0].ndim == 3
+    ), "Expected 3D right image (HxWx3)."
+    assert (
+        observations.cameras["right"].images[0].shape[-1] == 3
     ), "Expected 3 color channels for right image."
-    assert observations.right_targets[0].ndim == 2, "Expected 2D right mask."
+    assert observations.cameras["right"].targets[0].ndim == 2, "Expected 2D right mask."
     assert (
-        observations.right_targets[0].dtype == np.uint8
+        observations.cameras["right"].targets[0].dtype == np.uint8
     ), "Expected unsigned integers for right mask."
-    assert np.all(observations.right_targets[0] >= 0) and np.all(
-        observations.right_targets[0] <= 255
+    assert np.all(observations.cameras["right"].targets[0] >= 0) and np.all(
+        observations.cameras["right"].targets[0] <= 255
     ), "Expected right mask in range [0, 255]."
 
     # Test dimensions match
     assert (
-        observations.left_targets[0].shape[:2] == observations.left_images[0].shape[:2]
+        observations.cameras["left"].targets[0].shape[:2]
+        == observations.cameras["left"].images[0].shape[:2]
     ), "Left mask and image dimensions should match."
     assert (
-        observations.right_targets[0].shape[:2]
-        == observations.right_images[0].shape[:2]
+        observations.cameras["right"].targets[0].shape[:2]
+        == observations.cameras["right"].images[0].shape[:2]
     ), "Right mask and image dimensions should match."
 
 

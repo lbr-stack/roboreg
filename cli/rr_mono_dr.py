@@ -17,8 +17,12 @@ from roboreg.io import (
     load_robot_data_from_urdf_file,
     parse_monocular_observations,
 )
-from roboreg.losses import soft_dice_loss
-from roboreg.util import mask_distance_transform, mask_exponential_decay, overlay_mask
+from roboreg.registration.image.objectives import (
+    DistanceMapObjective,
+    ExponentialDecayMaskObjective,
+    RenderingObjective,
+)
+from roboreg.util import overlay_mask
 
 from .util.validate import validate_urdf_source
 
@@ -177,17 +181,22 @@ def main() -> None:
 
     # pre-process data
     joint_states = torch.tensor(
-        np.array(observations.joint_states), dtype=torch.float32, device=device
+        np.stack(observations.joint_states, axis=0), dtype=torch.float32, device=device
     )
+    objective: RenderingObjective
     if mode == REGISTRATION_MODE.DISTANCE_FUNCTION:
-        targets = [mask_distance_transform(mask) for mask in observations.targets]
+        objective = DistanceMapObjective()
     elif mode == REGISTRATION_MODE.SEGMENTATION:
-        targets = [mask_exponential_decay(mask) for mask in observations.targets]
+        objective = ExponentialDecayMaskObjective()
     else:
         raise ValueError("Invalid registration mode.")
-    targets = torch.tensor(
-        np.array(targets), dtype=torch.float32, device=device
-    ).unsqueeze(-1)
+    preprocessed_targets = objective.preprocess_targets(
+        targets=torch.tensor(
+            np.stack(observations.cameras["camera"].targets).astype(np.float32) / 255.0,
+            dtype=torch.float32,
+            device=device,
+        )
+    )
 
     # instantiate camera with default identity extrinsics because we optimize for robot pose instead
     camera = {
@@ -255,13 +264,9 @@ def main() -> None:
         renders = {
             "camera": scene.observe_from("camera"),
         }
-        if mode == REGISTRATION_MODE.DISTANCE_FUNCTION:
-            loss = torch.nn.functional.mse_loss(targets, renders["camera"])
-        elif mode == REGISTRATION_MODE.SEGMENTATION:
-            loss = soft_dice_loss(targets, renders["camera"]).mean()
-        else:
-            raise ValueError("Invalid registration mode.")
-
+        loss = objective(
+            preprocessed_targets=preprocessed_targets, renders=renders["camera"]
+        )
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -279,7 +284,7 @@ def main() -> None:
         # display optimization progress
         if args.display_progress:
             render = renders["camera"][0].squeeze().detach().cpu().numpy()
-            image = observations.images[0]
+            image = observations.cameras["camera"].images[0]
             render_overlay = overlay_mask(
                 image,
                 (render * 255.0).astype(np.uint8),
@@ -288,7 +293,11 @@ def main() -> None:
             # difference left / right render / mask
             difference = (
                 cv2.cvtColor(
-                    np.abs(render - observations.targets[0].astype(np.float32) / 255.0),
+                    np.abs(
+                        render
+                        - observations.cameras["camera"].targets[0].astype(np.float32)
+                        / 255.0
+                    ),
                     cv2.COLOR_GRAY2BGR,
                 )
                 * 255.0
@@ -296,7 +305,7 @@ def main() -> None:
             # overlay segmentation mask
             segmentation_overlay = overlay_mask(
                 image,
-                observations.targets[0],
+                observations.cameras["camera"].targets[0],
                 mode="b",
                 scale=1.0,
             )
@@ -317,24 +326,7 @@ def main() -> None:
             )
             cv2.waitKey(1)
 
-    # render final results and save extrinsics
-    with torch.no_grad():
-        scene.robot.configure(joint_states, best_extrinsics_inv)
-        renders = scene.observe_from("camera")
-
-    for i, render in enumerate(renders):
-        render = render.squeeze().cpu().numpy()
-        overlay = overlay_mask(
-            observations.images[i], (render * 255.0).astype(np.uint8), scale=1.0
-        )
-        difference = np.abs(render - observations.targets[i].astype(np.float32) / 255.0)
-
-        cv2.imwrite(os.path.join(args.path, f"dr_overlay_{i}.png"), overlay)
-        cv2.imwrite(
-            os.path.join(args.path, f"dr_difference_{i}.png"),
-            (difference * 255.0).astype(np.uint8),
-        )
-
+    # save extrinsics
     np.save(
         os.path.join(args.path, args.output_file),
         best_extrinsics.cpu().numpy(),

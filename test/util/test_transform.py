@@ -16,6 +16,7 @@ from roboreg.util import (
     from_homogeneous,
     generate_ht_optical,
     look_at_from_angle,
+    rescale_intrinsics,
     to_homogeneous,
 )
 
@@ -152,7 +153,55 @@ def test_look_at_from_angle() -> None:
         raise ValueError(f"Expected shape ({batch_size}, 4, 4), got {ht.shape}.")
 
 
+@pytest.mark.parametrize("backend", ["numpy", "torch"])
+def test_rescale_intrinsics(backend: str) -> None:
+    intrinsics_np = np.array(
+        [
+            [100.0, 0.0, 40.0],
+            [0.0, 200.0, 30.0],
+            [0.0, 0.0, 1.0],
+        ],
+        dtype=np.float32,
+    )
+
+    # width x2, height x3
+    resolution = (100, 100)
+    target_resolution = (300, 200)
+
+    expected_np = np.array(
+        [
+            [200.0, 0.0, 80.0],
+            [0.0, 600.0, 90.0],
+            [0.0, 0.0, 1.0],
+        ],
+        dtype=np.float32,
+    )
+
+    if backend == "numpy":
+        intrinsics = intrinsics_np.copy()
+        original = intrinsics.copy()
+    else:
+        intrinsics = torch.from_numpy(intrinsics_np.copy())
+        original = intrinsics.clone()
+
+    result = rescale_intrinsics(
+        intrinsics=intrinsics,
+        current_resolution=resolution,
+        target_resolution=target_resolution,
+    )
+
+    if backend == "numpy":
+        assert isinstance(result, np.ndarray)
+        np.testing.assert_allclose(result, expected_np)
+        np.testing.assert_array_equal(intrinsics, original)
+    else:
+        assert isinstance(result, torch.Tensor)
+        torch.testing.assert_close(result, torch.from_numpy(expected_np))
+        torch.testing.assert_close(intrinsics, original)
+
+
 if __name__ == "__main__":
     test_depth_to_xyz()
     test_realsense_depth_to_xyz()
     test_look_at_from_angle()
+    test_rescale_intrinsics()

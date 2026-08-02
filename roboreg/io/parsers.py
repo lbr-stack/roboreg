@@ -7,7 +7,7 @@ import rich
 import yaml
 from pytorch_kinematics import urdf_parser_py
 
-from roboreg.registration.image.request import MonocularObservations, StereoObservations
+from roboreg.registration.image.request import CameraObservations, ImageObservations
 from roboreg.registration.point_cloud.request import HydraObservations
 
 
@@ -355,88 +355,169 @@ def parse_hydra_observations(
     return HydraObservations(joint_states=joint_states, masks=masks, depths=depths)
 
 
+def _read_image(path: Path) -> np.ndarray:
+    image = cv2.imread(str(path), cv2.IMREAD_COLOR)
+
+    if image is None:
+        raise ValueError(f"Failed to read image '{path}'.")
+
+    return image
+
+
+def _read_target(path: Path) -> np.ndarray:
+    target = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+
+    if target is None:
+        raise ValueError(f"Failed to read target '{path}'.")
+
+    return target
+
+
+def _validate_image_target_shapes(
+    images: list[np.ndarray],
+    targets: list[np.ndarray],
+    camera_name: str,
+) -> None:
+    for index, (image, target) in enumerate(zip(images, targets)):
+        if image.shape[:2] != target.shape[:2]:
+            raise ValueError(
+                f"Camera '{camera_name}' image and target at index {index} "
+                f"have incompatible shapes: {image.shape[:2]} and "
+                f"{target.shape[:2]}."
+            )
+
+
 def parse_monocular_observations(
-    image_files: List[Path],
-    joint_states_files: List[Path],
-    target_files: List[Path],
-) -> MonocularObservations:
-    r"""Parse monocular observations.
+    image_files: list[Path] | None,
+    joint_states_files: list[Path],
+    target_files: list[Path],
+    camera_name: str = "camera",
+) -> ImageObservations:
+    r"""Parse monocular image-registration observations."""
 
-    Args:
-        image_files (List[Path]): Image files.
-        joint_states_files (List[Path]): Joint states files.
-        target_files (List[Path]): Target files.
+    lengths = {
+        "joint_states": len(joint_states_files),
+        "targets": len(target_files),
+    }
 
-    Returns:
-        MonocularObservations: Data for monocular registration.
-    """
-    if len(image_files) != len(joint_states_files) or len(image_files) != len(
-        target_files
-    ):
-        raise ValueError("Number of images, joint states, masks do not match.")
+    if image_files is not None:
+        lengths["images"] = len(image_files)
+
+    if len(set(lengths.values())) != 1:
+        raise ValueError(
+            f"All observation file lists must have the same length, got {lengths}."
+        )
+
+    if not joint_states_files:
+        raise ValueError("Expected at least one observation.")
 
     rich.print("Parsing the following files:")
-    rich.print(f"Images: {[f.name for f in image_files]}")
-    rich.print(f"Joint states: {[f.name for f in joint_states_files]}")
-    rich.print(f"Targets: {[f.name for f in target_files]}")
+    if image_files is not None:
+        rich.print(f"Images: {[path.name for path in image_files]}")
+    rich.print(f"Joint states: {[path.name for path in joint_states_files]}")
+    rich.print(f"Targets: {[path.name for path in target_files]}")
 
-    images = [cv2.imread(f) for f in image_files]
-    joint_states = [np.load(f) for f in joint_states_files]
-    masks = [cv2.imread(f, cv2.IMREAD_GRAYSCALE) for f in target_files]
-    if not all(
-        [mask.shape[:2] == image.shape[:2] for mask, image in zip(masks, images)]
-    ):
-        raise ValueError("Mask and image shapes do not match.")
-    return MonocularObservations(
-        images=images, joint_states=joint_states, targets=masks
+    images = (
+        [_read_image(path) for path in image_files] if image_files is not None else None
+    )
+    joint_states = [np.load(path) for path in joint_states_files]
+    targets = [_read_target(path) for path in target_files]
+
+    if images is not None:
+        _validate_image_target_shapes(
+            images=images,
+            targets=targets,
+            camera_name=camera_name,
+        )
+
+    return ImageObservations(
+        joint_states=joint_states,
+        cameras={
+            camera_name: CameraObservations(
+                images=images,
+                targets=targets,
+            )
+        },
     )
 
 
 def parse_stereo_observations(
-    left_image_files: List[Path],
-    right_image_files: List[Path],
-    joint_states_files: List[Path],
-    left_target_files: List[Path],
-    right_target_files: List[Path],
-) -> StereoObservations:
-    r"""Parse stereo observations.
+    left_image_files: list[Path] | None,
+    right_image_files: list[Path] | None,
+    joint_states_files: list[Path],
+    left_target_files: list[Path],
+    right_target_files: list[Path],
+) -> ImageObservations:
+    r"""Parse stereo image-registration observations."""
 
-    Args:
-        left_image_files (List[Path]): Left image files.
-        right_image_files (List[Path]): Right image files.
-        joint_states_files (List[Path]): Joint states files.
-        left_target_files (List[Path]): Left target files.
-        right_target_files (List[Path]): Right target files.
+    lengths = {
+        "joint_states": len(joint_states_files),
+        "left_targets": len(left_target_files),
+        "right_targets": len(right_target_files),
+    }
 
-    Returns:
-        StereoObservations: Data for stereo registration.
-    """
-    if (
-        len(left_image_files) != len(right_image_files)
-        or len(left_image_files) != len(joint_states_files)
-        or len(left_image_files) != len(left_target_files)
-        or len(left_image_files) != len(right_target_files)
-    ):
+    if left_image_files is not None:
+        lengths["left_images"] = len(left_image_files)
+
+    if right_image_files is not None:
+        lengths["right_images"] = len(right_image_files)
+
+    if len(set(lengths.values())) != 1:
         raise ValueError(
-            "Number of left / right images, joint states, left / right masks do not match."
+            f"All observation file lists must have the same length, got {lengths}."
         )
 
-    rich.print("Parsing the following files:")
-    rich.print(f"Left images: {[f.name for f in left_image_files]}")
-    rich.print(f"Right images: {[f.name for f in right_image_files]}")
-    rich.print(f"Joint states: {[f.name for f in joint_states_files]}")
-    rich.print(f"Left targets: {[f.name for f in left_target_files]}")
-    rich.print(f"Right targets: {[f.name for f in right_target_files]}")
+    if not joint_states_files:
+        raise ValueError("Expected at least one observation.")
 
-    left_images = [cv2.imread(f) for f in left_image_files]
-    right_images = [cv2.imread(f) for f in right_image_files]
-    joint_states = [np.load(f) for f in joint_states_files]
-    left_targets = [cv2.imread(f, cv2.IMREAD_GRAYSCALE) for f in left_target_files]
-    right_targets = [cv2.imread(f, cv2.IMREAD_GRAYSCALE) for f in right_target_files]
-    return StereoObservations(
-        left_images=left_images,
-        right_images=right_images,
+    rich.print("Parsing the following files:")
+    if left_image_files is not None:
+        rich.print(f"Left images: {[path.name for path in left_image_files]}")
+    if right_image_files is not None:
+        rich.print(f"Right images: {[path.name for path in right_image_files]}")
+    rich.print(f"Joint states: {[path.name for path in joint_states_files]}")
+    rich.print(f"Left targets: {[path.name for path in left_target_files]}")
+    rich.print(f"Right targets: {[path.name for path in right_target_files]}")
+
+    left_images = (
+        [_read_image(path) for path in left_image_files]
+        if left_image_files is not None
+        else None
+    )
+    right_images = (
+        [_read_image(path) for path in right_image_files]
+        if right_image_files is not None
+        else None
+    )
+
+    joint_states = [np.load(path) for path in joint_states_files]
+    left_targets = [_read_target(path) for path in left_target_files]
+    right_targets = [_read_target(path) for path in right_target_files]
+
+    if left_images is not None:
+        _validate_image_target_shapes(
+            images=left_images,
+            targets=left_targets,
+            camera_name="left",
+        )
+
+    if right_images is not None:
+        _validate_image_target_shapes(
+            images=right_images,
+            targets=right_targets,
+            camera_name="right",
+        )
+
+    return ImageObservations(
         joint_states=joint_states,
-        left_targets=left_targets,
-        right_targets=right_targets,
+        cameras={
+            "left": CameraObservations(
+                images=left_images,
+                targets=left_targets,
+            ),
+            "right": CameraObservations(
+                images=right_images,
+                targets=right_targets,
+            ),
+        },
     )

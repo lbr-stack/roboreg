@@ -6,12 +6,7 @@ import cv2
 import numpy as np
 import torch
 
-from roboreg.core import (
-    NVDiffRastRenderer,
-    Robot,
-    RobotScene,
-    VirtualCamera,
-)
+from roboreg.core import NVDiffRastRenderer, Robot, RobotScene, VirtualCamera
 from roboreg.io import (
     find_files,
     load_robot_data_from_ros_xacro,
@@ -279,11 +274,15 @@ def main() -> None:
     )
 
     # pre-process data
+    camera_name = "camera"
     joint_states = torch.tensor(
         np.array(observations.joint_states), dtype=torch.float32, device=device
     )
     n_joint_states = joint_states.shape[0]
-    masks = [mask_exponential_decay(mask) for mask in observations.targets]
+    masks = [
+        mask_exponential_decay(mask)
+        for mask in observations.cameras[camera_name].targets
+    ]
     masks = torch.tensor(np.array(masks), dtype=torch.float32, device=device)
 
     # scale image data (memory reduction)
@@ -317,7 +316,6 @@ def main() -> None:
     batch_size = (
         n_joint_states * args.n_cameras
     )  # (each camera observes n_joint_states joint states)
-    camera_name = "camera"
     camera = VirtualCamera(
         resolution=(height, width),
         intrinsics=intrinsics,
@@ -366,10 +364,10 @@ def main() -> None:
         center = particle_swarm_optimizer.particle_swarm.particles[:, 3:6]
         angle = particle_swarm_optimizer.particle_swarm.particles[:, -1:]
         extrinsics = look_at_from_angle(eye=eye, center=center, angle=angle)
-        scene.cameras["camera"].extrinsics = extrinsics.repeat_interleave(
+        scene.cameras[camera_name].extrinsics = extrinsics.repeat_interleave(
             n_joint_states, 0
         )
-        renders = scene.observe_from("camera").squeeze()
+        renders = scene.observe_from(camera_name).squeeze()
         fitness = (
             soft_dice_loss(renders.unsqueeze(-1), masks.unsqueeze(-1))
             .view(args.n_cameras, n_joint_states)
@@ -387,12 +385,12 @@ def main() -> None:
             current_best_render = cv2.resize(
                 current_best_render,
                 (
-                    observations.images[offset].shape[1],
-                    observations.images[offset].shape[0],
+                    observations.cameras[camera_name].images[offset].shape[1],
+                    observations.cameras[camera_name].images[offset].shape[0],
                 ),
             )
             overlay = overlay_mask(
-                observations.images[offset],
+                observations.cameras[camera_name].images[offset],
                 current_best_render,
                 scale=1.0,
             )
