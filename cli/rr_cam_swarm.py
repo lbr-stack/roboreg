@@ -1,5 +1,6 @@
 import argparse
 import os
+from pathlib import Path
 from typing import Union
 
 import cv2
@@ -252,14 +253,15 @@ def main() -> None:
     args = args_factory()
     device = "cuda" if torch.cuda.is_available() else "cpu"
     os.environ["MAX_JOBS"] = str(args.max_jobs)  # limit number of concurrent jobs
+    path = Path(args.path)
 
     # load data
     height, width, intrinsics = parse_camera_info(
         camera_info_file=args.camera_info_file
     )
-    image_files = find_files(args.path, args.image_pattern)
-    target_files = find_files(args.path, args.mask_pattern)
-    joint_states_files = find_files(args.path, args.joint_states_pattern)
+    image_files = find_files(path, args.image_pattern)
+    target_files = find_files(path, args.mask_pattern)
+    joint_states_files = find_files(path, args.joint_states_pattern)
     n_samples = args.n_samples
     if n_samples > len(image_files):  # randomly sample n_samples
         n_samples = len(image_files)
@@ -418,7 +420,7 @@ def main() -> None:
     HT_cam_swarm = look_at_from_angle(
         eye=best_eye, center=best_center, angle=best_angle
     )
-    np.save(os.path.join(args.path, args.output_file), HT_cam_swarm.cpu().numpy())
+    np.save(path / args.output_file), HT_cam_swarm.cpu().numpy()
 
 
 if __name__ == "__main__":

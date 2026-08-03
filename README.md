@@ -183,9 +183,14 @@ This monocular differentiable rendering refinement requires a good initial estim
 
 ```shell
 rr-mono-dr \
-    --optimizer SGD \
-    --lr 0.01 \
-    --max-iterations 100 \
+    --optimizer AdamW \
+    --lr 0.03 \
+    --max-iterations 400 \
+    --convergence-tolerance 0.001 \
+    --convergence-patience 50 \
+    --scheduler-factor 0.1 \
+    --scheduler-patience 50 \
+    --scheduler-threshold 0.0001 \
     --display-progress \
     --urdf-path test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf \
     --root-link-name lbr_link_0 \
@@ -209,9 +214,14 @@ This stereo differentiable rendering refinement requires a good initial estimate
 
 ```shell
 rr-stereo-dr \
-    --optimizer SGD \
-    --lr 0.01 \
-    --max-iterations 100 \
+    --optimizer AdamW \
+    --lr 0.03 \
+    --max-iterations 400 \
+    --convergence-tolerance 0.001 \
+    --convergence-patience 50 \
+    --scheduler-factor 0.1 \
+    --scheduler-patience 50 \
+    --scheduler-threshold 0.0001 \
     --display-progress \
     --urdf-path test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf \
     --root-link-name lbr_link_0 \

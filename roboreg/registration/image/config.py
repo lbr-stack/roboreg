@@ -23,6 +23,21 @@ class CameraConfig:
 
 
 @dataclass(frozen=True)
+class ConvergenceConfig:
+    max_iterations: int = 400
+    tolerance: float = 1.0e-3
+    patience: int = 50
+
+    def __post_init__(self) -> None:
+        if self.max_iterations <= 0:
+            raise ValueError("max_iterations must be positive.")
+        if self.tolerance < 0:
+            raise ValueError("tolerance must be non-negative.")
+        if self.patience < 0:
+            raise ValueError("patience must be non-negative.")
+
+
+@dataclass(frozen=True)
 class PlateauSchedulerConfig:
     mode: Literal["min", "max"] = "min"
     factor: float = 0.1
@@ -39,31 +54,16 @@ class PlateauSchedulerConfig:
 
 
 @dataclass(frozen=True)
-class ConvergenceConfig:
-    max_iterations: int = 400
-    tolerance: float = 1.0e-3
-    patience: int = 50
-
-    def __post_init__(self) -> None:
-        if self.max_iterations <= 0:
-            raise ValueError("max_iterations must be positive.")
-        if self.tolerance < 0:
-            raise ValueError("tolerance must be non-negative.")
-        if self.patience < 0:
-            raise ValueError("patience must be non-negative.")
-
-
-@dataclass(frozen=True)
 class DiffRenderingRegistrationConfig:
     camera: CameraConfig = field(default_factory=CameraConfig)
 
     optimizer: str = "AdamW"
     lr: float = 3.0e-2
 
+    convergence: ConvergenceConfig = field(default_factory=ConvergenceConfig)
     plateau_scheduler: PlateauSchedulerConfig = field(
         default_factory=PlateauSchedulerConfig
     )
-    convergence: ConvergenceConfig = field(default_factory=ConvergenceConfig)
 
     def __post_init__(self) -> None:
         if self.lr <= 0:

@@ -14,11 +14,12 @@ from roboreg.registration._validation import (
 @dataclass(frozen=True)
 class CameraData:
     intrinsics: np.ndarray
-    extrinsics: np.ndarray
+    reference_to_camera: np.ndarray | None = None
 
     def __post_init__(self) -> None:
         validate_intrinsics(self.intrinsics)
-        validate_extrinsics(self.extrinsics)
+        if self.reference_to_camera is not None:
+            validate_extrinsics(self.reference_to_camera)
 
 
 @dataclass(frozen=True)

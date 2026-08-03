@@ -391,7 +391,6 @@ def parse_monocular_observations(
     image_files: list[Path] | None,
     joint_states_files: list[Path],
     target_files: list[Path],
-    camera_name: str = "camera",
 ) -> ImageObservations:
     r"""Parse monocular image-registration observations."""
 
@@ -427,13 +426,13 @@ def parse_monocular_observations(
         _validate_image_target_shapes(
             images=images,
             targets=targets,
-            camera_name=camera_name,
+            camera_name="camera",
         )
 
     return ImageObservations(
         joint_states=joint_states,
         cameras={
-            camera_name: CameraObservations(
+            "camera": CameraObservations(
                 images=images,
                 targets=targets,
             )

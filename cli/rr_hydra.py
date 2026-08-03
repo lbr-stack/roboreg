@@ -1,5 +1,5 @@
 import argparse
-import os
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -187,19 +187,17 @@ def visualize_hydra_result(
 def main():
     args = args_factory()
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    path = Path(args.path)
 
     # load data
-    joint_states_files = find_files(args.path, args.joint_states_pattern)
-    mask_files = find_files(args.path, args.mask_pattern)
-    depth_files = find_files(args.path, args.depth_pattern)
     observations = parse_hydra_observations(
-        joint_states_files=joint_states_files,
-        mask_files=mask_files,
-        depth_files=depth_files,
+        joint_states_files=find_files(path, args.joint_states_pattern),
+        mask_files=find_files(path, args.mask_pattern),
+        depth_files=find_files(path, args.depth_pattern),
     )
     _, _, intrinsics = parse_camera_info(args.camera_info_file)
 
-    # instantiate robot
+    # load robot specifications
     if args.urdf_path is not None:
         robot_data = load_robot_data_from_urdf_file(
             urdf_path=args.urdf_path,
@@ -245,7 +243,7 @@ def main():
     )
 
     # to numpy
-    np.save(os.path.join(args.path, args.output_file), result.extrinsics.cpu().numpy())
+    np.save(path / args.output_file, result.extrinsics.cpu().numpy())
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import Enum
 from typing import Protocol
 
 import numpy as np
@@ -161,3 +162,25 @@ class ProbabilityMapObjective:
         return soft_dice_loss(
             preprocessed_targets, renders, epsilon=self._config.epsilon
         ).mean()
+
+
+class RenderingObjectiveType(str, Enum):
+    DISTANCE_MAP = "distance-map"
+    EXPONENTIAL_DECAY_MASK = "exponential-decay-mask"
+    PROBABILITY_MAP = "probability-map"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+def create_rendering_objective(
+    objective_type: RenderingObjectiveType,
+) -> RenderingObjective:
+    if objective_type == RenderingObjectiveType.DISTANCE_MAP:
+        return DistanceMapObjective()
+    elif objective_type == RenderingObjectiveType.EXPONENTIAL_DECAY_MASK:
+        return ExponentialDecayMaskObjective()
+    elif objective_type == RenderingObjectiveType.PROBABILITY_MAP:
+        return ProbabilityMapObjective()
+    else:
+        raise ValueError(f"Unsupported objective type: {objective_type}")
