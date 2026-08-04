@@ -1,27 +1,25 @@
 import argparse
-import os
+from pathlib import Path
 
 import numpy as np
+import rich
 import torch
 
-from roboreg.core import Robot, TorchKinematics, TorchMeshContainer
-from roboreg.hydra_icp import hydra_centroid_alignment, hydra_robust_icp
 from roboreg.io import (
     find_files,
     load_robot_data_from_ros_xacro,
     load_robot_data_from_urdf_file,
     parse_camera_info,
-    parse_hydra_data,
+    parse_hydra_observations,
 )
-from roboreg.util import (
-    clean_xyz,
-    compute_vertex_normals,
-    depth_to_xyz,
-    from_homogeneous,
-    generate_ht_optical,
-    mask_extract_extended_boundary,
-    to_homogeneous,
+from roboreg.registration.point_cloud.config import (
+    DepthToPointCloudConfig,
+    HydraConfig,
+    HydraRobustICPConfig,
 )
+from roboreg.registration.point_cloud.request import HydraRequest
+from roboreg.registration.point_cloud.solver import HydraProblem, HydraRobustICP
+from roboreg.registration.result import RegistrationResult
 
 from .util.validate import validate_urdf_source
 
@@ -167,23 +165,40 @@ def args_factory() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def visualize_hydra_result(
+    problem: HydraProblem,
+    result: RegistrationResult,
+) -> None:
+    from roboreg.util import RegistrationVisualizer
+
+    visualizer = RegistrationVisualizer()
+
+    visualizer(
+        mesh_vertices=problem.reference_vertices,
+        observed_vertices=problem.observed_vertices,
+    )
+
+    visualizer(
+        mesh_vertices=problem.reference_vertices,
+        observed_vertices=problem.observed_vertices,
+        HT=torch.linalg.inv(result.extrinsics),
+    )
+
+
 def main():
     args = args_factory()
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    path = Path(args.path)
 
     # load data
-    joint_states_files = find_files(args.path, args.joint_states_pattern)
-    mask_files = find_files(args.path, args.mask_pattern)
-    depth_files = find_files(args.path, args.depth_pattern)
-    joint_states, masks, depths = parse_hydra_data(
-        joint_states_files=joint_states_files,
-        mask_files=mask_files,
-        depth_files=depth_files,
+    observations = parse_hydra_observations(
+        joint_states_files=find_files(path, args.joint_states_pattern),
+        mask_files=find_files(path, args.mask_pattern),
+        depth_files=find_files(path, args.depth_pattern),
     )
-    height, width, intrinsics = parse_camera_info(args.camera_info_file)
+    _, _, intrinsics = parse_camera_info(args.camera_info_file)
 
-    # instantiate robot
-    batch_size = len(joint_states)
+    # load robot specifications
     if args.urdf_path is not None:
         robot_data = load_robot_data_from_urdf_file(
             urdf_path=args.urdf_path,
@@ -199,118 +214,43 @@ def main():
             end_link_name=args.end_link_name,
             collision=args.collision_meshes,
         )
-    mesh_container = TorchMeshContainer(
-        meshes=robot_data.meshes,
-        batch_size=len(joint_states),
-        device=device,
-    )
-    kinematics = TorchKinematics(
-        urdf=robot_data.urdf,
-        root_link_name=robot_data.root_link_name,
-        end_link_name=robot_data.end_link_name,
-        device=device,
-    )
-    robot = Robot(
-        mesh_container=mesh_container,
-        kinematics=kinematics,
-    )
 
-    # perform forward kinematics
-    joint_states = torch.tensor(
-        np.array(joint_states), dtype=torch.float32, device=device
-    )
-    robot.configure(joint_states)
-
-    # turn depths into xyzs
-    intrinsics = torch.tensor(intrinsics, dtype=torch.float32, device=device)
-    depths = torch.tensor(np.array(depths), dtype=torch.float32, device=device)
-    xyzs = depth_to_xyz(
-        depth=depths,
-        intrinsics=intrinsics,
-        z_min=args.z_min,
-        z_max=args.z_max,
-        conversion_factor=args.depth_conversion_factor,
-    )
-
-    # flatten BxHxWx3 -> Bx(H*W)x3
-    xyzs = xyzs.view(-1, height * width, 3)
-    xyzs = to_homogeneous(xyzs)
-    ht_optical = generate_ht_optical(xyzs.shape[0], dtype=torch.float32, device=device)
-    xyzs = torch.matmul(xyzs, ht_optical.transpose(-1, -2))
-    xyzs = from_homogeneous(xyzs)
-
-    # unflatten
-    xyzs = xyzs.view(-1, height, width, 3)
-    xyzs = [xyz.squeeze() for xyz in xyzs.cpu().numpy()]
-
-    # mesh vertices to list
-    mesh_vertices = from_homogeneous(robot.configured_vertices)
-    mesh_vertices = [mesh_vertices[i].contiguous() for i in range(batch_size)]
-    mesh_normals = []
-    for i in range(batch_size):
-        mesh_normals.append(
-            compute_vertex_normals(
-                vertices=mesh_vertices[i], faces=robot.mesh_container.faces
-            )
-        )
-
-    # clean observed vertices and turn into tensor
-    observed_vertices = [
-        torch.tensor(
-            clean_xyz(
-                xyz=xyz,
-                mask=(
-                    mask
-                    if args.no_boundary
-                    else mask_extract_extended_boundary(
-                        mask,
-                        dilation_kernel=np.ones(
-                            [args.dilation_kernel_size, args.dilation_kernel_size]
-                        ),
-                        erosion_kernel=np.ones(
-                            [args.erosion_kernel_size, args.erosion_kernel_size]
-                        ),
-                    )
-                ),
+    # register
+    config = HydraRobustICPConfig(
+        HydraConfig(
+            reference_points_per_mesh=args.number_of_points,
+            depth_to_point_cloud=DepthToPointCloudConfig(
+                z_min=args.z_min,
+                z_max=args.z_max,
+                depth_conversion_factor=args.depth_conversion_factor,
+                use_mask_boundary=not args.no_boundary,
+                dilation_kernel_size=args.dilation_kernel_size,
+                erosion_kernel_size=args.erosion_kernel_size,
             ),
-            dtype=torch.float32,
-            device=device,
+            max_correspondence_distance=args.max_distance,
         )
-        for xyz, mask in zip(xyzs, masks)
-    ]
-
-    # sample N points per mesh
-    for i in range(batch_size):
-        idx = torch.randperm(mesh_vertices[i].shape[0])[: args.number_of_points]
-        mesh_vertices[i] = mesh_vertices[i][idx]
-        mesh_normals[i] = mesh_normals[i][idx]
-
-    HT_init = hydra_centroid_alignment(observed_vertices, mesh_vertices)
-    HT = hydra_robust_icp(
-        HT_init,
-        observed_vertices,
-        mesh_vertices,
-        mesh_normals,
-        max_distance=args.max_distance,
-        outer_max_iter=args.outer_max_iter,
-        inner_max_iter=args.inner_max_iter,
+    )
+    hydra_robust_icp = HydraRobustICP(
+        config=config,
+        device=device,
+        on_after_registration=visualize_hydra_result if args.display_results else None,
+    )
+    rich.print("Entering optimization...")
+    result = hydra_robust_icp(
+        request=HydraRequest(
+            intrinsics=intrinsics,
+            robot_data=robot_data,
+            observations=observations,
+        )
+    )
+    rich.print(
+        f"Optimization terminated after {result.iterations} iterations "
+        f"with status '{result.termination_reason}'."
     )
 
-    # visualize
-    if args.display_results:
-        from roboreg.util import RegistrationVisualizer
-
-        visualizer = RegistrationVisualizer()
-        visualizer(mesh_vertices=mesh_vertices, observed_vertices=observed_vertices)
-        visualizer(
-            mesh_vertices=mesh_vertices,
-            observed_vertices=observed_vertices,
-            HT=torch.linalg.inv(HT),
-        )
-
-    # to numpy
-    HT = HT.cpu().numpy()
-    np.save(os.path.join(args.path, args.output_file), HT)
+    # save extrinsics
+    rich.print(f"Writing results to: '{path}'.")
+    np.save(path / args.output_file, result.extrinsics.cpu().numpy())
 
 
 if __name__ == "__main__":

@@ -1,25 +1,19 @@
 import argparse
 import os
+from pathlib import Path
 from typing import Union
 
 import cv2
 import numpy as np
 import torch
 
-from roboreg.core import (
-    NVDiffRastRenderer,
-    Robot,
-    RobotScene,
-    TorchKinematics,
-    TorchMeshContainer,
-    VirtualCamera,
-)
+from roboreg.core import NVDiffRastRenderer, Robot, RobotScene, VirtualCamera
 from roboreg.io import (
     find_files,
     load_robot_data_from_ros_xacro,
     load_robot_data_from_urdf_file,
     parse_camera_info,
-    parse_mono_data,
+    parse_monocular_observations,
 )
 from roboreg.losses import soft_dice_loss
 from roboreg.optim import LinearParticleSwarm, ParticleSwarmOptimizer
@@ -259,33 +253,38 @@ def main() -> None:
     args = args_factory()
     device = "cuda" if torch.cuda.is_available() else "cpu"
     os.environ["MAX_JOBS"] = str(args.max_jobs)  # limit number of concurrent jobs
+    path = Path(args.path)
 
     # load data
     height, width, intrinsics = parse_camera_info(
         camera_info_file=args.camera_info_file
     )
-    image_files = find_files(args.path, args.image_pattern)
-    mask_files = find_files(args.path, args.mask_pattern)
-    joint_states_files = find_files(args.path, args.joint_states_pattern)
+    image_files = find_files(path, args.image_pattern)
+    target_files = find_files(path, args.mask_pattern)
+    joint_states_files = find_files(path, args.joint_states_pattern)
     n_samples = args.n_samples
     if n_samples > len(image_files):  # randomly sample n_samples
         n_samples = len(image_files)
     random_indices = np.random.choice(len(image_files), n_samples, replace=False)
     image_files = np.array(image_files)[random_indices].tolist()
-    mask_files = np.array(mask_files)[random_indices].tolist()
+    target_files = np.array(target_files)[random_indices].tolist()
     joint_states_files = np.array(joint_states_files)[random_indices].tolist()
-    images, joint_states, masks = parse_mono_data(
+    observations = parse_monocular_observations(
         image_files=image_files,
-        mask_files=mask_files,
+        target_files=target_files,
         joint_states_files=joint_states_files,
     )
 
     # pre-process data
+    camera_name = "camera"
     joint_states = torch.tensor(
-        np.array(joint_states), dtype=torch.float32, device=device
+        np.array(observations.joint_states), dtype=torch.float32, device=device
     )
     n_joint_states = joint_states.shape[0]
-    masks = [mask_exponential_decay(mask) for mask in masks]
+    masks = [
+        mask_exponential_decay(mask)
+        for mask in observations.cameras[camera_name].targets
+    ]
     masks = torch.tensor(np.array(masks), dtype=torch.float32, device=device)
 
     # scale image data (memory reduction)
@@ -319,7 +318,6 @@ def main() -> None:
     batch_size = (
         n_joint_states * args.n_cameras
     )  # (each camera observes n_joint_states joint states)
-    camera_name = "camera"
     camera = VirtualCamera(
         resolution=(height, width),
         intrinsics=intrinsics,
@@ -345,20 +343,8 @@ def main() -> None:
             collision=args.collision_meshes,
             target_reduction=args.target_reduction,
         )
-    mesh_container = TorchMeshContainer(
-        meshes=robot_data.meshes,
-        batch_size=batch_size,
-        device=device,
-    )
-    kinematics = TorchKinematics(
-        urdf=robot_data.urdf,
-        root_link_name=robot_data.root_link_name,
-        end_link_name=robot_data.end_link_name,
-        device=device,
-    )
-    robot = Robot(
-        mesh_container=mesh_container,
-        kinematics=kinematics,
+    robot = Robot.from_robot_data(
+        robot_data=robot_data, batch_size=batch_size, device=device
     )
 
     # instantiate scene
@@ -380,10 +366,10 @@ def main() -> None:
         center = particle_swarm_optimizer.particle_swarm.particles[:, 3:6]
         angle = particle_swarm_optimizer.particle_swarm.particles[:, -1:]
         extrinsics = look_at_from_angle(eye=eye, center=center, angle=angle)
-        scene.cameras["camera"].extrinsics = extrinsics.repeat_interleave(
+        scene.cameras[camera_name].extrinsics = extrinsics.repeat_interleave(
             n_joint_states, 0
         )
-        renders = scene.observe_from("camera").squeeze()
+        renders = scene.observe_from(camera_name).squeeze()
         fitness = (
             soft_dice_loss(renders.unsqueeze(-1), masks.unsqueeze(-1))
             .view(args.n_cameras, n_joint_states)
@@ -399,10 +385,14 @@ def main() -> None:
             ).astype(np.uint8)
             # upscale render
             current_best_render = cv2.resize(
-                current_best_render, (images[offset].shape[1], images[offset].shape[0])
+                current_best_render,
+                (
+                    observations.cameras[camera_name].images[offset].shape[1],
+                    observations.cameras[camera_name].images[offset].shape[0],
+                ),
             )
             overlay = overlay_mask(
-                images[offset],
+                observations.cameras[camera_name].images[offset],
                 current_best_render,
                 scale=1.0,
             )
@@ -430,7 +420,7 @@ def main() -> None:
     HT_cam_swarm = look_at_from_angle(
         eye=best_eye, center=best_center, angle=best_angle
     )
-    np.save(os.path.join(args.path, args.output_file), HT_cam_swarm.cpu().numpy())
+    np.save(path / args.output_file), HT_cam_swarm.cpu().numpy()
 
 
 if __name__ == "__main__":

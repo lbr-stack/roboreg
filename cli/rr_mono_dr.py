@@ -1,38 +1,37 @@
 import argparse
-import importlib
 import os
-from enum import Enum
+from pathlib import Path
 
-import cv2
 import numpy as np
-import pytorch_kinematics as pk
 import rich
-import rich.progress
 import torch
 
-from roboreg.core import (
-    NVDiffRastRenderer,
-    Robot,
-    RobotScene,
-    TorchKinematics,
-    TorchMeshContainer,
-    VirtualCamera,
-)
 from roboreg.io import (
     find_files,
     load_robot_data_from_ros_xacro,
     load_robot_data_from_urdf_file,
-    parse_mono_data,
+    parse_camera_info,
+    parse_monocular_observations,
 )
-from roboreg.losses import soft_dice_loss
-from roboreg.util import mask_distance_transform, mask_exponential_decay, overlay_mask
+from roboreg.registration.image.callbacks import RenderOverlayCallback
+from roboreg.registration.image.config import (
+    CameraConfig,
+    ConvergenceConfig,
+    DiffRenderingRegistrationConfig,
+    PlateauSchedulerConfig,
+)
+from roboreg.registration.image.objectives import (
+    RenderingObjectiveType,
+    create_rendering_objective,
+)
+from roboreg.registration.image.request import CameraData, ImageRegistrationRequest
+from roboreg.registration.image.solver import (
+    DiffRenderingRegistration,
+    OptimizationCallback,
+    OptimizationState,
+)
 
 from .util.validate import validate_urdf_source
-
-
-class REGISTRATION_MODE(Enum):
-    DISTANCE_FUNCTION = "distance-function"
-    SEGMENTATION = "segmentation"
 
 
 def args_factory() -> argparse.Namespace:
@@ -42,39 +41,52 @@ def args_factory() -> argparse.Namespace:
     parser.add_argument(
         "--optimizer",
         type=str,
-        default="SGD",
+        default=DiffRenderingRegistrationConfig().optimizer,
         help="Optimizer to use, e.g. 'Adam' or 'SGD'. Imported from torch.optim.",
     )
     parser.add_argument(
         "--lr",
         type=float,
-        default=1e-4,
+        default=DiffRenderingRegistrationConfig().lr,
         help="Learning rate for the optimizer.",
     )
     parser.add_argument(
         "--max-iterations",
         type=int,
-        default=200,
-        help="Number of epochs to optimize for.",
+        default=ConvergenceConfig().max_iterations,
+        help="Maximum number of epochs to optimize for.",
     )
     parser.add_argument(
-        "--step-size",
-        type=int,
-        default=100,
-        help="Step size for the learning rate scheduler.",
-    )
-    parser.add_argument(
-        "--gamma",
+        "--convergence-tolerance",
         type=float,
-        default=1.0,
-        help="Gamma for the learning rate scheduler.",
+        default=ConvergenceConfig().tolerance,
     )
     parser.add_argument(
-        "--mode",
-        type=str,
-        choices=[mode.value for mode in REGISTRATION_MODE],
-        default=REGISTRATION_MODE.DISTANCE_FUNCTION.value,
-        help="Registration mode.",
+        "--convergence-patience",
+        type=int,
+        default=ConvergenceConfig().patience,
+    )
+    parser.add_argument(
+        "--scheduler-factor",
+        type=float,
+        default=PlateauSchedulerConfig().factor,
+    )
+    parser.add_argument(
+        "--scheduler-patience",
+        type=int,
+        default=PlateauSchedulerConfig().patience,
+    )
+    parser.add_argument(
+        "--scheduler-threshold",
+        type=float,
+        default=PlateauSchedulerConfig().threshold,
+    )
+    parser.add_argument(
+        "--rendering-objective",
+        type=RenderingObjectiveType,
+        choices=list(RenderingObjectiveType),
+        default=RenderingObjectiveType.DISTANCE_MAP,
+        help="Rendering objective.",
     )
     parser.add_argument(
         "--display-progress",
@@ -166,45 +178,31 @@ def args_factory() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def print_optimization_state(state: OptimizationState) -> None:
+    rich.print(
+        f"Step [{state.iteration} / {state.max_iterations}], "
+        f"loss: {state.loss:.3f}, "
+        f"best loss: {state.best_loss:.3f}, "
+        f"lr: {state.learning_rate:.3e}"
+    )
+
+
 def main() -> None:
     args = args_factory()
     device = "cuda" if torch.cuda.is_available() else "cpu"
     os.environ["MAX_JOBS"] = str(args.max_jobs)  # limit number of concurrent jobs
-    mode = REGISTRATION_MODE(args.mode)
+    path = Path(args.path)
 
     # load data
-    image_files = find_files(args.path, args.image_pattern)
-    joint_states_files = find_files(args.path, args.joint_states_pattern)
-    mask_files = find_files(args.path, args.mask_pattern)
-    images, joint_states, masks = parse_mono_data(
-        image_files=image_files,
-        joint_states_files=joint_states_files,
-        mask_files=mask_files,
+    observations = parse_monocular_observations(
+        image_files=find_files(path, args.image_pattern),
+        joint_states_files=find_files(path, args.joint_states_pattern),
+        target_files=find_files(path, args.mask_pattern),
     )
+    _, _, intrinsics = parse_camera_info(args.camera_info_file)
+    extrinsics = np.load(args.extrinsics_file)
 
-    # pre-process data
-    joint_states = torch.tensor(
-        np.array(joint_states), dtype=torch.float32, device=device
-    )
-    if mode == REGISTRATION_MODE.DISTANCE_FUNCTION:
-        targets = [mask_distance_transform(mask) for mask in masks]
-    elif mode == REGISTRATION_MODE.SEGMENTATION:
-        targets = [mask_exponential_decay(mask) for mask in masks]
-    else:
-        raise ValueError("Invalid registration mode.")
-    targets = torch.tensor(
-        np.array(targets), dtype=torch.float32, device=device
-    ).unsqueeze(-1)
-
-    # instantiate camera with default identity extrinsics because we optimize for robot pose instead
-    camera = {
-        "camera": VirtualCamera.from_camera_configs(
-            camera_info_file=args.camera_info_file,
-            device=device,
-        )
-    }
-
-    # instantiate robot
+    # load robot specifications
     if args.urdf_path is not None:
         robot_data = load_robot_data_from_urdf_file(
             urdf_path=args.urdf_path,
@@ -220,141 +218,65 @@ def main() -> None:
             end_link_name=args.end_link_name,
             collision=args.collision_meshes,
         )
-    mesh_container = TorchMeshContainer(
-        meshes=robot_data.meshes,
-        batch_size=joint_states.shape[0],
-        device=device,
-    )
-    kinematics = TorchKinematics(
-        urdf=robot_data.urdf,
-        root_link_name=robot_data.root_link_name,
-        end_link_name=robot_data.end_link_name,
-        device=device,
-    )
-    robot = Robot(
-        mesh_container=mesh_container,
-        kinematics=kinematics,
-    )
 
-    # instantiate scene
-    scene = RobotScene(
-        cameras=camera,
-        robot=robot,
-        renderer=NVDiffRastRenderer(device=device),
-    )
-
-    # load extrinsics estimate
-    extrinsics = torch.tensor(
-        np.load(args.extrinsics_file), dtype=torch.float32, device=device
-    )
-    extrinsics_inv = torch.linalg.inv(extrinsics)
-
-    # enable gradient tracking and instantiate optimizer
-    extrinsics_9d_inv = pk.matrix44_to_se3_9d(extrinsics_inv)
-    extrinsics_9d_inv.requires_grad = True
-    optimizer = getattr(importlib.import_module("torch.optim"), args.optimizer)(
-        [extrinsics_9d_inv], lr=args.lr
-    )
-    scheduler = torch.optim.lr_scheduler.StepLR(
-        optimizer, step_size=args.step_size, gamma=args.gamma
-    )
-    best_extrinsics = extrinsics
-    best_extrinsics_inv = extrinsics_inv
-    best_loss = float("inf")
-
-    for iteration in rich.progress.track(
-        range(1, args.max_iterations + 1), "Optimizing..."
-    ):
-        if not extrinsics_9d_inv.requires_grad:
-            raise ValueError("Extrinsics require gradients.")
-        if not torch.is_grad_enabled():
-            raise ValueError("Gradients must be enabled.")
-        extrinsics_inv = pk.se3_9d_to_matrix44(extrinsics_9d_inv)
-        scene.robot.configure(joint_states, extrinsics_inv)
-        renders = {
-            "camera": scene.observe_from("camera"),
-        }
-        if mode == REGISTRATION_MODE.DISTANCE_FUNCTION:
-            loss = torch.nn.functional.mse_loss(targets, renders["camera"])
-        elif mode == REGISTRATION_MODE.SEGMENTATION:
-            loss = soft_dice_loss(targets, renders["camera"]).mean()
-        else:
-            raise ValueError("Invalid registration mode.")
-
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        scheduler.step()
-
-        rich.print(
-            f"Step [{iteration} / {args.max_iterations}], loss: {np.round(loss.item(), 3)}, best loss: {np.round(best_loss, 3)}, lr: {scheduler.get_last_lr().pop()}"
-        )
-
-        if loss.item() < best_loss:
-            best_loss = loss.item()
-            best_extrinsics_inv = extrinsics_inv.detach().clone()
-            best_extrinsics = torch.linalg.inv(best_extrinsics_inv)
-
-        # display optimization progress
-        if args.display_progress:
-            render = renders["camera"][0].squeeze().detach().cpu().numpy()
-            image = images[0]
-            render_overlay = overlay_mask(
-                image,
-                (render * 255.0).astype(np.uint8),
-                scale=1.0,
+    # register
+    on_iteration: list[OptimizationCallback] = [
+        print_optimization_state,
+    ]
+    if args.display_progress:
+        on_iteration.append(
+            RenderOverlayCallback(
+                images={
+                    camera_name: camera_observations.images
+                    for camera_name, camera_observations in observations.cameras.items()
+                    if camera_observations.images is not None
+                },
             )
-            # difference left / right render / mask
-            difference = (
-                cv2.cvtColor(
-                    np.abs(render - masks[0].astype(np.float32) / 255.0),
-                    cv2.COLOR_GRAY2BGR,
+        )
+    diff_rendering_registration = DiffRenderingRegistration(
+        config=DiffRenderingRegistrationConfig(
+            camera=CameraConfig(),
+            optimizer=args.optimizer,
+            lr=args.lr,
+            convergence=ConvergenceConfig(
+                max_iterations=args.max_iterations,
+                tolerance=args.convergence_tolerance,
+                patience=args.convergence_patience,
+            ),
+            plateau_scheduler=PlateauSchedulerConfig(
+                mode="min",
+                factor=args.scheduler_factor,
+                patience=args.scheduler_patience,
+                threshold=args.scheduler_threshold,
+            ),
+        ),
+        objective=create_rendering_objective(objective_type=args.rendering_objective),
+        device=device,
+        on_iteration=on_iteration,
+    )
+    rich.print("Entering optimization...")
+    result = diff_rendering_registration(
+        request=ImageRegistrationRequest(
+            cameras={
+                "camera": CameraData(
+                    intrinsics=intrinsics,
                 )
-                * 255.0
-            ).astype(np.uint8)
-            # overlay segmentation mask
-            segmentation_overlay = overlay_mask(
-                image,
-                masks[0],
-                mode="b",
-                scale=1.0,
-            )
-            cv2.imshow(
-                "left to right: render overlay, difference, segmentation overlay",
-                cv2.resize(
-                    np.hstack(
-                        [
-                            render_overlay,
-                            difference,
-                            segmentation_overlay,
-                        ]
-                    ),
-                    (0, 0),
-                    fx=0.5,
-                    fy=0.5,
-                ),
-            )
-            cv2.waitKey(1)
-
-    # render final results and save extrinsics
-    with torch.no_grad():
-        scene.robot.configure(joint_states, best_extrinsics_inv)
-        renders = scene.observe_from("camera")
-
-    for i, render in enumerate(renders):
-        render = render.squeeze().cpu().numpy()
-        overlay = overlay_mask(images[i], (render * 255.0).astype(np.uint8), scale=1.0)
-        difference = np.abs(render - masks[i].astype(np.float32) / 255.0)
-
-        cv2.imwrite(os.path.join(args.path, f"dr_overlay_{i}.png"), overlay)
-        cv2.imwrite(
-            os.path.join(args.path, f"dr_difference_{i}.png"),
-            (difference * 255.0).astype(np.uint8),
+            },
+            robot_data=robot_data,
+            observations=observations,
+            initial_extrinsics=extrinsics,
         )
+    )
+    rich.print(
+        f"Optimization terminated after {result.iterations} iterations "
+        f"with status '{result.termination_reason}'."
+    )
 
+    # save extrinsics
+    rich.print(f"Writing results to: '{path}'.")
     np.save(
-        os.path.join(args.path, args.output_file),
-        best_extrinsics.cpu().numpy(),
+        path / args.output_file,
+        result.extrinsics.cpu().numpy(),
     )
 
 

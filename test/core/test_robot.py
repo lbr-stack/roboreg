@@ -1,6 +1,6 @@
 import torch
 
-from roboreg.core import Robot, TorchKinematics, TorchMeshContainer
+from roboreg.core import Robot
 from roboreg.io import load_robot_data_from_urdf_file
 
 
@@ -12,20 +12,8 @@ def test_robot() -> None:
         collision=True,
     )
 
-    mesh_container = TorchMeshContainer(
-        meshes=robot_data.meshes,
-        batch_size=batch_size,
-        device=device,
-    )
-    kinematics = TorchKinematics(
-        urdf=robot_data.urdf,
-        root_link_name=robot_data.root_link_name,
-        end_link_name=robot_data.end_link_name,
-        device=device,
-    )
-    robot = Robot(
-        mesh_container=mesh_container,
-        kinematics=kinematics,
+    robot = Robot.from_robot_data(
+        robot_data=robot_data, batch_size=batch_size, device=device
     )
 
     assert robot.device == torch.device(device), "Robot device mismatch."

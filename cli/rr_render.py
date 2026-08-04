@@ -12,8 +12,6 @@ from roboreg.core import (
     NVDiffRastRenderer,
     Robot,
     RobotScene,
-    TorchKinematics,
-    TorchMeshContainer,
     VirtualCamera,
 )
 from roboreg.io import (
@@ -156,20 +154,8 @@ def main():
             end_link_name=args.end_link_name,
             collision=args.collision_meshes,
         )
-    mesh_container = TorchMeshContainer(
-        meshes=robot_data.meshes,
-        batch_size=args.batch_size,
-        device=device,
-    )
-    kinematics = TorchKinematics(
-        urdf=robot_data.urdf,
-        root_link_name=robot_data.root_link_name,
-        end_link_name=robot_data.end_link_name,
-        device=device,
-    )
-    robot = Robot(
-        mesh_container=mesh_container,
-        kinematics=kinematics,
+    robot = Robot.from_robot_data(
+        robot_data=robot_data, batch_size=args.batch_size, device=device
     )
     scene = RobotScene(
         cameras=camera,

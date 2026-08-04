@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Union
 
@@ -6,13 +5,7 @@ import fast_simplification
 import numpy as np
 import trimesh
 
-
-@dataclass
-class Mesh:
-    r"""Dataclass to hold mesh data."""
-
-    vertices: np.ndarray
-    faces: np.ndarray
+from roboreg.core.structs import Mesh
 
 
 def load_mesh(path: Union[Path, str]) -> Mesh:

@@ -1,5 +1,6 @@
-from typing import Optional
+from typing import Optional, Tuple, Union
 
+import numpy as np
 import torch
 
 
@@ -128,3 +129,20 @@ def look_at_from_angle(
     random_rot[:, 1, 1] = torch.cos(angle)
 
     return random_ht @ random_rot
+
+
+def rescale_intrinsics(
+    intrinsics: Union[np.ndarray, torch.Tensor],
+    current_resolution: Tuple[int, int],
+    target_resolution: Tuple[int, int],
+) -> Union[np.ndarray, torch.Tensor]:
+    scaled = (
+        intrinsics.copy() if isinstance(intrinsics, np.ndarray) else intrinsics.clone()
+    )
+    scale_x = target_resolution[1] / current_resolution[1]
+    scale_y = target_resolution[0] / current_resolution[0]
+    scaled[..., 0, 0] *= scale_x
+    scaled[..., 1, 1] *= scale_y
+    scaled[..., 0, 2] *= scale_x
+    scaled[..., 1, 2] *= scale_y
+    return scaled

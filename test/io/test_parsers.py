@@ -7,9 +7,9 @@ from roboreg.io import (
     URDFParser,
     find_files,
     parse_camera_info,
-    parse_hydra_data,
-    parse_mono_data,
-    parse_stereo_data,
+    parse_hydra_observations,
+    parse_monocular_observations,
+    parse_stereo_observations,
 )
 
 
@@ -95,97 +95,124 @@ def test_parse_camera_info() -> None:
     assert intrinsic_matrix.shape == (3, 3), "Intrinsic matrix should be of shape 3x3."
 
 
-def test_parse_hydra_data() -> None:
+def test_parse_hydra_observations() -> None:
     path = "test/assets/lbr_med7_r800/samples"
-    joint_states, masks, depths = parse_hydra_data(
+    observations = parse_hydra_observations(
         joint_states_files=find_files(path, "joint_states_*.npy"),
         mask_files=find_files(path, "mask_sam2_left_*.png"),
         depth_files=find_files(path, "depth_*.npy"),
     )
 
     assert (
-        len(joint_states) == len(masks) == len(depths)
+        len(observations.joint_states)
+        == len(observations.masks)
+        == len(observations.depths)
     ), "Expected same number of joint states / masks / depths."
-    assert len(joint_states) >= 1, "Should at least have one sample."
-    assert masks[0].ndim == 2, "Expected 2D mask."
-    assert masks[0].dtype == np.uint8, "Expected unsigned integers for mask."
-    assert np.all(masks[0] >= 0) and np.all(
-        masks[0] <= 255
+    assert len(observations.joint_states) >= 1, "Should at least have one sample."
+    assert observations.masks[0].ndim == 2, "Expected 2D mask."
+    assert (
+        observations.masks[0].dtype == np.uint8
+    ), "Expected unsigned integers for mask."
+    assert np.all(observations.masks[0] >= 0) and np.all(
+        observations.masks[0] <= 255
     ), "Expected mask in range [0, 255]."
-    assert depths[0].ndim == 2, "Expected 2D depth map."
+    assert observations.depths[0].ndim == 2, "Expected 2D depth map."
 
 
-def test_parse_mono_data() -> None:
+def test_parse_monocular_observations() -> None:
     path = "test/assets/lbr_med7_r800/samples"
-    images, joint_states, masks = parse_mono_data(
+    observations = parse_monocular_observations(
         image_files=find_files(path, "left_image_*.png"),
         joint_states_files=find_files(path, "joint_states_*.npy"),
-        mask_files=find_files(path, "mask_sam2_left_*.png"),
+        target_files=find_files(path, "mask_sam2_left_*.png"),
     )
 
     assert (
-        len(images) == len(joint_states) == len(masks)
+        len(observations.cameras["camera"].images)
+        == len(observations.joint_states)
+        == len(observations.cameras["camera"].targets)
     ), "Expected same number of images / joint states / masks."
-    assert len(images) >= 1, "Should at least have one sample."
-    assert images[0].ndim == 3, "Expected 3D image (HxWx3)."
-    assert images[0].shape[-1] == 3, "Expected 3 color channels."
-    assert masks[0].ndim == 2, "Expected 2D mask."
-    assert masks[0].dtype == np.uint8, "Expected unsigned integers for mask."
-    assert np.all(masks[0] >= 0) and np.all(
-        masks[0] <= 255
+    assert (
+        len(observations.cameras["camera"].images) >= 1
+    ), "Should at least have one sample."
+    assert (
+        observations.cameras["camera"].images[0].ndim == 3
+    ), "Expected 3D image (HxWx3)."
+    assert (
+        observations.cameras["camera"].images[0].shape[-1] == 3
+    ), "Expected 3 color channels."
+    assert observations.cameras["camera"].targets[0].ndim == 2, "Expected 2D mask."
+    assert (
+        observations.cameras["camera"].targets[0].dtype == np.uint8
+    ), "Expected unsigned integers for mask."
+    assert np.all(observations.cameras["camera"].targets[0] >= 0) and np.all(
+        observations.cameras["camera"].targets[0] <= 255
     ), "Expected mask in range [0, 255]."
     assert (
-        masks[0].shape[:2] == images[0].shape[:2]
+        observations.cameras["camera"].targets[0].shape[:2]
+        == observations.cameras["camera"].images[0].shape[:2]
     ), "Mask and image dimensions should match."
 
 
-def test_parse_stereo_data() -> None:
+def test_parse_stereo_observations() -> None:
     path = "test/assets/lbr_med7_r800/samples"
-    left_images, right_images, joint_states, left_masks, right_masks = (
-        parse_stereo_data(
-            left_image_files=find_files(path, "left_image_*.png"),
-            right_image_files=find_files(path, "right_image_*.png"),
-            joint_states_files=find_files(path, "joint_states_*.npy"),
-            left_mask_files=find_files(path, "mask_sam2_left_*.png"),
-            right_mask_files=find_files(path, "mask_sam2_right_*.png"),
-        )
+    observations = parse_stereo_observations(
+        left_image_files=find_files(path, "left_image_*.png"),
+        right_image_files=find_files(path, "right_image_*.png"),
+        joint_states_files=find_files(path, "joint_states_*.npy"),
+        left_target_files=find_files(path, "mask_sam2_left_*.png"),
+        right_target_files=find_files(path, "mask_sam2_right_*.png"),
     )
 
     assert (
-        len(left_images)
-        == len(right_images)
-        == len(joint_states)
-        == len(left_masks)
-        == len(right_masks)
+        len(observations.cameras["left"].images)
+        == len(observations.cameras["right"].images)
+        == len(observations.joint_states)
+        == len(observations.cameras["left"].targets)
+        == len(observations.cameras["right"].targets)
     ), "Expected same number of left/right images, joint states, and left/right masks."
-    assert len(left_images) >= 1, "Should at least have one sample."
+    assert (
+        len(observations.cameras["left"].images) >= 1
+    ), "Should at least have one sample."
 
     # Test left data
-    assert left_images[0].ndim == 3, "Expected 3D left image (HxWx3)."
-    assert left_images[0].shape[-1] == 3, "Expected 3 color channels for left image."
-    assert left_masks[0].ndim == 2, "Expected 2D left mask."
-    assert left_masks[0].dtype == np.uint8, "Expected unsigned integers for left mask."
-    assert np.all(left_masks[0] >= 0) and np.all(
-        left_masks[0] <= 255
+    assert (
+        observations.cameras["left"].images[0].ndim == 3
+    ), "Expected 3D left image (HxWx3)."
+    assert (
+        observations.cameras["left"].images[0].shape[-1] == 3
+    ), "Expected 3 color channels for left image."
+    assert observations.cameras["left"].targets[0].ndim == 2, "Expected 2D left mask."
+    assert (
+        observations.cameras["left"].targets[0].dtype == np.uint8
+    ), "Expected unsigned integers for left mask."
+    assert np.all(observations.cameras["left"].targets[0] >= 0) and np.all(
+        observations.cameras["left"].targets[0] <= 255
     ), "Expected left mask in range [0, 255]."
 
     # Test right data
-    assert right_images[0].ndim == 3, "Expected 3D right image (HxWx3)."
-    assert right_images[0].shape[-1] == 3, "Expected 3 color channels for right image."
-    assert right_masks[0].ndim == 2, "Expected 2D right mask."
     assert (
-        right_masks[0].dtype == np.uint8
+        observations.cameras["right"].images[0].ndim == 3
+    ), "Expected 3D right image (HxWx3)."
+    assert (
+        observations.cameras["right"].images[0].shape[-1] == 3
+    ), "Expected 3 color channels for right image."
+    assert observations.cameras["right"].targets[0].ndim == 2, "Expected 2D right mask."
+    assert (
+        observations.cameras["right"].targets[0].dtype == np.uint8
     ), "Expected unsigned integers for right mask."
-    assert np.all(right_masks[0] >= 0) and np.all(
-        right_masks[0] <= 255
+    assert np.all(observations.cameras["right"].targets[0] >= 0) and np.all(
+        observations.cameras["right"].targets[0] <= 255
     ), "Expected right mask in range [0, 255]."
 
     # Test dimensions match
     assert (
-        left_masks[0].shape[:2] == left_images[0].shape[:2]
+        observations.cameras["left"].targets[0].shape[:2]
+        == observations.cameras["left"].images[0].shape[:2]
     ), "Left mask and image dimensions should match."
     assert (
-        right_masks[0].shape[:2] == right_images[0].shape[:2]
+        observations.cameras["right"].targets[0].shape[:2]
+        == observations.cameras["right"].images[0].shape[:2]
     ), "Right mask and image dimensions should match."
 
 
@@ -200,6 +227,6 @@ if __name__ == "__main__":
     test_urdf_parser_from_ros_xacro()
     test_find_files()
     test_parse_camera_info()
-    test_parse_hydra_data()
-    test_parse_mono_data()
-    test_parse_stereo_data()
+    test_parse_hydra_observations()
+    test_parse_monocular_observations()
+    test_parse_stereo_observations()
