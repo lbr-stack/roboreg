@@ -1,7 +1,6 @@
 from typing import List, Tuple
 
 import torch
-from rich.progress import track
 
 from roboreg.registration.result import RegistrationResult, TerminationReason
 
@@ -130,9 +129,7 @@ def point_to_point_icp(
     HT = HT_init
     # registration
     previous_rmse = float("inf")
-    for iteration in track(
-        range(max_iterations), description=f"Running point to point ICP..."
-    ):
+    for iteration in range(max_iterations):
         observed_correspondences = []
         reference_correspondences = []
         for i in range(len(reference_vertices)):
@@ -246,9 +243,7 @@ def point_to_plane_robust_icp(
     # implementation of algorithm 1
     previous_rmse = float("inf")
     dTh = torch.zeros_like(HT)
-    for outer_iteration in track(
-        range(max_outer_iterations), description=f"Running point to plane robust ICP..."
-    ):
+    for outer_iteration in range(max_outer_iterations):
         observed_correspondences = []
         observed_cross_mat_correspondences = []
         reference_correspondences = []
