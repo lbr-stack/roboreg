@@ -206,7 +206,7 @@ def main(
         ),
         objective=create_rendering_objective(objective_type=rendering_objective),
         device=device,
-        on_iteration=[print_optimization_state],
+        on_iteration=on_iteration,
     )
     rich.print("Entering optimization...")
     result = diff_rendering_registration(
