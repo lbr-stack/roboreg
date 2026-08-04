@@ -1,11 +1,11 @@
-import argparse
 import os
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 import cv2
 import numpy as np
 import torch
+import typer
 
 from roboreg.core import NVDiffRastRenderer, Robot, RobotScene, VirtualCamera
 from roboreg.io import (
@@ -26,168 +26,7 @@ from roboreg.util import (
 
 from .util.validate import validate_urdf_source
 
-
-def args_factory() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    parser.add_argument(
-        "--n-cameras",
-        type=int,
-        default=50,
-        help="The number of cameras / particles to optimize.",
-    )
-    parser.add_argument(
-        "--min-distance",
-        type=float,
-        default=0.5,
-        help="The minimum distance of the camera from the object.",
-    )
-    parser.add_argument(
-        "--max-distance",
-        type=float,
-        default=2.0,
-        help="The maximum distance of the camera from the object.",
-    )
-    parser.add_argument(
-        "--angle-range",
-        type=float,
-        default=np.pi,
-        help="The initial angle range for the camera in [-angle_range/2, angle_range/2].",
-    )
-    parser.add_argument(
-        "--w",
-        type=float,
-        default=0.7,
-    )
-    parser.add_argument(
-        "--c1",
-        type=float,
-        default=1.5,
-    )
-    parser.add_argument(
-        "--c2",
-        type=float,
-        default=1.5,
-    )
-    parser.add_argument(
-        "--max-iterations",
-        type=int,
-        default=100,
-        help="The maximum number of iterations.",
-    )
-    parser.add_argument(
-        "--min-fitness-change",
-        type=float,
-        default=2.0e-3,
-        help="The minimum fitness change for early convergence.",
-    )
-    parser.add_argument(
-        "--max-iterations-below-min-fitness-change",
-        type=int,
-        default=20,
-        help="The maximum number of iterations below the minimum fitness change before early convergence.",
-    )
-    parser.add_argument(
-        "--display-progress",
-        action="store_true",
-        help="Display optimization progress.",
-    )
-    parser.add_argument(
-        "--urdf-path",
-        type=str,
-        default="test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf",
-        help="Path to URDF file. Meshes resolved relative to this file. "
-        "Mutually exclusive with --ros-package/--xacro-path.",
-    )
-    parser.add_argument(
-        "--ros-package",
-        type=str,
-        default=None,
-        help="ROS package containing robot description. "
-        "Requires --xacro-path. Mutually exclusive with --urdf-path.",
-    )
-    parser.add_argument(
-        "--xacro-path",
-        type=str,
-        default=None,
-        help="Path to xacro file relative to --ros-package. "
-        "Requires --ros-package. Mutually exclusive with --urdf-path.",
-    )
-    parser.add_argument(
-        "--root-link-name",
-        type=str,
-        default="",
-        help="Root link name. If unspecified, the first link with mesh will be used, which may cause errors.",
-    )
-    parser.add_argument(
-        "--end-link-name",
-        type=str,
-        default="",
-        help="End link name. If unspecified, the last link with mesh will be used, which may cause errors.",
-    )
-    parser.add_argument(
-        "--target-reduction",
-        type=float,
-        default=0.95,
-        help="Reduces the mesh vertex count for memory reduction. In [0, 1).",
-    )
-    parser.add_argument(
-        "--scale",
-        type=float,
-        default=0.25,
-        help="Scale the camera resolution by this factor. Reduces memory usage.",
-    )
-    parser.add_argument(
-        "--collision-meshes",
-        action="store_true",
-        help="If set, collision meshes will be used instead of visual meshes.",
-    )
-    parser.add_argument(
-        "--camera-info-file",
-        type=str,
-        required=True,
-        help="Path to the camera parameters, <path_to>/camera_info.yaml.",
-    )
-    parser.add_argument("--path", type=str, required=True, help="Path to the data.")
-    parser.add_argument(
-        "--image-pattern",
-        type=str,
-        default="image_*.png",
-        help="Image file pattern. The images are only used to --display-progress.",
-    )
-    parser.add_argument(
-        "--joint-states-pattern",
-        type=str,
-        default="joint_states_*.npy",
-        help="Joint state file pattern.",
-    )
-    parser.add_argument(
-        "--mask-pattern",
-        type=str,
-        default="image_*_mask.png",
-        help="Mask file pattern.",
-    )
-    parser.add_argument(
-        "--output-file",
-        type=str,
-        default="HT_cam_swarm.npy",
-        help="Output file name. Relative to --path.",
-    )
-    parser.add_argument(
-        "--n-samples",
-        type=int,
-        default=5,
-        help="Number of samples to randomly select from the data for optimization.",
-    )
-    parser.add_argument(
-        "--max-jobs",
-        type=int,
-        default=2,
-        help="Number of concurrent compilation jobs for nvdiffrast. Only relevant on first run.",
-    )
-    validate_urdf_source(parser, parser.parse_args())
-    return parser.parse_args()
+app = typer.Typer(add_completion=False)
 
 
 def instantiate_particles(
@@ -249,20 +88,100 @@ def instantiate_particles(
     return torch.cat([random_eyes, random_centers, random_angles], dim=-1)
 
 
-def main() -> None:
-    args = args_factory()
+@app.command()
+def main(
+    camera_info_file: Path = typer.Option(
+        ..., help="Path to the camera parameters, <path_to>/camera_info.yaml."
+    ),
+    path: Path = typer.Option(..., help="Path to the data."),
+    n_cameras: int = typer.Option(
+        50, help="The number of cameras / particles to optimize."
+    ),
+    min_distance: float = typer.Option(
+        0.5, help="The minimum distance of the camera from the object."
+    ),
+    max_distance: float = typer.Option(
+        2.0, help="The maximum distance of the camera from the object."
+    ),
+    angle_range: float = typer.Option(
+        np.pi,
+        help="The initial angle range for the camera in [-angle_range/2, angle_range/2].",
+    ),
+    w: float = typer.Option(0.7),
+    c1: float = typer.Option(1.5),
+    c2: float = typer.Option(1.5),
+    max_iterations: int = typer.Option(100, help="The maximum number of iterations."),
+    min_fitness_change: float = typer.Option(
+        2.0e-3, help="The minimum fitness change for early convergence."
+    ),
+    max_iterations_below_min_fitness_change: int = typer.Option(
+        20,
+        help="The maximum number of iterations below the minimum fitness change before early convergence.",
+    ),
+    display_progress: bool = typer.Option(False, help="Display optimization progress."),
+    urdf_path: Optional[Path] = typer.Option(
+        "test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf",
+        help="Path to URDF file. Meshes resolved relative to this file. "
+        "Mutually exclusive with --ros-package/--xacro-path.",
+    ),
+    ros_package: Optional[str] = typer.Option(
+        None,
+        help="ROS package containing robot description. "
+        "Requires --xacro-path. Mutually exclusive with --urdf-path.",
+    ),
+    xacro_path: Optional[str] = typer.Option(
+        None,
+        help="Path to xacro file relative to --ros-package. "
+        "Requires --ros-package. Mutually exclusive with --urdf-path.",
+    ),
+    root_link_name: str = typer.Option(
+        "",
+        help="Root link name. If unspecified, the first link with mesh will be used, which may cause errors.",
+    ),
+    end_link_name: str = typer.Option(
+        "",
+        help="End link name. If unspecified, the last link with mesh will be used, which may cause errors.",
+    ),
+    target_reduction: float = typer.Option(
+        0.95,
+        help="Reduces the mesh vertex count for memory reduction. In [0, 1).",
+    ),
+    scale: float = typer.Option(
+        0.25, help="Scale the camera resolution by this factor. Reduces memory usage."
+    ),
+    collision_meshes: bool = typer.Option(
+        False, help="If set, collision meshes will be used instead of visual meshes."
+    ),
+    image_pattern: str = typer.Option(
+        "image_*.png",
+        help="Image file pattern. The images are only used to --display-progress.",
+    ),
+    joint_states_pattern: str = typer.Option(
+        "joint_states_*.npy", help="Joint state file pattern."
+    ),
+    mask_pattern: str = typer.Option("image_*_mask.png", help="Mask file pattern."),
+    output_file: str = typer.Option(
+        "HT_cam_swarm.npy", help="Output file name. Relative to --path."
+    ),
+    n_samples: int = typer.Option(
+        5,
+        help="Number of samples to randomly select from the data for optimization.",
+    ),
+    max_jobs: int = typer.Option(
+        2,
+        help="Number of concurrent compilation jobs for nvdiffrast. Only relevant on first run.",
+    ),
+) -> None:
+    r"""Particle swarm optimization for an initial camera pose estimate."""
+    validate_urdf_source(urdf_path, ros_package, xacro_path)
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    os.environ["MAX_JOBS"] = str(args.max_jobs)  # limit number of concurrent jobs
-    path = Path(args.path)
+    os.environ["MAX_JOBS"] = str(max_jobs)  # limit number of concurrent jobs
 
     # load data
-    height, width, intrinsics = parse_camera_info(
-        camera_info_file=args.camera_info_file
-    )
-    image_files = find_files(path, args.image_pattern)
-    target_files = find_files(path, args.mask_pattern)
-    joint_states_files = find_files(path, args.joint_states_pattern)
-    n_samples = args.n_samples
+    height, width, intrinsics = parse_camera_info(camera_info_file=camera_info_file)
+    image_files = find_files(path, image_pattern)
+    target_files = find_files(path, mask_pattern)
+    joint_states_files = find_files(path, joint_states_pattern)
     if n_samples > len(image_files):  # randomly sample n_samples
         n_samples = len(image_files)
     random_indices = np.random.choice(len(image_files), n_samples, replace=False)
@@ -288,35 +207,35 @@ def main() -> None:
     masks = torch.tensor(np.array(masks), dtype=torch.float32, device=device)
 
     # scale image data (memory reduction)
-    height = int(height * args.scale)
-    width = int(width * args.scale)
-    intrinsics = intrinsics * args.scale
+    height = int(height * scale)
+    width = int(width * scale)
+    intrinsics = intrinsics * scale
     masks = torch.nn.functional.interpolate(
         masks.unsqueeze(1), size=(height, width), mode="nearest"
     ).squeeze(1)
 
     # prepare particles
     particles = instantiate_particles(
-        n_particles=args.n_cameras,
+        n_particles=n_cameras,
         height=height,
         width=width,
         focal_length_x=intrinsics[0, 0],
         focal_length_y=intrinsics[1, 1],
-        eye_min_dist=args.min_distance,
-        eye_max_dist=args.max_distance,
-        angle_interval=args.angle_range,
+        eye_min_dist=min_distance,
+        eye_max_dist=max_distance,
+        angle_interval=angle_range,
         device=device,
     )
     particle_swarm = LinearParticleSwarm(
         particles=particles,
-        w=args.w,
-        c1=args.c1,
-        c2=args.c2,
+        w=w,
+        c1=c1,
+        c2=c2,
     )
 
     # instantiate scene for fitness evaluation
     batch_size = (
-        n_joint_states * args.n_cameras
+        n_joint_states * n_cameras
     )  # (each camera observes n_joint_states joint states)
     camera = VirtualCamera(
         resolution=(height, width),
@@ -326,22 +245,22 @@ def main() -> None:
     )
 
     # instantiate robot
-    if args.urdf_path is not None:
+    if urdf_path is not None:
         robot_data = load_robot_data_from_urdf_file(
-            urdf_path=args.urdf_path,
-            root_link_name=args.root_link_name,
-            end_link_name=args.end_link_name,
-            collision=args.collision_meshes,
-            target_reduction=args.target_reduction,
+            urdf_path=urdf_path,
+            root_link_name=root_link_name,
+            end_link_name=end_link_name,
+            collision=collision_meshes,
+            target_reduction=target_reduction,
         )
     else:
         robot_data = load_robot_data_from_ros_xacro(
-            ros_package=args.ros_package,
-            xacro_path=args.xacro_path,
-            root_link_name=args.root_link_name,
-            end_link_name=args.end_link_name,
-            collision=args.collision_meshes,
-            target_reduction=args.target_reduction,
+            ros_package=ros_package,
+            xacro_path=xacro_path,
+            root_link_name=root_link_name,
+            end_link_name=end_link_name,
+            collision=collision_meshes,
+            target_reduction=target_reduction,
         )
     robot = Robot.from_robot_data(
         robot_data=robot_data, batch_size=batch_size, device=device
@@ -355,8 +274,8 @@ def main() -> None:
     )
 
     # repeat joint states and masks for each camera
-    masks = masks.repeat(args.n_cameras, 1, 1)
-    joint_states = joint_states.repeat(args.n_cameras, 1)
+    masks = masks.repeat(n_cameras, 1, 1)
+    joint_states = joint_states.repeat(n_cameras, 1)
     if joint_states.shape[0] != batch_size:
         raise ValueError("Joint states of invalid shape.")
     scene.robot.configure(joint_states)
@@ -372,11 +291,11 @@ def main() -> None:
         renders = scene.observe_from(camera_name).squeeze()
         fitness = (
             soft_dice_loss(renders.unsqueeze(-1), masks.unsqueeze(-1))
-            .view(args.n_cameras, n_joint_states)
+            .view(n_cameras, n_joint_states)
             .mean(dim=1)
         )
         # show the best particle of the current iteration
-        if args.display_progress:
+        if display_progress:
             offset = 0
             current_best_idx = torch.argmin(fitness)
             current_best_render = (
@@ -408,9 +327,9 @@ def main() -> None:
     # optimize
     best_particle, _ = particle_swarm_optimizer(
         fitness_function=fitness_closure,
-        max_iterations=args.max_iterations,
-        min_fitness_change=args.min_fitness_change,
-        max_iterations_below_min_fitness_change=args.max_iterations_below_min_fitness_change,
+        max_iterations=max_iterations,
+        min_fitness_change=min_fitness_change,
+        max_iterations_below_min_fitness_change=max_iterations_below_min_fitness_change,
     )
 
     # save results
@@ -420,8 +339,8 @@ def main() -> None:
     HT_cam_swarm = look_at_from_angle(
         eye=best_eye, center=best_center, angle=best_angle
     )
-    np.save(path / args.output_file, HT_cam_swarm.cpu().numpy())
+    np.save(path / output_file, HT_cam_swarm.cpu().numpy())
 
 
 if __name__ == "__main__":
-    main()
+    app()
