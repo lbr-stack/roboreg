@@ -1,9 +1,10 @@
-import argparse
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import rich
 import torch
+import typer
 
 from roboreg.io import (
     find_files,
@@ -23,146 +24,7 @@ from roboreg.registration.result import RegistrationResult
 
 from .util.validate import validate_urdf_source
 
-
-def args_factory() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    parser.add_argument(
-        "--camera-info-file",
-        type=str,
-        required=True,
-        help="Path to the camera parameters, <path_to>/camera_info.yaml.",
-    )
-    parser.add_argument("--path", type=str, required=True, help="Path to the data.")
-    parser.add_argument(
-        "--mask-pattern",
-        type=str,
-        default="image_*_mask.png",
-        help="Mask file pattern.",
-    )
-    parser.add_argument(
-        "--depth-pattern",
-        type=str,
-        default="depth_*.npy",
-        help="Depth file pattern. Note that depth values are expected in meters.",
-    )
-    parser.add_argument(
-        "--joint-states-pattern",
-        type=str,
-        default="joint_states_*.npy",
-        help="Joint state file pattern.",
-    )
-    parser.add_argument(
-        "--urdf-path",
-        type=str,
-        default="test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf",
-        help="Path to URDF file. Meshes resolved relative to this file. "
-        "Mutually exclusive with --ros-package/--xacro-path.",
-    )
-    parser.add_argument(
-        "--ros-package",
-        type=str,
-        default=None,
-        help="ROS package containing robot description. "
-        "Requires --xacro-path. Mutually exclusive with --urdf-path.",
-    )
-    parser.add_argument(
-        "--xacro-path",
-        type=str,
-        default=None,
-        help="Path to xacro file relative to --ros-package. "
-        "Requires --ros-package. Mutually exclusive with --urdf-path.",
-    )
-    parser.add_argument(
-        "--root-link-name",
-        type=str,
-        default="",
-        help="Root link name. If unspecified, the first link with mesh will be used, which may cause errors.",
-    )
-    parser.add_argument(
-        "--end-link-name",
-        type=str,
-        default="",
-        help="End link name. If unspecified, the last link with mesh will be used, which may cause errors.",
-    )
-    parser.add_argument(
-        "--collision-meshes",
-        action="store_true",
-        help="If set, collision meshes will be used instead of visual meshes.",
-    )
-    parser.add_argument(
-        "--depth-conversion-factor",
-        type=float,
-        default=1.0,
-        help="Conversion factor for depth. Computes z = depth / conversion_factor e.g. to covert from millimeter to meter.",
-    )
-    parser.add_argument(
-        "--z-min",
-        type=float,
-        default=0.01,
-        help="Minimum depth value.",
-    )
-    parser.add_argument(
-        "--z-max",
-        type=float,
-        default=2.0,
-        help="Maximum depth value.",
-    )
-    parser.add_argument(
-        "--number-of-points",
-        type=int,
-        default=5000,
-        help="Number of points to sample from robot mesh.",
-    )
-    parser.add_argument(
-        "--max-distance",
-        type=float,
-        default=0.1,
-        help="Maximum distance between two points to be considered as a correspondence.",
-    )
-    parser.add_argument(
-        "--outer-max-iter",
-        type=int,
-        default=50,
-        help="Maximum number of outer iterations.",
-    )
-    parser.add_argument(
-        "--inner-max-iter",
-        type=int,
-        default=10,
-        help="Maximum number of inner iterations.",
-    )
-    parser.add_argument(
-        "--output-file",
-        type=str,
-        default="HT_hydra_robust.npy",
-        help="Output file name. Relative to the path.",
-    )
-    parser.add_argument(
-        "--no-boundary",
-        action="store_true",
-        help="Do not apply dilation / erosion to the mask.",
-    )
-    parser.add_argument(
-        "--dilation-kernel-size",
-        type=int,
-        default=3,
-        help="Dilation kernel size for mask boundary. Larger value will result in larger boundary.",
-    )
-    parser.add_argument(
-        "--erosion-kernel-size",
-        type=int,
-        default=10,
-        help="Erosion kernel size for mask boundary. Larger value will result in larger boundary. The closer the robot, the larger the recommended kernel size.",
-    )
-    parser.add_argument(
-        "--display-results",
-        action="store_true",
-        help="Display point cloud registration results.",
-    )
-    validate_urdf_source(parser, parser.parse_args())
-    return parser.parse_args()
+app = typer.Typer(add_completion=False)
 
 
 def visualize_hydra_result(
@@ -185,55 +47,133 @@ def visualize_hydra_result(
     )
 
 
-def main():
-    args = args_factory()
+@app.command()
+def main(
+    camera_info_file: Path = typer.Option(
+        ..., help="Path to the camera parameters, <path_to>/camera_info.yaml."
+    ),
+    path: Path = typer.Option(..., help="Path to the data."),
+    mask_pattern: str = typer.Option("image_*_mask.png", help="Mask file pattern."),
+    depth_pattern: str = typer.Option(
+        "depth_*.npy",
+        help="Depth file pattern. Note that depth values are expected in meters.",
+    ),
+    joint_states_pattern: str = typer.Option(
+        "joint_states_*.npy", help="Joint state file pattern."
+    ),
+    urdf_path: Optional[Path] = typer.Option(
+        "test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf",
+        help="Path to URDF file. Meshes resolved relative to this file. "
+        "Mutually exclusive with --ros-package/--xacro-path.",
+    ),
+    ros_package: Optional[str] = typer.Option(
+        None,
+        help="ROS package containing robot description. "
+        "Requires --xacro-path. Mutually exclusive with --urdf-path.",
+    ),
+    xacro_path: Optional[str] = typer.Option(
+        None,
+        help="Path to xacro file relative to --ros-package. "
+        "Requires --ros-package. Mutually exclusive with --urdf-path.",
+    ),
+    root_link_name: str = typer.Option(
+        "",
+        help="Root link name. If unspecified, the first link with mesh will be used, which may cause errors.",
+    ),
+    end_link_name: str = typer.Option(
+        "",
+        help="End link name. If unspecified, the last link with mesh will be used, which may cause errors.",
+    ),
+    collision_meshes: bool = typer.Option(
+        False, help="If set, collision meshes will be used instead of visual meshes."
+    ),
+    depth_conversion_factor: float = typer.Option(
+        1.0,
+        help="Conversion factor for depth. Computes z = depth / conversion_factor e.g. to covert from millimeter to meter.",
+    ),
+    z_min: float = typer.Option(0.01, help="Minimum depth value."),
+    z_max: float = typer.Option(2.0, help="Maximum depth value."),
+    number_of_points: int = typer.Option(
+        5000, help="Number of points to sample from robot mesh."
+    ),
+    max_distance: float = typer.Option(
+        0.1,
+        help="Maximum distance between two points to be considered as a correspondence.",
+    ),
+    max_outer_iterations: int = typer.Option(
+        50, help="Maximum number of outer iterations."
+    ),
+    max_inner_iterations: int = typer.Option(
+        10, help="Maximum number of inner iterations."
+    ),
+    output_file: str = typer.Option(
+        "HT_hydra_robust.npy", help="Output file name. Relative to the path."
+    ),
+    no_boundary: bool = typer.Option(
+        False, help="Do not apply dilation / erosion to the mask."
+    ),
+    dilation_kernel_size: int = typer.Option(
+        3,
+        help="Dilation kernel size for mask boundary. Larger value will result in larger boundary.",
+    ),
+    erosion_kernel_size: int = typer.Option(
+        10,
+        help="Erosion kernel size for mask boundary. Larger value will result in larger boundary. The closer the robot, the larger the recommended kernel size.",
+    ),
+    display_results: bool = typer.Option(
+        False, help="Display point cloud registration results."
+    ),
+) -> None:
+    r"""Hydra robust ICP: point-to-plane ICP registration on a Lie algebra."""
+    validate_urdf_source(urdf_path, ros_package, xacro_path)
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    path = Path(args.path)
 
     # load data
     observations = parse_hydra_observations(
-        joint_states_files=find_files(path, args.joint_states_pattern),
-        mask_files=find_files(path, args.mask_pattern),
-        depth_files=find_files(path, args.depth_pattern),
+        joint_states_files=find_files(path, joint_states_pattern),
+        mask_files=find_files(path, mask_pattern),
+        depth_files=find_files(path, depth_pattern),
     )
-    _, _, intrinsics = parse_camera_info(args.camera_info_file)
+    _, _, intrinsics = parse_camera_info(camera_info_file)
 
     # load robot specifications
-    if args.urdf_path is not None:
+    if urdf_path is not None:
         robot_data = load_robot_data_from_urdf_file(
-            urdf_path=args.urdf_path,
-            root_link_name=args.root_link_name,
-            end_link_name=args.end_link_name,
-            collision=args.collision_meshes,
+            urdf_path=urdf_path,
+            root_link_name=root_link_name,
+            end_link_name=end_link_name,
+            collision=collision_meshes,
         )
     else:
         robot_data = load_robot_data_from_ros_xacro(
-            ros_package=args.ros_package,
-            xacro_path=args.xacro_path,
-            root_link_name=args.root_link_name,
-            end_link_name=args.end_link_name,
-            collision=args.collision_meshes,
+            ros_package=ros_package,
+            xacro_path=xacro_path,
+            root_link_name=root_link_name,
+            end_link_name=end_link_name,
+            collision=collision_meshes,
         )
 
     # register
     config = HydraRobustICPConfig(
         HydraConfig(
-            reference_points_per_mesh=args.number_of_points,
+            reference_points_per_mesh=number_of_points,
             depth_to_point_cloud=DepthToPointCloudConfig(
-                z_min=args.z_min,
-                z_max=args.z_max,
-                depth_conversion_factor=args.depth_conversion_factor,
-                use_mask_boundary=not args.no_boundary,
-                dilation_kernel_size=args.dilation_kernel_size,
-                erosion_kernel_size=args.erosion_kernel_size,
+                z_min=z_min,
+                z_max=z_max,
+                depth_conversion_factor=depth_conversion_factor,
+                use_mask_boundary=not no_boundary,
+                dilation_kernel_size=dilation_kernel_size,
+                erosion_kernel_size=erosion_kernel_size,
             ),
-            max_correspondence_distance=args.max_distance,
-        )
+            max_correspondence_distance=max_distance,
+        ),
+        max_outer_iterations=max_outer_iterations,
+        max_inner_iterations=max_inner_iterations,
     )
     hydra_robust_icp = HydraRobustICP(
         config=config,
         device=device,
-        on_after_registration=visualize_hydra_result if args.display_results else None,
+        on_after_registration=visualize_hydra_result if display_results else None,
     )
     rich.print("Entering optimization...")
     result = hydra_robust_icp(
@@ -250,8 +190,8 @@ def main():
 
     # save extrinsics
     rich.print(f"Writing results to: '{path}'.")
-    np.save(path / args.output_file, result.extrinsics.cpu().numpy())
+    np.save(path / output_file, result.extrinsics.cpu().numpy())
 
 
 if __name__ == "__main__":
-    main()
+    app()

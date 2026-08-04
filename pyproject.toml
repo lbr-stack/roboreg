@@ -32,6 +32,7 @@ dependencies = [
   "torch",
   "transformations",
   "trimesh",
+  "typer",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -44,12 +45,12 @@ Homepage = "https://github.com/lbr-stack/roboreg"
 Issues = "https://github.com/lbr-stack/roboreg/issues"
 
 [project.scripts]
-rr-cam-swarm = "cli.rr_cam_swarm:main"
-rr-hydra = "cli.rr_hydra:main"
-rr-mono-dr = "cli.rr_mono_dr:main"
-rr-render = "cli.rr_render:main"
-rr-sam2 = "cli.rr_sam2:main"
-rr-stereo-dr = "cli.rr_stereo_dr:main"
+rr-cam-swarm = "cli.rr_cam_swarm:app"
+rr-hydra = "cli.rr_hydra:app"
+rr-mono-dr = "cli.rr_mono_dr:app"
+rr-render = "cli.rr_render:app"
+rr-sam2 = "cli.rr_sam2:app"
+rr-stereo-dr = "cli.rr_stereo_dr:app"
 
 [tool.setuptools.packages.find]
 where = ["."]

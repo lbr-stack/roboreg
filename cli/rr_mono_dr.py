@@ -1,10 +1,11 @@
-import argparse
 import os
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import rich
 import torch
+import typer
 
 from roboreg.io import (
     find_files,
@@ -33,149 +34,7 @@ from roboreg.registration.image.solver import (
 
 from .util.validate import validate_urdf_source
 
-
-def args_factory() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    parser.add_argument(
-        "--optimizer",
-        type=str,
-        default=DiffRenderingRegistrationConfig().optimizer,
-        help="Optimizer to use, e.g. 'Adam' or 'SGD'. Imported from torch.optim.",
-    )
-    parser.add_argument(
-        "--lr",
-        type=float,
-        default=DiffRenderingRegistrationConfig().lr,
-        help="Learning rate for the optimizer.",
-    )
-    parser.add_argument(
-        "--max-iterations",
-        type=int,
-        default=ConvergenceConfig().max_iterations,
-        help="Maximum number of epochs to optimize for.",
-    )
-    parser.add_argument(
-        "--convergence-tolerance",
-        type=float,
-        default=ConvergenceConfig().tolerance,
-    )
-    parser.add_argument(
-        "--convergence-patience",
-        type=int,
-        default=ConvergenceConfig().patience,
-    )
-    parser.add_argument(
-        "--scheduler-factor",
-        type=float,
-        default=PlateauSchedulerConfig().factor,
-    )
-    parser.add_argument(
-        "--scheduler-patience",
-        type=int,
-        default=PlateauSchedulerConfig().patience,
-    )
-    parser.add_argument(
-        "--scheduler-threshold",
-        type=float,
-        default=PlateauSchedulerConfig().threshold,
-    )
-    parser.add_argument(
-        "--rendering-objective",
-        type=RenderingObjectiveType,
-        choices=list(RenderingObjectiveType),
-        default=RenderingObjectiveType.DISTANCE_MAP,
-        help="Rendering objective.",
-    )
-    parser.add_argument(
-        "--display-progress",
-        action="store_true",
-        help="Display optimization progress.",
-    )
-    parser.add_argument(
-        "--urdf-path",
-        type=str,
-        default="test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf",
-        help="Path to URDF file. Meshes resolved relative to this file. "
-        "Mutually exclusive with --ros-package/--xacro-path.",
-    )
-    parser.add_argument(
-        "--ros-package",
-        type=str,
-        default=None,
-        help="ROS package containing robot description. "
-        "Requires --xacro-path. Mutually exclusive with --urdf-path.",
-    )
-    parser.add_argument(
-        "--xacro-path",
-        type=str,
-        default=None,
-        help="Path to xacro file relative to --ros-package. "
-        "Requires --ros-package. Mutually exclusive with --urdf-path.",
-    )
-    parser.add_argument(
-        "--root-link-name",
-        type=str,
-        default="",
-        help="Root link name. If unspecified, the first link with mesh will be used, which may cause errors.",
-    )
-    parser.add_argument(
-        "--end-link-name",
-        type=str,
-        default="",
-        help="End link name. If unspecified, the last link with mesh will be used, which may cause errors.",
-    )
-    parser.add_argument(
-        "--collision-meshes",
-        action="store_true",
-        help="If set, collision meshes will be used instead of visual meshes.",
-    )
-    parser.add_argument(
-        "--camera-info-file",
-        type=str,
-        required=True,
-        help="Full path to left camera parameters, <path_to>/left_camera_info.yaml.",
-    )
-    parser.add_argument(
-        "--extrinsics-file",
-        type=str,
-        required=True,
-        help="Full path to homogeneous transforms from base to left camera frame, <path_to>/HT_hydra_robust.npy.",
-    )
-    parser.add_argument("--path", type=str, required=True, help="Path to the data.")
-    parser.add_argument(
-        "--image-pattern",
-        type=str,
-        default="left_image_*.png",
-        help="Left image file pattern.",
-    )
-    parser.add_argument(
-        "--joint-states-pattern",
-        type=str,
-        default="joint_states_*.npy",
-        help="Joint state file pattern.",
-    )
-    parser.add_argument(
-        "--mask-pattern",
-        type=str,
-        default="left_mask_*.png",
-        help="Left mask file pattern.",
-    )
-    parser.add_argument(
-        "--output-file",
-        type=str,
-        default="HT_left_dr.npy",
-        help="Left output file name. Relative to --path.",
-    )
-    parser.add_argument(
-        "--max-jobs",
-        type=int,
-        default=2,
-        help="Number of concurrent compilation jobs for nvdiffrast. Only relevant on first run.",
-    )
-    validate_urdf_source(parser, parser.parse_args())
-    return parser.parse_args()
+app = typer.Typer(add_completion=False)
 
 
 def print_optimization_state(state: OptimizationState) -> None:
@@ -187,43 +46,114 @@ def print_optimization_state(state: OptimizationState) -> None:
     )
 
 
-def main() -> None:
-    args = args_factory()
+@app.command()
+def main(
+    camera_info_file: Path = typer.Option(
+        ...,
+        help="Full path to left camera parameters, <path_to>/left_camera_info.yaml.",
+    ),
+    extrinsics_file: Path = typer.Option(
+        ...,
+        help="Full path to homogeneous transforms from base to left camera frame, <path_to>/HT_hydra_robust.npy.",
+    ),
+    path: Path = typer.Option(..., help="Path to the data."),
+    optimizer: str = typer.Option(
+        DiffRenderingRegistrationConfig().optimizer,
+        help="Optimizer to use, e.g. 'Adam' or 'SGD'. Imported from torch.optim.",
+    ),
+    lr: float = typer.Option(
+        DiffRenderingRegistrationConfig().lr, help="Learning rate for the optimizer."
+    ),
+    max_iterations: int = typer.Option(
+        ConvergenceConfig().max_iterations,
+        help="Maximum number of epochs to optimize for.",
+    ),
+    convergence_tolerance: float = typer.Option(ConvergenceConfig().tolerance),
+    convergence_patience: int = typer.Option(ConvergenceConfig().patience),
+    scheduler_factor: float = typer.Option(PlateauSchedulerConfig().factor),
+    scheduler_patience: int = typer.Option(PlateauSchedulerConfig().patience),
+    scheduler_threshold: float = typer.Option(PlateauSchedulerConfig().threshold),
+    rendering_objective: RenderingObjectiveType = typer.Option(
+        RenderingObjectiveType.DISTANCE_MAP, help="Rendering objective."
+    ),
+    display_progress: bool = typer.Option(False, help="Display optimization progress."),
+    urdf_path: Optional[Path] = typer.Option(
+        "test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf",
+        help="Path to URDF file. Meshes resolved relative to this file. "
+        "Mutually exclusive with --ros-package/--xacro-path.",
+    ),
+    ros_package: Optional[str] = typer.Option(
+        None,
+        help="ROS package containing robot description. "
+        "Requires --xacro-path. Mutually exclusive with --urdf-path.",
+    ),
+    xacro_path: Optional[str] = typer.Option(
+        None,
+        help="Path to xacro file relative to --ros-package. "
+        "Requires --ros-package. Mutually exclusive with --urdf-path.",
+    ),
+    root_link_name: str = typer.Option(
+        "",
+        help="Root link name. If unspecified, the first link with mesh will be used, which may cause errors.",
+    ),
+    end_link_name: str = typer.Option(
+        "",
+        help="End link name. If unspecified, the last link with mesh will be used, which may cause errors.",
+    ),
+    collision_meshes: bool = typer.Option(
+        False, help="If set, collision meshes will be used instead of visual meshes."
+    ),
+    image_pattern: str = typer.Option(
+        "left_image_*.png", help="Left image file pattern."
+    ),
+    joint_states_pattern: str = typer.Option(
+        "joint_states_*.npy", help="Joint state file pattern."
+    ),
+    mask_pattern: str = typer.Option("left_mask_*.png", help="Left mask file pattern."),
+    output_file: str = typer.Option(
+        "HT_left_dr.npy", help="Left output file name. Relative to --path."
+    ),
+    max_jobs: int = typer.Option(
+        2,
+        help="Number of concurrent compilation jobs for nvdiffrast. Only relevant on first run.",
+    ),
+) -> None:
+    r"""Monocular differentiable rendering registration."""
+    validate_urdf_source(urdf_path, ros_package, xacro_path)
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    os.environ["MAX_JOBS"] = str(args.max_jobs)  # limit number of concurrent jobs
-    path = Path(args.path)
+    os.environ["MAX_JOBS"] = str(max_jobs)  # limit number of concurrent jobs
 
     # load data
     observations = parse_monocular_observations(
-        image_files=find_files(path, args.image_pattern),
-        joint_states_files=find_files(path, args.joint_states_pattern),
-        target_files=find_files(path, args.mask_pattern),
+        image_files=find_files(path, image_pattern),
+        joint_states_files=find_files(path, joint_states_pattern),
+        target_files=find_files(path, mask_pattern),
     )
-    _, _, intrinsics = parse_camera_info(args.camera_info_file)
-    extrinsics = np.load(args.extrinsics_file)
+    _, _, intrinsics = parse_camera_info(camera_info_file)
+    extrinsics = np.load(extrinsics_file)
 
     # load robot specifications
-    if args.urdf_path is not None:
+    if urdf_path is not None:
         robot_data = load_robot_data_from_urdf_file(
-            urdf_path=args.urdf_path,
-            root_link_name=args.root_link_name,
-            end_link_name=args.end_link_name,
-            collision=args.collision_meshes,
+            urdf_path=urdf_path,
+            root_link_name=root_link_name,
+            end_link_name=end_link_name,
+            collision=collision_meshes,
         )
     else:
         robot_data = load_robot_data_from_ros_xacro(
-            ros_package=args.ros_package,
-            xacro_path=args.xacro_path,
-            root_link_name=args.root_link_name,
-            end_link_name=args.end_link_name,
-            collision=args.collision_meshes,
+            ros_package=ros_package,
+            xacro_path=xacro_path,
+            root_link_name=root_link_name,
+            end_link_name=end_link_name,
+            collision=collision_meshes,
         )
 
     # register
     on_iteration: list[OptimizationCallback] = [
         print_optimization_state,
     ]
-    if args.display_progress:
+    if display_progress:
         on_iteration.append(
             RenderOverlayCallback(
                 images={
@@ -236,21 +166,21 @@ def main() -> None:
     diff_rendering_registration = DiffRenderingRegistration(
         config=DiffRenderingRegistrationConfig(
             camera=CameraConfig(),
-            optimizer=args.optimizer,
-            lr=args.lr,
+            optimizer=optimizer,
+            lr=lr,
             convergence=ConvergenceConfig(
-                max_iterations=args.max_iterations,
-                tolerance=args.convergence_tolerance,
-                patience=args.convergence_patience,
+                max_iterations=max_iterations,
+                tolerance=convergence_tolerance,
+                patience=convergence_patience,
             ),
             plateau_scheduler=PlateauSchedulerConfig(
                 mode="min",
-                factor=args.scheduler_factor,
-                patience=args.scheduler_patience,
-                threshold=args.scheduler_threshold,
+                factor=scheduler_factor,
+                patience=scheduler_patience,
+                threshold=scheduler_threshold,
             ),
         ),
-        objective=create_rendering_objective(objective_type=args.rendering_objective),
+        objective=create_rendering_objective(objective_type=rendering_objective),
         device=device,
         on_iteration=on_iteration,
     )
@@ -275,10 +205,10 @@ def main() -> None:
     # save extrinsics
     rich.print(f"Writing results to: '{path}'.")
     np.save(
-        path / args.output_file,
+        path / output_file,
         result.extrinsics.cpu().numpy(),
     )
 
 
 if __name__ == "__main__":
-    main()
+    app()

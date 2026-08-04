@@ -1,7 +1,8 @@
-import argparse
+from pathlib import Path
 
 import cv2
 import numpy as np
+import typer
 from rich import progress
 
 from roboreg.detector import OpenCVDetector
@@ -9,58 +10,37 @@ from roboreg.io import find_files
 from roboreg.segmentor import Sam2Segmentor
 from roboreg.util import overlay_mask
 
-
-def args_factory() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    parser.add_argument("--path", type=str, required=True, help="Path to the images.")
-    parser.add_argument(
-        "--pattern", type=str, default="image_*.png", help="Image file pattern."
-    )
-    parser.add_argument(
-        "--n-positive-samples", type=int, default=5, help="Number of positive samples."
-    )
-    parser.add_argument(
-        "--n-negative-samples", type=int, default=5, help="Number of negative samples."
-    )
-    parser.add_argument(
-        "--model-id",
-        type=str,
-        default="facebook/sam2-hiera-large",
-        help="Hugging Face model ID.",
-    )
-    parser.add_argument(
-        "--device",
-        type=str,
-        default="cuda",
-        help="Device to run the model. Default: cuda",
-    )
-    parser.add_argument(
-        "--pre-annotated",
-        action="store_true",
-        help="Try to read annotations.",
-    )
-    return parser.parse_args()
+app = typer.Typer(add_completion=False)
 
 
-def main():
-    args = args_factory()
-    image_files = find_files(args.path, args.pattern)
+@app.command()
+def main(
+    path: Path = typer.Option(..., help="Path to the images."),
+    pattern: str = typer.Option("image_*.png", help="Image file pattern."),
+    n_positive_samples: int = typer.Option(5, help="Number of positive samples."),
+    n_negative_samples: int = typer.Option(5, help="Number of negative samples."),
+    model_id: str = typer.Option(
+        "facebook/sam2-hiera-large", help="Hugging Face model ID."
+    ),
+    device: str = typer.Option("cuda", help="Device to run the model. Default: cuda"),
+    pre_annotated: bool = typer.Option(False, help="Try to read annotations."),
+) -> None:
+    r"""Generate robot masks with SAM2, seeded by OpenCV-detected samples."""
+    image_files = find_files(path, pattern)
 
     # detect
     detector = OpenCVDetector(
-        n_negative_samples=args.n_negative_samples,
-        n_positive_samples=args.n_positive_samples,
+        n_negative_samples=n_negative_samples,
+        n_positive_samples=n_positive_samples,
     )
 
     # segment
-    segmentor = Sam2Segmentor(model_id=args.model_id, device=args.device)
+    segmentor = Sam2Segmentor(model_id=model_id, device=device)
 
     for image_file in progress.track(image_files, description="Generating masks..."):
         img = cv2.imread(image_file)
         annotations = False
-        if args.pre_annotated:
+        if pre_annotated:
             try:
                 samples, labels = detector.read(
                     path=image_file.parent / f"{image_file.stem}_samples.csv"
@@ -90,4 +70,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    app()
