@@ -420,7 +420,7 @@ def main() -> None:
     HT_cam_swarm = look_at_from_angle(
         eye=best_eye, center=best_center, angle=best_angle
     )
-    np.save(path / args.output_file), HT_cam_swarm.cpu().numpy()
+    np.save(path / args.output_file, HT_cam_swarm.cpu().numpy())
 
 
 if __name__ == "__main__":
