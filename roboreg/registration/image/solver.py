@@ -10,10 +10,7 @@ from roboreg.core.rendering import NVDiffRastRenderer
 from roboreg.core.robot import Robot
 from roboreg.core.scene import RobotScene
 from roboreg.core.structs import VirtualCamera
-from roboreg.registration.image.config import (
-    CameraSwarmRegistrationConfig,
-    DiffRenderingRegistrationConfig,
-)
+from roboreg.registration.image.config import DiffRenderingRegistrationConfig
 from roboreg.registration.image.objectives import RenderingObjective
 from roboreg.registration.image.request import (
     ImageObservations,
