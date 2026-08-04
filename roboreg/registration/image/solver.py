@@ -252,18 +252,3 @@ class DiffRenderingRegistration:
             iterations=iteration,
             termination_reason=TerminationReason.MAX_ITERATIONS,
         )
-
-
-class CameraSwarmRegistration:
-    def __init__(
-        self,
-        config: CameraSwarmRegistrationConfig,
-        objective: RenderingObjective,
-        device: torch.device | str = "cuda",
-    ) -> None:
-        self._config = config
-        self._objective = objective
-        self._device = torch.device(device)
-
-    def __call__(self, request: ImageRegistrationRequest) -> RegistrationResult:
-        pass
