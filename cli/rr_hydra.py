@@ -2,6 +2,7 @@ import argparse
 from pathlib import Path
 
 import numpy as np
+import rich
 import torch
 
 from roboreg.io import (
@@ -232,8 +233,9 @@ def main():
     hydra_robust_icp = HydraRobustICP(
         config=config,
         device=device,
-        callback=visualize_hydra_result if args.display_results else None,
+        on_after_registration=visualize_hydra_result if args.display_results else None,
     )
+    rich.print("Entering optimization...")
     result = hydra_robust_icp(
         request=HydraRequest(
             intrinsics=intrinsics,
@@ -241,8 +243,13 @@ def main():
             observations=observations,
         )
     )
+    rich.print(
+        f"Optimization terminated after {result.iterations} iterations "
+        f"with status '{result.termination_reason}'."
+    )
 
-    # to numpy
+    # save extrinsics
+    rich.print(f"Writing results to: '{path}'.")
     np.save(path / args.output_file, result.extrinsics.cpu().numpy())
 
 

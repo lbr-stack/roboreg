@@ -26,7 +26,7 @@ class CameraConfig:
 class ConvergenceConfig:
     max_iterations: int = 400
     tolerance: float = 1.0e-3
-    patience: int = 50
+    patience: int = 100
 
     def __post_init__(self) -> None:
         if self.max_iterations <= 0:
@@ -41,7 +41,7 @@ class ConvergenceConfig:
 class PlateauSchedulerConfig:
     mode: Literal["min", "max"] = "min"
     factor: float = 0.1
-    patience: int = 50
+    patience: int = 40
     threshold: float = 1.0e-4
 
     def __post_init__(self) -> None:

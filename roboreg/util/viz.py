@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 import cv2
 import numpy as np
@@ -9,7 +9,7 @@ import torch
 def overlay_mask(
     img: np.ndarray,
     mask: np.ndarray,
-    mode: str = "r",
+    mode: Literal["r", "g", "b"] = "r",
     alpha: float = 0.5,
     beta: float = 0.5,
     gamma: float = 0.0,
@@ -27,6 +27,11 @@ def overlay_mask(
     Returns:
         Mask overlayed on image.
     """
+    if img.shape[:2] != mask.shape:
+        raise ValueError(
+            f"Image and mask shapes must match, got "
+            f"{img.shape[:2]} and {mask.shape}."
+        )
     colored_mask = None
     if mode == "r":
         colored_mask = np.stack(

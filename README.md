@@ -187,9 +187,9 @@ rr-mono-dr \
     --lr 0.03 \
     --max-iterations 400 \
     --convergence-tolerance 0.001 \
-    --convergence-patience 50 \
+    --convergence-patience 100 \
     --scheduler-factor 0.1 \
-    --scheduler-patience 50 \
+    --scheduler-patience 40 \
     --scheduler-threshold 0.0001 \
     --display-progress \
     --urdf-path test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf \
@@ -218,9 +218,9 @@ rr-stereo-dr \
     --lr 0.03 \
     --max-iterations 400 \
     --convergence-tolerance 0.001 \
-    --convergence-patience 50 \
+    --convergence-patience 100 \
     --scheduler-factor 0.1 \
-    --scheduler-patience 50 \
+    --scheduler-patience 40 \
     --scheduler-threshold 0.0001 \
     --display-progress \
     --urdf-path test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf \

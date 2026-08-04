@@ -152,11 +152,11 @@ class HydraICP:
         self,
         config: HydraICPConfig | None = None,
         device: torch.device | str = "cuda",
-        callback: HydraCallback | None = None,
+        on_after_registration: HydraCallback | None = None,
     ) -> None:
         self._config = config or HydraICPConfig()
         self._device = torch.device(device)
-        self._callback = callback
+        self._on_after_registration = on_after_registration
 
     def __call__(self, request: HydraRequest) -> RegistrationResult:
         hydra_problem = _prepare_hydra_problem(
@@ -176,8 +176,8 @@ class HydraICP:
             max_iterations=self._config.max_iterations,
             rmse_change_tolerance=self._config.hydra.rmse_change_tolerance,
         )
-        if self._callback is not None:
-            self._callback(hydra_problem, result)
+        if self._on_after_registration is not None:
+            self._on_after_registration(hydra_problem, result)
         return result
 
 
@@ -186,11 +186,11 @@ class HydraRobustICP:
         self,
         config: HydraRobustICPConfig | None = None,
         device: torch.device | str = "cuda",
-        callback: HydraCallback | None = None,
+        on_after_registration: HydraCallback | None = None,
     ) -> None:
         self._config = config or HydraRobustICPConfig()
         self._device = torch.device(device)
-        self._callback = callback
+        self._on_after_registration = on_after_registration
 
     def __call__(self, request: HydraRequest) -> RegistrationResult:
         hydra_problem = _prepare_hydra_problem(
@@ -212,6 +212,6 @@ class HydraRobustICP:
             max_inner_iterations=self._config.max_inner_iterations,
             rmse_change_tolerance=self._config.hydra.rmse_change_tolerance,
         )
-        if self._callback is not None:
-            self._callback(hydra_problem, result)
+        if self._on_after_registration is not None:
+            self._on_after_registration(hydra_problem, result)
         return result

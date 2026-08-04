@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 import numpy as np
+import rich
 import torch
 
 from roboreg.io import (
@@ -12,6 +13,7 @@ from roboreg.io import (
     parse_camera_info,
     parse_stereo_observations,
 )
+from roboreg.registration.image.callbacks import RenderOverlayCallback
 from roboreg.registration.image.config import (
     CameraConfig,
     ConvergenceConfig,
@@ -23,7 +25,11 @@ from roboreg.registration.image.objectives import (
     create_rendering_objective,
 )
 from roboreg.registration.image.request import CameraData, ImageRegistrationRequest
-from roboreg.registration.image.solver import DiffRenderingRegistration
+from roboreg.registration.image.solver import (
+    DiffRenderingRegistration,
+    OptimizationCallback,
+    OptimizationState,
+)
 
 from .util.validate import validate_urdf_source
 
@@ -202,6 +208,15 @@ def args_factory() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def print_optimization_state(state: OptimizationState) -> None:
+    rich.print(
+        f"Step [{state.iteration} / {state.max_iterations}], "
+        f"loss: {state.loss:.3f}, "
+        f"best loss: {state.best_loss:.3f}, "
+        f"lr: {state.learning_rate:.3e}"
+    )
+
+
 def main() -> None:
     args = args_factory()
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -240,6 +255,19 @@ def main() -> None:
         )
 
     # register
+    on_iteration: list[OptimizationCallback] = [
+        print_optimization_state,
+    ]
+    if args.display_progress:
+        on_iteration.append(
+            RenderOverlayCallback(
+                images={
+                    camera_name: camera_observations.images
+                    for camera_name, camera_observations in observations.cameras.items()
+                    if camera_observations.images is not None
+                },
+            )
+        )
     diff_rendering_registration = DiffRenderingRegistration(
         config=DiffRenderingRegistrationConfig(
             camera=CameraConfig(),
@@ -259,7 +287,9 @@ def main() -> None:
         ),
         objective=create_rendering_objective(objective_type=args.rendering_objective),
         device=device,
+        on_iteration=[print_optimization_state],
     )
+    rich.print("Entering optimization...")
     result = diff_rendering_registration(
         request=ImageRegistrationRequest(
             cameras={
@@ -276,8 +306,13 @@ def main() -> None:
             initial_extrinsics=extrinsics,
         )
     )
+    rich.print(
+        f"Optimization terminated after {result.iterations} iterations "
+        f"with status '{result.termination_reason}'."
+    )
 
     # save extrinsics
+    rich.print(f"Writing results to: '{path}'.")
     np.save(
         path / args.left_output_file,
         result.extrinsics.cpu().numpy(),

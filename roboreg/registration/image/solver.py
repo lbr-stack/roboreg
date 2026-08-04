@@ -1,10 +1,10 @@
-from typing import Iterable
+from dataclasses import dataclass
+from typing import Callable, Iterable
 
 import numpy as np
 import pytorch_kinematics as pk
-import rich
-import rich.progress
 import torch
+import torch.nn.functional as F
 
 from roboreg.core.rendering import NVDiffRastRenderer
 from roboreg.core.robot import Robot
@@ -23,46 +23,45 @@ from roboreg.registration.result import RegistrationResult, TerminationReason
 from roboreg.util.transform import rescale_intrinsics
 
 
+@dataclass(frozen=True)
+class OptimizationState:
+    iteration: int
+    max_iterations: int
+    loss: float
+    best_loss: float
+    learning_rate: float
+    extrinsics: torch.Tensor
+    renders: dict[str, torch.Tensor]
+    camera_losses: dict[str, float]
+
+
+OptimizationCallback = Callable[[OptimizationState], None]
+
+
 class DiffRenderingRegistration:
     def __init__(
         self,
         config: DiffRenderingRegistrationConfig,
         objective: RenderingObjective,
         device: torch.device | str = "cuda",
+        on_iteration: list[OptimizationCallback] | None = None,
     ) -> None:
         self._config = config
         self._objective = objective
         self._device = torch.device(device)
-
-        # TODO: add support for callbacks
+        self._on_iteration = on_iteration or []
 
     def __call__(
         self,
         request: ImageRegistrationRequest,
     ) -> RegistrationResult:
-        # PREPARE TARGETS (targets, joint states, extrinsics)
-        # prepare problem: enable gradient tracking and instantiate optimizer
-        extrinsics_inv = torch.linalg.inv(
-            torch.tensor(
-                request.initial_extrinsics, dtype=torch.float32, device=self._device
-            )
-        )
-        extrinsics_9d_inv = pk.matrix44_to_se3_9d(extrinsics_inv)
-        extrinsics_9d_inv.requires_grad = True
-
-        if not extrinsics_9d_inv.requires_grad:
-            raise ValueError("Extrinsics require gradients.")
-        if not torch.is_grad_enabled():
-            raise ValueError("Gradients must be enabled.")
-
         joint_states, preprocessed_targets = self._prepare_image_observations(
             request.observations
         )
-        # PREPARE TARGETS END (targets, joint states, extrinsics)
         robot_scene = self._create_robot_scene(request)
+        extrinsics_9d_inv = self._prepare_extrinsics_9d_inv(request.initial_extrinsics)
         optimizer = self._create_optimizer(params=[extrinsics_9d_inv])
         scheduler = self._create_reduce_on_plateau_scheduler(optimizer)
-        # run optimization loop
         result = self._optimize(
             robot_scene=robot_scene,
             joint_states=joint_states,
@@ -92,6 +91,16 @@ class DiffRenderingRegistration:
                 )
                 / 255.0
             )
+            # resize on hardware resolution, rendering resolution mismatch
+            target_resolution = (
+                self._config.camera.target_resolution or camera_observations.shape
+            )
+            if targets.shape[-2:] != target_resolution:
+                targets = F.interpolate(
+                    targets.unsqueeze(1),
+                    size=target_resolution,
+                    mode="nearest",
+                ).squeeze(1)
             preprocessed_targets[camera_name] = self._objective.preprocess_targets(
                 targets
             )
@@ -137,6 +146,22 @@ class DiffRenderingRegistration:
             renderer=NVDiffRastRenderer(device=self._device),
         )
 
+    def _prepare_extrinsics_9d_inv(
+        self,
+        initial_extrinsics: np.ndarray,
+    ) -> torch.Tensor:
+        extrinsics = torch.as_tensor(
+            initial_extrinsics,
+            dtype=torch.float32,
+            device=self._device,
+        )
+        # TODO: Standardize transform naming and direction conventions
+        # https://github.com/lbr-stack/roboreg/issues/137
+        extrinsics_inv = torch.linalg.inv(extrinsics)
+        return (
+            pk.matrix44_to_se3_9d(extrinsics_inv).detach().clone().requires_grad_(True)
+        )
+
     def _create_optimizer(
         self, params: Iterable[torch.Tensor]
     ) -> torch.optim.Optimizer:
@@ -162,45 +187,66 @@ class DiffRenderingRegistration:
         optimizer: torch.optim.Optimizer,
         scheduler: torch.optim.lr_scheduler.ReduceLROnPlateau,
     ) -> RegistrationResult:
-
         best_extrinsics_inv: torch.Tensor | None = None
         best_loss = float("inf")
-
-        # TODO: add convergence check...
-
-        for iteration in rich.progress.track(
-            range(1, self._config.convergence.max_iterations + 1), "Optimizing..."
-        ):
-
-            extrinsics_inv = pk.se3_9d_to_matrix44(
-                extrinsics_9d_inv
-            )  ### that's the parameter here....
+        iterations_without_improvement = 0
+        for iteration in range(1, self._config.convergence.max_iterations + 1):
+            extrinsics_inv = pk.se3_9d_to_matrix44(extrinsics_9d_inv)
             robot_scene.robot.configure(joint_states, extrinsics_inv)
-
             # per camera render and loss
-            camera_losses: list[torch.Tensor] = []
+            camera_losses: dict[str, torch.Tensor] = {}
+            renders: dict[str, torch.Tensor] | None = {} if self._on_iteration else None
             for camera_name in robot_scene.cameras:
                 render = robot_scene.observe_from(camera_name)
-                camera_loss = self._objective(
+                camera_losses[camera_name] = self._objective(
                     preprocessed_targets=preprocessed_targets[camera_name],
                     renders=render,
                 )
-                camera_losses.append(camera_loss)
-            loss = torch.stack(camera_losses).mean()
-
+                if renders is not None:
+                    renders[camera_name] = render
+            loss = torch.stack(list(camera_losses.values())).mean()
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             scheduler.step(metrics=loss)
-
-            rich.print(
-                f"Step [{iteration} / {self._config.convergence.max_iterations}], loss: {np.round(loss.item(), 3)}, best loss: {np.round(best_loss, 3)}, lr: {scheduler.get_last_lr().pop()}"
-            )
-
-            if loss.item() < best_loss:
-                best_loss = loss.item()
+            loss_value = loss.item()
+            if loss_value < best_loss:
+                improvement = best_loss - loss_value
+                best_loss = loss_value
                 best_extrinsics_inv = extrinsics_inv.detach().clone()
 
+                if improvement > self._config.convergence.tolerance:
+                    iterations_without_improvement = 0
+                else:
+                    iterations_without_improvement += 1
+            else:
+                iterations_without_improvement += 1
+            if iterations_without_improvement >= self._config.convergence.patience:
+                return RegistrationResult(
+                    extrinsics=torch.linalg.inv(best_extrinsics_inv),
+                    iterations=iteration,
+                    termination_reason=TerminationReason.CONVERGED,
+                )
+            if self._on_iteration:
+                assert renders is not None
+                state = OptimizationState(
+                    iteration=iteration,
+                    max_iterations=self._config.convergence.max_iterations,
+                    loss=loss_value,
+                    best_loss=best_loss,
+                    learning_rate=optimizer.param_groups[0]["lr"],
+                    extrinsics=torch.linalg.inv(extrinsics_inv.detach()),
+                    renders={
+                        camera_name: render.detach()
+                        for camera_name, render in renders.items()
+                    },
+                    camera_losses={
+                        camera_name: camera_loss.detach().item()
+                        for camera_name, camera_loss in camera_losses.items()
+                    },
+                )
+                for callback in self._on_iteration:
+                    callback(state)
         return RegistrationResult(
             extrinsics=torch.linalg.inv(best_extrinsics_inv),
             iterations=iteration,
