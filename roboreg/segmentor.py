@@ -33,7 +33,9 @@ class Sam2Segmentor(Segmentor):
         device: Union[torch.device, str] = "cuda",
     ) -> None:
         super().__init__(pth=pth, device=device)
-        self._model: SAM2ImagePredictor = SAM2ImagePredictor.from_pretrained(model_id)
+        self._model: SAM2ImagePredictor = SAM2ImagePredictor.from_pretrained(
+            model_id, device=self._device
+        )
 
     def __call__(
         self, img: np.ndarray, input_points: np.ndarray, input_labels: np.ndarray
