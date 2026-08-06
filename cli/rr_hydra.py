@@ -10,8 +10,8 @@ from roboreg.io import (
     find_files,
     load_robot_data_from_ros_xacro,
     load_robot_data_from_urdf_file,
-    parse_camera_info,
     parse_hydra_observations,
+    parse_intrinsics,
 )
 from roboreg.registration.point_cloud.config import (
     DepthToPointCloudConfig,
@@ -49,8 +49,9 @@ def visualize_hydra_result(
 
 @app.command()
 def main(
-    camera_info_file: Path = typer.Option(
-        ..., help="Path to the camera parameters, <path_to>/camera_info.yaml."
+    intrinsics_file: Path = typer.Option(
+        ...,
+        help="Path to intrinsics, e.g. <path_to>/intrinsics.csv or <path_to>/camera_info.yaml.",
     ),
     path: Path = typer.Option(..., help="Path to the data."),
     mask_pattern: str = typer.Option("image_*_mask.png", help="Mask file pattern."),
@@ -134,7 +135,7 @@ def main(
         mask_files=find_files(path, mask_pattern),
         depth_files=find_files(path, depth_pattern),
     )
-    _, _, intrinsics = parse_camera_info(camera_info_file)
+    intrinsics = parse_intrinsics(intrinsics_file)
 
     # load robot specifications
     if urdf_path is not None:

@@ -11,7 +11,7 @@ from roboreg.io import (
     find_files,
     load_robot_data_from_ros_xacro,
     load_robot_data_from_urdf_file,
-    parse_camera_info,
+    parse_intrinsics,
     parse_stereo_observations,
 )
 from roboreg.registration.image.callbacks import RenderOverlayCallback
@@ -48,13 +48,13 @@ def print_optimization_state(state: OptimizationState) -> None:
 
 @app.command()
 def main(
-    left_camera_info_file: Path = typer.Option(
+    left_intrinsics_file: Path = typer.Option(
         ...,
-        help="Full path to left camera parameters, <path_to>/left_camera_info.yaml.",
+        help="Full path to left intrinsics, <path_to>/left_intrinsics.csv or <path_to>/left_camera_info.yaml.",
     ),
-    right_camera_info_file: Path = typer.Option(
+    right_intrinsics_file: Path = typer.Option(
         ...,
-        help="Full path to right camera parameters, <path_to>/right_camera_info.yaml.",
+        help="Full path to right intrinsics, <path_to>/right_intrinsics.csv or <path_to>/right_camera_info.yaml.",
     ),
     left_extrinsics_file: Path = typer.Option(
         ...,
@@ -62,7 +62,7 @@ def main(
     ),
     right_extrinsics_file: Path = typer.Option(
         ...,
-        help="Full path to homogeneous transforms from base to right camera frame, <path_to>/HT_right_to_left.npy.",
+        help="Full path to homogeneous transforms from right to left camera frame, <path_to>/HT_right_to_left.npy.",
     ),
     path: Path = typer.Option(..., help="Path to the data."),
     optimizer: str = typer.Option(
@@ -151,8 +151,8 @@ def main(
         right_target_files=find_files(path, right_mask_pattern),
     )
 
-    _, _, left_intrinsics = parse_camera_info(left_camera_info_file)
-    _, _, right_intrinsics = parse_camera_info(right_camera_info_file)
+    left_intrinsics = parse_intrinsics(left_intrinsics_file)
+    right_intrinsics = parse_intrinsics(right_intrinsics_file)
     extrinsics = np.load(left_extrinsics_file)
     right_extrinsics = np.load(right_extrinsics_file)
 

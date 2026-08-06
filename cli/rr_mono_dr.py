@@ -11,7 +11,7 @@ from roboreg.io import (
     find_files,
     load_robot_data_from_ros_xacro,
     load_robot_data_from_urdf_file,
-    parse_camera_info,
+    parse_intrinsics,
     parse_monocular_observations,
 )
 from roboreg.registration.image.callbacks import RenderOverlayCallback
@@ -48,9 +48,9 @@ def print_optimization_state(state: OptimizationState) -> None:
 
 @app.command()
 def main(
-    camera_info_file: Path = typer.Option(
+    intrinsics_file: Path = typer.Option(
         ...,
-        help="Full path to left camera parameters, <path_to>/left_camera_info.yaml.",
+        help="Full path to intrinsics, e.g. <path_to>/intrinsics.csv or <path_to>/camera_info.yaml.",
     ),
     extrinsics_file: Path = typer.Option(
         ...,
@@ -129,7 +129,7 @@ def main(
         joint_states_files=find_files(path, joint_states_pattern),
         target_files=find_files(path, mask_pattern),
     )
-    _, _, intrinsics = parse_camera_info(camera_info_file)
+    intrinsics = parse_intrinsics(intrinsics_file)
     extrinsics = np.load(extrinsics_file)
 
     # load robot specifications

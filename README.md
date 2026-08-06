@@ -126,7 +126,7 @@ The Hydra robust ICP implements a point-to-plane ICP registration on a Lie algeb
 
 ```shell
 rr-hydra \
-    --camera-info-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
+    --intrinsics-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
     --path test/assets/lbr_med7_r800/samples \
     --mask-pattern mask_sam2_left_image_*.png \
     --depth-pattern depth_*.npy \
@@ -195,7 +195,7 @@ rr-mono-dr \
     --urdf-path test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
-    --camera-info-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
+    --intrinsics-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
     --extrinsics-file test/assets/lbr_med7_r800/samples/HT_hydra_robust.npy \
     --path test/assets/lbr_med7_r800/samples \
     --image-pattern left_image_*.png \
@@ -226,8 +226,8 @@ rr-stereo-dr \
     --urdf-path test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
-    --left-camera-info-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
-    --right-camera-info-file test/assets/lbr_med7_r800/samples/right_camera_info.yaml \
+    --left-intrinsics-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
+    --right-intrinsics-file test/assets/lbr_med7_r800/samples/right_camera_info.yaml \
     --left-extrinsics-file test/assets/lbr_med7_r800/samples/HT_hydra_robust.npy \
     --right-extrinsics-file test/assets/lbr_med7_r800/samples/HT_right_to_left.npy \
     --path test/assets/lbr_med7_r800/samples \
@@ -272,7 +272,7 @@ To run Hydra robust ICP on provided `xarm` and `realsense` data, run
 
 ```shell
 rr-hydra \
-    --camera-info-file test/assets/xarm_7/samples/camera_info.yaml \
+    --intrinsics-file test/assets/xarm_7/samples/camera_info.yaml \
     --path test/assets/xarm_7/samples \
     --mask-pattern mask_*.png \
     --depth-pattern depth_*.npy \

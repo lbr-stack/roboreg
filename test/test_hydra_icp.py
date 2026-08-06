@@ -17,8 +17,8 @@ from roboreg.io import (
 from roboreg.registration.point_cloud.hydra import (
     centroid_alignment,
     correspondence_indices,
-    point_to_point_icp,
     point_to_plane_robust_icp,
+    point_to_point_icp,
 )
 from roboreg.util import (
     RegistrationVisualizer,

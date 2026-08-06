@@ -8,6 +8,7 @@ from roboreg.io import (
     find_files,
     parse_camera_info,
     parse_hydra_observations,
+    parse_intrinsics,
     parse_monocular_observations,
     parse_stereo_observations,
 )
@@ -117,6 +118,17 @@ def test_parse_hydra_observations() -> None:
         observations.masks[0] <= 255
     ), "Expected mask in range [0, 255]."
     assert observations.depths[0].ndim == 2, "Expected 2D depth map."
+
+
+def test_parse_intrinsics() -> None:
+    path = Path("test/assets/lbr_med7_r800/samples")
+    file = "left_intrinsics.csv"
+
+    intrinsics = parse_intrinsics(path / file)
+
+    assert isinstance(intrinsics, np.ndarray)
+    assert intrinsics.shape == (3, 3)
+    assert np.isfinite(intrinsics).all()
 
 
 def test_parse_monocular_observations() -> None:
