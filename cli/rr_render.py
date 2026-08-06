@@ -36,7 +36,7 @@ def main(
     ),
     extrinsics_file: Path = typer.Option(
         ...,
-        help="Homogeneous transform from base to camera frame, <path_to>/HT_hydra_robust.npy.",
+        help="Homogeneous transform from base to camera frame. E.g. <path_to>/HT_hydra_robust.csv or <path_to>/HT_hydra_robust.npy.",
     ),
     images_path: Path = typer.Option(..., help="Path to the images."),
     joint_states_path: Path = typer.Option(..., help="Path to the joint states."),

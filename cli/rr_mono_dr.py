@@ -11,8 +11,10 @@ from roboreg.io import (
     find_files,
     load_robot_data_from_ros_xacro,
     load_robot_data_from_urdf_file,
-    parse_camera_info,
+    parse_extrinsics,
+    parse_intrinsics,
     parse_monocular_observations,
+    save_extrinsics,
 )
 from roboreg.registration.image.callbacks import RenderOverlayCallback
 from roboreg.registration.image.config import (
@@ -48,13 +50,13 @@ def print_optimization_state(state: OptimizationState) -> None:
 
 @app.command()
 def main(
-    camera_info_file: Path = typer.Option(
+    intrinsics_file: Path = typer.Option(
         ...,
-        help="Full path to left camera parameters, <path_to>/left_camera_info.yaml.",
+        help="Full path to intrinsics, e.g. <path_to>/intrinsics.csv or <path_to>/camera_info.yaml.",
     ),
     extrinsics_file: Path = typer.Option(
         ...,
-        help="Full path to homogeneous transforms from base to left camera frame, <path_to>/HT_hydra_robust.npy.",
+        help="Full path to homogeneous transforms from base to left camera frame. E.g. <path_to>/HT_hydra_robust.csv or <path_to>/HT_hydra_robust.npy.",
     ),
     path: Path = typer.Option(..., help="Path to the data."),
     optimizer: str = typer.Option(
@@ -111,7 +113,8 @@ def main(
     ),
     mask_pattern: str = typer.Option("left_mask_*.png", help="Left mask file pattern."),
     output_file: str = typer.Option(
-        "HT_left_dr.npy", help="Left output file name. Relative to --path."
+        "HT_left_dr.csv",
+        help="Left output file name. Relative to --path. Supported formats: .csv, .npy.",
     ),
     max_jobs: int = typer.Option(
         2,
@@ -129,8 +132,8 @@ def main(
         joint_states_files=find_files(path, joint_states_pattern),
         target_files=find_files(path, mask_pattern),
     )
-    _, _, intrinsics = parse_camera_info(camera_info_file)
-    extrinsics = np.load(extrinsics_file)
+    intrinsics = parse_intrinsics(intrinsics_file)
+    extrinsics = parse_extrinsics(extrinsics_file)
 
     # load robot specifications
     if urdf_path is not None:
@@ -204,10 +207,7 @@ def main(
 
     # save extrinsics
     rich.print(f"Writing results to: '{path}'.")
-    np.save(
-        path / output_file,
-        result.extrinsics.cpu().numpy(),
-    )
+    save_extrinsics(path / output_file, result.extrinsics.cpu().numpy())
 
 
 if __name__ == "__main__":

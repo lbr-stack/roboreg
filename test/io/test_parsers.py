@@ -7,9 +7,12 @@ from roboreg.io import (
     URDFParser,
     find_files,
     parse_camera_info,
+    parse_extrinsics,
     parse_hydra_observations,
+    parse_intrinsics,
     parse_monocular_observations,
     parse_stereo_observations,
+    save_extrinsics,
 )
 
 
@@ -95,6 +98,35 @@ def test_parse_camera_info() -> None:
     assert intrinsic_matrix.shape == (3, 3), "Intrinsic matrix should be of shape 3x3."
 
 
+@pytest.mark.parametrize("suffix", [".npy", ".csv"])
+def test_extrinsics_round_trip(
+    tmp_path: Path,
+    suffix: str,
+) -> None:
+    extrinsics = np.array(
+        [
+            [1.0, 0.0, 0.0, 0.1],
+            [0.0, 1.0, 0.0, -0.2],
+            [0.0, 0.0, 1.0, 0.3],
+            [0.0, 0.0, 0.0, 1.0],
+        ],
+        dtype=np.float64,
+    )
+
+    extrinsics_file = tmp_path / f"extrinsics{suffix}"
+
+    save_extrinsics(
+        extrinsics_file=extrinsics_file,
+        extrinsics=extrinsics,
+    )
+    parsed_extrinsics = parse_extrinsics(extrinsics_file)
+
+    assert extrinsics_file.exists()
+    assert isinstance(parsed_extrinsics, np.ndarray)
+    assert parsed_extrinsics.shape == (4, 4)
+    np.testing.assert_allclose(parsed_extrinsics, extrinsics)
+
+
 def test_parse_hydra_observations() -> None:
     path = "test/assets/lbr_med7_r800/samples"
     observations = parse_hydra_observations(
@@ -117,6 +149,17 @@ def test_parse_hydra_observations() -> None:
         observations.masks[0] <= 255
     ), "Expected mask in range [0, 255]."
     assert observations.depths[0].ndim == 2, "Expected 2D depth map."
+
+
+def test_parse_intrinsics() -> None:
+    path = Path("test/assets/lbr_med7_r800/samples")
+    file = "left_intrinsics.csv"
+
+    intrinsics = parse_intrinsics(path / file)
+
+    assert isinstance(intrinsics, np.ndarray)
+    assert intrinsics.shape == (3, 3)
+    assert np.isfinite(intrinsics).all()
 
 
 def test_parse_monocular_observations() -> None:

@@ -362,7 +362,7 @@ class VirtualCamera(Camera):
         extrinsics_file: Optional[Union[Path, str]] = None,
         device: Union[torch.device, str] = "cuda",
     ) -> "VirtualCamera":
-        from roboreg.io.parsers import parse_camera_info
+        from roboreg.io.parsers import parse_camera_info, parse_extrinsics
 
         camera_info_file = Path(camera_info_file)
 
@@ -370,7 +370,7 @@ class VirtualCamera(Camera):
         extrinsics = None
         if extrinsics_file is not None:
             extrinsics_file = Path(extrinsics_file)
-            extrinsics = np.load(extrinsics_file)
+            extrinsics = parse_extrinsics(extrinsics_file)
         return cls(
             resolution=[height, width],
             intrinsics=intrinsics,

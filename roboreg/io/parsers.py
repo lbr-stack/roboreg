@@ -315,6 +315,65 @@ def parse_camera_info(
     return height, width, intrinsic_matrix
 
 
+def parse_intrinsics(intrinsics_file: Path | str) -> np.ndarray:
+    r"""Parse camera intrinsics from a file.
+
+    Args:
+        intrinsics_file: Path to a CSV or YAML file.
+
+    Returns:
+        Intrinsic matrix of shape 3x3.
+    """
+    intrinsics_file = Path(intrinsics_file)
+    suffix = intrinsics_file.suffix.lower()
+    if suffix == ".csv":
+        intrinsics = np.loadtxt(intrinsics_file, delimiter=",")
+    elif suffix in {".yaml", ".yml"}:
+        with intrinsics_file.open("r") as file:
+            data = yaml.safe_load(file)
+        if not isinstance(data, dict):
+            raise ValueError(f"Expected a YAML mapping in '{intrinsics_file}'.")
+        if "intrinsics" in data:
+            intrinsics = np.asarray(data["intrinsics"])
+        elif "k" in data:
+            _, _, intrinsics = parse_camera_info(intrinsics_file)
+        else:
+            raise ValueError(f"Could not find intrinsics in '{intrinsics_file}'.")
+    else:
+        raise ValueError(f"Unsupported intrinsics file type '{suffix}'.")
+    if intrinsics.size != 9:
+        raise ValueError(f"Expected 9 intrinsic values, got {intrinsics.size}.")
+    return intrinsics.reshape(3, 3)
+
+
+def parse_extrinsics(extrinsics_file: Union[Path, str]) -> np.ndarray:
+    r"""Parse extrinsics from a NumPy or CSV file.
+
+    Args:
+        extrinsics_file (Union[Path, str]): Path to a NumPy or CSV file.
+
+    Returns:
+        Extrinsic matrix of shape 4x4.
+    """
+    extrinsics_file = Path(extrinsics_file)
+    suffix = extrinsics_file.suffix.lower()
+
+    if suffix == ".npy":
+        extrinsics = np.load(extrinsics_file)
+    elif suffix == ".csv":
+        extrinsics = np.loadtxt(extrinsics_file, delimiter=",")
+    else:
+        raise ValueError(
+            f"Unsupported extrinsics file type '{suffix}'. "
+            "Expected '.npy' or '.csv'."
+        )
+
+    if extrinsics.size != 16:
+        raise ValueError(f"Expected 16 extrinsic values, got {extrinsics.size}.")
+
+    return extrinsics.reshape(4, 4)
+
+
 def parse_hydra_observations(
     joint_states_files: List[Path],
     mask_files: List[Path],

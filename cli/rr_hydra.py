@@ -10,8 +10,9 @@ from roboreg.io import (
     find_files,
     load_robot_data_from_ros_xacro,
     load_robot_data_from_urdf_file,
-    parse_camera_info,
     parse_hydra_observations,
+    parse_intrinsics,
+    save_extrinsics,
 )
 from roboreg.registration.point_cloud.config import (
     DepthToPointCloudConfig,
@@ -49,8 +50,9 @@ def visualize_hydra_result(
 
 @app.command()
 def main(
-    camera_info_file: Path = typer.Option(
-        ..., help="Path to the camera parameters, <path_to>/camera_info.yaml."
+    intrinsics_file: Path = typer.Option(
+        ...,
+        help="Path to intrinsics, e.g. <path_to>/intrinsics.csv or <path_to>/camera_info.yaml.",
     ),
     path: Path = typer.Option(..., help="Path to the data."),
     mask_pattern: str = typer.Option("image_*_mask.png", help="Mask file pattern."),
@@ -107,7 +109,8 @@ def main(
         10, help="Maximum number of inner iterations."
     ),
     output_file: str = typer.Option(
-        "HT_hydra_robust.npy", help="Output file name. Relative to the path."
+        "HT_hydra_robust.csv",
+        help="Output file name. Relative to --path. Supported formats: .csv, .npy.",
     ),
     no_boundary: bool = typer.Option(
         False, help="Do not apply dilation / erosion to the mask."
@@ -134,7 +137,7 @@ def main(
         mask_files=find_files(path, mask_pattern),
         depth_files=find_files(path, depth_pattern),
     )
-    _, _, intrinsics = parse_camera_info(camera_info_file)
+    intrinsics = parse_intrinsics(intrinsics_file)
 
     # load robot specifications
     if urdf_path is not None:
@@ -190,7 +193,7 @@ def main(
 
     # save extrinsics
     rich.print(f"Writing results to: '{path}'.")
-    np.save(path / output_file, result.extrinsics.cpu().numpy())
+    save_extrinsics(path / output_file, result.extrinsics.cpu().numpy())
 
 
 if __name__ == "__main__":

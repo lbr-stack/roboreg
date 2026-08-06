@@ -126,7 +126,7 @@ The Hydra robust ICP implements a point-to-plane ICP registration on a Lie algeb
 
 ```shell
 rr-hydra \
-    --camera-info-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
+    --intrinsics-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
     --path test/assets/lbr_med7_r800/samples \
     --mask-pattern mask_sam2_left_image_*.png \
     --depth-pattern depth_*.npy \
@@ -136,7 +136,7 @@ rr-hydra \
     --end-link-name lbr_link_7 \
     --number-of-points 5000 \
     --display-results \
-    --output-file HT_hydra_robust.npy
+    --output-file HT_hydra_robust.csv
 ```
 
 ### Camera Swarm
@@ -170,7 +170,7 @@ rr-cam-swarm \
     --image-pattern left_image_*.png \
     --joint-states-pattern joint_states_*.npy \
     --mask-pattern mask_sam2_left_image_*.png \
-    --output-file HT_cam_swarm.npy
+    --output-file HT_cam_swarm.csv
 ```
 
 ### Monocular Differentiable Rendering
@@ -195,13 +195,13 @@ rr-mono-dr \
     --urdf-path test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
-    --camera-info-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
-    --extrinsics-file test/assets/lbr_med7_r800/samples/HT_hydra_robust.npy \
+    --intrinsics-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
+    --extrinsics-file test/assets/lbr_med7_r800/samples/HT_hydra_robust.csv \
     --path test/assets/lbr_med7_r800/samples \
     --image-pattern left_image_*.png \
     --joint-states-pattern joint_states_*.npy \
     --mask-pattern mask_sam2_left_image_*.png \
-    --output-file HT_dr.npy
+    --output-file HT_dr.csv
 ```
 
 ### Stereo Differentiable Rendering
@@ -226,18 +226,18 @@ rr-stereo-dr \
     --urdf-path test/assets/lbr_med7_r800/description/lbr_med7_r800.urdf \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
-    --left-camera-info-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
-    --right-camera-info-file test/assets/lbr_med7_r800/samples/right_camera_info.yaml \
-    --left-extrinsics-file test/assets/lbr_med7_r800/samples/HT_hydra_robust.npy \
-    --right-extrinsics-file test/assets/lbr_med7_r800/samples/HT_right_to_left.npy \
+    --left-intrinsics-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
+    --right-intrinsics-file test/assets/lbr_med7_r800/samples/right_camera_info.yaml \
+    --left-extrinsics-file test/assets/lbr_med7_r800/samples/HT_hydra_robust.csv \
+    --right-extrinsics-file test/assets/lbr_med7_r800/samples/HT_right_to_left.csv \
     --path test/assets/lbr_med7_r800/samples \
     --left-image-pattern left_image_*.png \
     --right-image-pattern right_image_*.png \
     --joint-states-pattern joint_states_*.npy \
     --left-mask-pattern mask_sam2_left_image_*.png \
     --right-mask-pattern mask_sam2_right_image_*.png \
-    --left-output-file HT_left_dr.npy \
-    --right-output-file HT_right_dr.npy
+    --left-output-file HT_left_dr.csv \
+    --right-output-file HT_right_dr.csv
 ```
 
 ### Render Results
@@ -256,7 +256,7 @@ rr-render \
     --root-link-name lbr_link_0 \
     --end-link-name lbr_link_7 \
     --camera-info-file test/assets/lbr_med7_r800/samples/left_camera_info.yaml \
-    --extrinsics-file test/assets/lbr_med7_r800/samples/HT_left_dr.npy \
+    --extrinsics-file test/assets/lbr_med7_r800/samples/HT_left_dr.csv \
     --images-path test/assets/lbr_med7_r800/samples \
     --joint-states-path test/assets/lbr_med7_r800/samples \
     --image-pattern left_image_*.png \
@@ -272,7 +272,7 @@ To run Hydra robust ICP on provided `xarm` and `realsense` data, run
 
 ```shell
 rr-hydra \
-    --camera-info-file test/assets/xarm_7/samples/camera_info.yaml \
+    --intrinsics-file test/assets/xarm_7/samples/camera_info.yaml \
     --path test/assets/xarm_7/samples \
     --mask-pattern mask_*.png \
     --depth-pattern depth_*.npy \
@@ -282,7 +282,7 @@ rr-hydra \
     --end-link-name link7 \
     --number-of-points 5000 \
     --display-results \
-    --output-file HT_hydra_robust.npy
+    --output-file HT_hydra_robust.csv
 ```
 
 ### Render Results
@@ -296,7 +296,7 @@ rr-render \
     --root-link-name link_base \
     --end-link-name link7 \
     --camera-info-file test/assets/xarm_7/samples/camera_info.yaml \
-    --extrinsics-file test/assets/xarm_7/samples/HT_hydra_robust.npy \
+    --extrinsics-file test/assets/xarm_7/samples/HT_hydra_robust.csv \
     --images-path test/assets/xarm_7/samples \
     --joint-states-path test/assets/xarm_7/samples \
     --image-pattern img_*.png \

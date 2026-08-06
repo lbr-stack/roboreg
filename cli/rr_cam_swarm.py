@@ -14,6 +14,7 @@ from roboreg.io import (
     load_robot_data_from_urdf_file,
     parse_camera_info,
     parse_monocular_observations,
+    save_extrinsics,
 )
 from roboreg.losses import soft_dice_loss
 from roboreg.optim import LinearParticleSwarm, ParticleSwarmOptimizer
@@ -161,7 +162,8 @@ def main(
     ),
     mask_pattern: str = typer.Option("image_*_mask.png", help="Mask file pattern."),
     output_file: str = typer.Option(
-        "HT_cam_swarm.npy", help="Output file name. Relative to --path."
+        "HT_cam_swarm.csv",
+        help="Output file name. Relative to --path. Supported formats: .csv, .npy.",
     ),
     n_samples: int = typer.Option(
         5,
@@ -339,7 +341,7 @@ def main(
     HT_cam_swarm = look_at_from_angle(
         eye=best_eye, center=best_center, angle=best_angle
     )
-    np.save(path / output_file, HT_cam_swarm.cpu().numpy())
+    save_extrinsics(path / output_file, HT_cam_swarm.squeeze().cpu().numpy())
 
 
 if __name__ == "__main__":
