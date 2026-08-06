@@ -346,6 +346,34 @@ def parse_intrinsics(intrinsics_file: Path | str) -> np.ndarray:
     return intrinsics.reshape(3, 3)
 
 
+def parse_extrinsics(extrinsics_file: Union[Path, str]) -> np.ndarray:
+    r"""Parse extrinsics from a NumPy or CSV file.
+
+    Args:
+        extrinsics_file (Union[Path, str]): Path to a NumPy or CSV file.
+
+    Returns:
+        Extrinsic matrix of shape 4x4.
+    """
+    extrinsics_file = Path(extrinsics_file)
+    suffix = extrinsics_file.suffix.lower()
+
+    if suffix == ".npy":
+        extrinsics = np.load(extrinsics_file)
+    elif suffix == ".csv":
+        extrinsics = np.loadtxt(extrinsics_file, delimiter=",")
+    else:
+        raise ValueError(
+            f"Unsupported extrinsics file type '{suffix}'. "
+            "Expected '.npy' or '.csv'."
+        )
+
+    if extrinsics.size != 16:
+        raise ValueError(f"Expected 16 extrinsic values, got {extrinsics.size}.")
+
+    return extrinsics.reshape(4, 4)
+
+
 def parse_hydra_observations(
     joint_states_files: List[Path],
     mask_files: List[Path],

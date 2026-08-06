@@ -11,8 +11,10 @@ from roboreg.io import (
     find_files,
     load_robot_data_from_ros_xacro,
     load_robot_data_from_urdf_file,
+    parse_extrinsics,
     parse_intrinsics,
     parse_stereo_observations,
+    save_extrinsics,
 )
 from roboreg.registration.image.callbacks import RenderOverlayCallback
 from roboreg.registration.image.config import (
@@ -58,11 +60,11 @@ def main(
     ),
     left_extrinsics_file: Path = typer.Option(
         ...,
-        help="Full path to homogeneous transforms from base to left camera frame, <path_to>/HT_hydra_robust.npy.",
+        help="Full path to homogeneous transforms from base to left camera frame. E.g. <path_to>/HT_hydra_robust.csv or <path_to>/HT_hydra_robust.npy.",
     ),
     right_extrinsics_file: Path = typer.Option(
         ...,
-        help="Full path to homogeneous transforms from right to left camera frame, <path_to>/HT_right_to_left.npy.",
+        help="Full path to homogeneous transforms from right to left camera frame. E.g. <path_to>/HT_right_to_left.csv or <path_to>/HT_right_to_left.npy.",
     ),
     path: Path = typer.Option(..., help="Path to the data."),
     optimizer: str = typer.Option(
@@ -127,10 +129,12 @@ def main(
         "right_mask_*.png", help="Right mask file pattern."
     ),
     left_output_file: str = typer.Option(
-        "HT_left_dr.npy", help="Left output file name. Relative to --path."
+        "HT_left_dr.csv",
+        help="Left output file name. Relative to --path. Supported formats: .csv, .npy.",
     ),
     right_output_file: str = typer.Option(
-        "HT_right_dr.npy", help="Right output file name. Relative to --path."
+        "HT_right_dr.csv",
+        help="Right output file name. Relative to --path. Supported formats: .csv, .npy.",
     ),
     max_jobs: int = typer.Option(
         2,
@@ -153,8 +157,8 @@ def main(
 
     left_intrinsics = parse_intrinsics(left_intrinsics_file)
     right_intrinsics = parse_intrinsics(right_intrinsics_file)
-    extrinsics = np.load(left_extrinsics_file)
-    right_extrinsics = np.load(right_extrinsics_file)
+    extrinsics = parse_extrinsics(left_extrinsics_file)
+    right_extrinsics = parse_extrinsics(right_extrinsics_file)
 
     # load robot specifications
     if urdf_path is not None:
@@ -232,11 +236,8 @@ def main(
 
     # save extrinsics
     rich.print(f"Writing results to: '{path}'.")
-    np.save(
-        path / left_output_file,
-        result.extrinsics.cpu().numpy(),
-    )
-    np.save(
+    save_extrinsics(path / left_output_file, result.extrinsics.cpu().numpy())
+    save_extrinsics(
         path / right_output_file,
         result.extrinsics.cpu().numpy() @ right_extrinsics,
     )

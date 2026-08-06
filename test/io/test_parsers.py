@@ -7,10 +7,12 @@ from roboreg.io import (
     URDFParser,
     find_files,
     parse_camera_info,
+    parse_extrinsics,
     parse_hydra_observations,
     parse_intrinsics,
     parse_monocular_observations,
     parse_stereo_observations,
+    save_extrinsics,
 )
 
 
@@ -94,6 +96,35 @@ def test_parse_camera_info() -> None:
     assert width > 0, "Width should be positive."
     assert isinstance(intrinsic_matrix, np.ndarray)
     assert intrinsic_matrix.shape == (3, 3), "Intrinsic matrix should be of shape 3x3."
+
+
+@pytest.mark.parametrize("suffix", [".npy", ".csv"])
+def test_extrinsics_round_trip(
+    tmp_path: Path,
+    suffix: str,
+) -> None:
+    extrinsics = np.array(
+        [
+            [1.0, 0.0, 0.0, 0.1],
+            [0.0, 1.0, 0.0, -0.2],
+            [0.0, 0.0, 1.0, 0.3],
+            [0.0, 0.0, 0.0, 1.0],
+        ],
+        dtype=np.float64,
+    )
+
+    extrinsics_file = tmp_path / f"extrinsics{suffix}"
+
+    save_extrinsics(
+        extrinsics_file=extrinsics_file,
+        extrinsics=extrinsics,
+    )
+    parsed_extrinsics = parse_extrinsics(extrinsics_file)
+
+    assert extrinsics_file.exists()
+    assert isinstance(parsed_extrinsics, np.ndarray)
+    assert parsed_extrinsics.shape == (4, 4)
+    np.testing.assert_allclose(parsed_extrinsics, extrinsics)
 
 
 def test_parse_hydra_observations() -> None:

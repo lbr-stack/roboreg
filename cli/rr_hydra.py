@@ -12,6 +12,7 @@ from roboreg.io import (
     load_robot_data_from_urdf_file,
     parse_hydra_observations,
     parse_intrinsics,
+    save_extrinsics,
 )
 from roboreg.registration.point_cloud.config import (
     DepthToPointCloudConfig,
@@ -108,7 +109,8 @@ def main(
         10, help="Maximum number of inner iterations."
     ),
     output_file: str = typer.Option(
-        "HT_hydra_robust.npy", help="Output file name. Relative to the path."
+        "HT_hydra_robust.csv",
+        help="Output file name. Relative to --path. Supported formats: .csv, .npy.",
     ),
     no_boundary: bool = typer.Option(
         False, help="Do not apply dilation / erosion to the mask."
@@ -191,7 +193,7 @@ def main(
 
     # save extrinsics
     rich.print(f"Writing results to: '{path}'.")
-    np.save(path / output_file, result.extrinsics.cpu().numpy())
+    save_extrinsics(path / output_file, result.extrinsics.cpu().numpy())
 
 
 if __name__ == "__main__":
