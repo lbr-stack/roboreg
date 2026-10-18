@@ -131,16 +131,14 @@ class URDFParser:
         self._verify_links_in_chain(
             root_link_name=root_link_name, end_link_name=end_link_name
         )
-        link_names = [root_link_name]
-        while link_names[-1] != end_link_name:
-            children = self._robot.child_map[link_names[-1]]
-            if len(children) != 1:
-                raise RuntimeError(f"Expected 1 child, got {len(children)}.")
-            _, child_link_name = children[0]
-            if link_names[-1] == child_link_name:
-                raise RuntimeError(f"End of chain without {end_link_name}.")
-            link_names.append(child_link_name)
-        return link_names
+        # each link has exactly one parent, so walking end to root is unambiguous
+        link_names = [end_link_name]
+        while link_names[-1] != root_link_name:
+            if link_names[-1] not in self._robot.parent_map:
+                raise RuntimeError(f"End of chain without {root_link_name}.")
+            _, parent_link_name = self._robot.parent_map[link_names[-1]]
+            link_names.append(parent_link_name)
+        return list(reversed(link_names))
 
     def link_names_with_meshes(self, collision: bool = False) -> List[str]:
         r"""Get link names that have meshes.
