@@ -234,10 +234,13 @@ class URDFParser:
                 if link.visual is None:
                     continue
                 link_origin = link.visual.origin
-            origin = transformations.euler_matrix(
-                link_origin.rpy[0], link_origin.rpy[1], link_origin.rpy[2], "sxyz"
-            )
-            origin[:3, 3] = link_origin.xyz
+            if link_origin is None:
+                origin = np.eye(4)
+            else:
+                origin = transformations.euler_matrix(
+                    link_origin.rpy[0], link_origin.rpy[1], link_origin.rpy[2], "sxyz"
+                )
+                origin[:3, 3] = link_origin.xyz
             mesh_origins[link_name] = origin
         return mesh_origins
 
